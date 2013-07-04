@@ -57,17 +57,19 @@
 #include "src/token.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/assembler-ia32-inl.h"  // NOLINT
+#include "src/ia32/assembler-ia32-inl.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/assembler-x64-inl.h"  // NOLINT
+#include "src/x64/assembler-x64-inl.h"
+#elif V8_TARGET_ARCH_X32
+#include "src/x32/assembler-x32-inl.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/assembler-arm64-inl.h"  // NOLINT
+#include "src/arm64/assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/assembler-arm-inl.h"  // NOLINT
+#include "src/arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/assembler-mips-inl.h"  // NOLINT
+#include "src/mips/assembler-mips-inl.h"
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/assembler-x87-inl.h"  // NOLINT
+#include "src/x87/assembler-x87-inl.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -75,17 +77,19 @@
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
+#include "src/ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/regexp-macro-assembler-x64.h"  // NOLINT
+#include "src/x64/regexp-macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_X32
+#include "src/x32/regexp-macro-assembler-x32.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/regexp-macro-assembler-arm64.h"  // NOLINT
+#include "src/arm64/regexp-macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
+#include "src/arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
+#include "src/mips/regexp-macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/regexp-macro-assembler-x87.h"  // NOLINT
+#include "src/x87/regexp-macro-assembler-x87.h"
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
@@ -1334,6 +1338,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   Address function;
 #if V8_TARGET_ARCH_X64
   function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
+#elif V8_TARGET_ARCH_X32
+  function = FUNCTION_ADDR(RegExpMacroAssemblerX32::CheckStackGuardState);
 #elif V8_TARGET_ARCH_IA32
   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
 #elif V8_TARGET_ARCH_ARM64

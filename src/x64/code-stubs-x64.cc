@@ -445,6 +445,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
 
 
 #define __ ACCESS_MASM(masm)
+#define __k __
 
 
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
@@ -507,7 +508,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     ASSERT(is_truncating());
 
     Label check_negative, process_64_bits, done;
-
     int double_offset = offset();
 
     // Account for return address and saved regs if input is rsp.
@@ -1499,11 +1499,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 9: Pass current isolate address.
   __ LoadAddress(kScratchRegister,
                  ExternalReference::isolate_address(isolate()));
-  __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kRegisterSize),
+  __k movq(Operand(rsp, (argument_slots_on_stack - 1) * kRegisterSize),
           kScratchRegister);
 
   // Argument 8: Indicate that this is a direct call from JavaScript.
-  __ movq(Operand(rsp, (argument_slots_on_stack - 2) * kRegisterSize),
+  __k movq(Operand(rsp, (argument_slots_on_stack - 2) * kRegisterSize),
           Immediate(1));
 
   // Argument 7: Start (high end) of backtracking stack memory area.
@@ -1511,13 +1511,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movp(r9, Operand(kScratchRegister, 0));
   __ Move(kScratchRegister, address_of_regexp_stack_memory_size);
   __ addp(r9, Operand(kScratchRegister, 0));
-  __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kRegisterSize), r9);
+  __k movq(Operand(rsp, (argument_slots_on_stack - 3) * kRegisterSize), r9);
 
   // Argument 6: Set the number of capture registers to zero to force global
   // regexps to behave as non-global.  This does not affect non-global regexps.
   // Argument 6 is passed in r9 on Linux and on the stack on Windows.
 #ifdef _WIN64
-  __ movq(Operand(rsp, (argument_slots_on_stack - 4) * kRegisterSize),
+  __k movq(Operand(rsp, (argument_slots_on_stack - 4) * kRegisterSize),
           Immediate(0));
 #else
   __ Set(r9, 0);
@@ -1528,7 +1528,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       r8, ExternalReference::address_of_static_offsets_vector(isolate()));
   // Argument 5 passed in r8 on Linux and on the stack on Windows.
 #ifdef _WIN64
-  __ movq(Operand(rsp, (argument_slots_on_stack - 5) * kRegisterSize), r8);
+  __k movq(Operand(rsp, (argument_slots_on_stack - 5) * kRegisterSize), r8);
 #endif
 
   // rdi: subject string
@@ -2605,8 +2605,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     // Read result values stored on stack. Result is stored
     // above the four argument mirror slots and the two
     // Arguments object slots.
-    __ movq(rax, Operand(rsp, 6 * kRegisterSize));
-    __ movq(rdx, Operand(rsp, 7 * kRegisterSize));
+    __k movq(rax, Operand(rsp, 6 * kRegisterSize));
+    __k movq(rdx, Operand(rsp, 7 * kRegisterSize));
   }
 #endif
 
@@ -3585,7 +3585,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
          FieldOperand(left, length, times_1, SeqOneByteString::kHeaderSize));
   __ leap(right,
          FieldOperand(right, length, times_1, SeqOneByteString::kHeaderSize));
-  __ negq(length);
+  __k negq(length);
   Register index = length;  // index = -length;
 
   // Compare loop.
@@ -3594,7 +3594,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ movb(scratch, Operand(left, index, times_1, 0));
   __ cmpb(scratch, Operand(right, index, times_1, 0));
   __ j(not_equal, chars_not_equal, near_jump);
-  __ incq(index);
+  __k incq(index);
   __ j(not_zero, &loop);
 }
 
@@ -5048,6 +5048,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 }
 
 
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

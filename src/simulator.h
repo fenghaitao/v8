@@ -9,6 +9,8 @@
 #include "src/ia32/simulator-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/x64/simulator-x64.h"
+#elif V8_TARGET_ARCH_X32
+#include "src/x32/simulator-x32.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM

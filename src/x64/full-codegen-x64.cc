@@ -20,6 +20,8 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm_)
+#define __k __
+#define __n __
 
 
 class JumpPatchSite BASE_EMBEDDED {
@@ -3955,7 +3957,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movl(index, array_length_operand);
   __ leap(elements, FieldOperand(elements, index, times_pointer_size,
                                 FixedArray::kHeaderSize));
-  __ negq(index);
+  __k negq(index);
 
   // Replace separator string with pointer to its first character, and
   // make scratch be its length.
@@ -3991,7 +3993,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ leap(string,
          FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(result_pos, string, string_length);
-  __ incq(index);
+  __k incq(index);
   __ j(not_equal, &loop_3);  // Loop while (index < 0).
 
   __ bind(&done);
@@ -4728,6 +4730,8 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 }
 
 
+#undef __n
+#undef __k
 #undef __
 
 

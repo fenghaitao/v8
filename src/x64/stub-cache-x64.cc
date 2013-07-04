@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
+#define __k __
 
 
 static void ProbeTable(Isolate* isolate,
@@ -1429,6 +1430,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
 }
 
 
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

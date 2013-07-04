@@ -3,23 +3,25 @@
 // found in the LICENSE file.
 
 #include "src/v8.h"
+#include "src/lithium-allocator-inl.h"
 
 #include "src/hydrogen.h"
-#include "src/lithium-allocator-inl.h"
 #include "src/string-stream.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/lithium-ia32.h"  // NOLINT
+#include "src/ia32/lithium-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/lithium-x64.h"  // NOLINT
+#include "src/x64/lithium-x64.h"
+#elif V8_TARGET_ARCH_X32
+#include "src/x32/lithium-x32.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/lithium-arm64.h"  // NOLINT
+#include "src/arm64/lithium-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/lithium-arm.h"  // NOLINT
+#include "src/arm/lithium-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/lithium-mips.h"  // NOLINT
+#include "src/mips/lithium-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/lithium-x87.h"  // NOLINT
+#include "src/x87/lithium-x87.h"
 #else
 #error "Unknown architecture."
 #endif

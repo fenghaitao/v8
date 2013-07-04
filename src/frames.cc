@@ -1514,7 +1514,6 @@ void StackHandler::Unwind(Isolate* isolate,
                           int offset,
                           int previous_handler_offset) const {
   STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 5);
-  ASSERT_LE(0, offset);
   ASSERT_GE(array->length(), offset + StackHandlerConstants::kSlotCount);
   // Unwinding a stack handler into an array chains it in the opposite
   // direction, re-using the "next" slot as a "previous" link, so that stack

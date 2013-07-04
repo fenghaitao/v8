@@ -46,17 +46,19 @@
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/codegen-ia32.h"  // NOLINT
+#include "src/ia32/codegen-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/codegen-x64.h"  // NOLINT
+#include "src/x64/codegen-x64.h"
+#elif V8_TARGET_ARCH_X32
+#include "src/x32/codegen-x32.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/codegen-arm64.h"  // NOLINT
+#include "src/arm64/codegen-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/codegen-arm.h"  // NOLINT
+#include "src/arm/codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/codegen-mips.h"  // NOLINT
+#include "src/mips/codegen-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/codegen-x87.h"  // NOLINT
+#include "src/x87/codegen-x87.h"
 #else
 #error Unsupported target architecture.
 #endif

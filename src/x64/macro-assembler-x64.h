@@ -837,6 +837,15 @@ class MacroAssembler: public Assembler {
   void Cmp(const Operand& dst, Smi* src);
   void Push(Handle<Object> source);
 
+#ifdef V8_TARGET_ARCH_X32
+  void Push(Immediate value);
+  void Push_imm32(int32_t imm32);
+  void Push(Register src);
+  void Push(const Operand& src);
+  void Pop(Register dst);
+  void Pop(const Operand& dst);
+#endif
+
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
   void MoveHeapObject(Register result, Handle<Object> object);

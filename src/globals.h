@@ -148,7 +148,7 @@ const int kFPOnStackSize = kRegisterSize;
 
 const int kDoubleSizeLog2 = 3;
 
-#if V8_HOST_ARCH_64_BIT
+#if V8_HOST_ARCH_64_BIT && !V8_TARGET_ARCH_X32
 const int kPointerSizeLog2 = 3;
 const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
 const uintptr_t kUintptrAllBitsSet = V8_UINT64_C(0xFFFFFFFFFFFFFFFF);

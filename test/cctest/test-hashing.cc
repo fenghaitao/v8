@@ -82,6 +82,23 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ popq(rbx);
   __ popq(kRootRegister);
   __ Ret();
+#elif V8_TARGET_ARCH_X32
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+  __ push(rbx);
+  __ push(rcx);
+  __ movl(rax, Immediate(0));
+  __ movl(rbx, Immediate(string.at(0)));
+  StringHelper::GenerateHashInit(masm, rax, rbx, rcx);
+  for (int i = 1; i < string.length(); i++) {
+    __ movl(rbx, Immediate(string.at(i)));
+    StringHelper::GenerateHashAddCharacter(masm, rax, rbx, rcx);
+  }
+  StringHelper::GenerateHashGetHash(masm, rax, rcx);
+  __ pop(rcx);
+  __ pop(rbx);
+  __ pop(kRootRegister);
+  __ Ret();
 #elif V8_TARGET_ARCH_ARM
   __ push(kRootRegister);
   __ InitializeRootRegister();
@@ -150,6 +167,15 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ GetNumberHash(rax, rbx);
   __ popq(rbx);
   __ popq(kRootRegister);
+  __ Ret();
+#elif V8_TARGET_ARCH_X32
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+  __ push(rbx);
+  __ movl(rax, Immediate(key));
+  __ GetNumberHash(rax, rbx);
+  __ pop(rbx);
+  __ pop(kRootRegister);
   __ Ret();
 #elif V8_TARGET_ARCH_ARM
   __ push(kRootRegister);

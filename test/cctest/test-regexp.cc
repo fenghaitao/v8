@@ -62,6 +62,11 @@
 #include "src/x64/macro-assembler-x64.h"
 #include "src/x64/regexp-macro-assembler-x64.h"
 #endif
+#if V8_TARGET_ARCH_X32
+#include "x32/assembler-x32.h"
+#include "x32/macro-assembler-x32.h"
+#include "x32/regexp-macro-assembler-x32.h"
+#endif
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
@@ -696,6 +701,8 @@ TEST(ParsePossessiveRepetition) {
 typedef RegExpMacroAssemblerIA32 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_X64
 typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_X32
+typedef RegExpMacroAssemblerX32 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_ARM
 typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_ARM64
