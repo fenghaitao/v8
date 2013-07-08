@@ -1025,6 +1025,7 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
   return kScratchRegister;
 }
 
+
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   // Disable check for Uninitialized kSmiConstantRegister for X32.
   int value = source->value();
