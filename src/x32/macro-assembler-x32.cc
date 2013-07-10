@@ -3981,59 +3981,8 @@ void MacroAssembler::Allocate(int header_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  if (!FLAG_inline_new) {
-    if (emit_debug_code()) {
-      // Trash the registers to simulate an allocation failure.
-      movl(result, Immediate(0x7091));
-      movl(result_end, Immediate(0x7191));
-      if (scratch.is_valid()) {
-        movl(scratch, Immediate(0x7291));
-      }
-      // Register element_count is not modified by the function.
-    }
-    jmp(gc_required);
-    return;
-  }
-  ASSERT(!result.is(result_end));
-
-  // Load address of new object into result.
-  LoadAllocationTopHelper(result, scratch, flags);
-
-  // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
-  if ((flags & DOUBLE_ALIGNMENT) != 0) {
-    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
-    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
-    Label aligned;
-    testl(result, Immediate(kDoubleAlignmentMask));
-    j(zero, &aligned, Label::kNear);
-    LoadRoot(kScratchRegister, Heap::kOnePointerFillerMapRootIndex);
-    movl(Operand(result, 0), kScratchRegister);
-    addl(result, Immediate(kDoubleSize / 2));
-    bind(&aligned);
-  }
-
-  // Calculate new top and bail out if new space is exhausted.
-  ExternalReference allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-
-  // We assume that element_count*element_size + header_size does not
-  // overflow.
   leal(result_end, Operand(element_count, element_size, header_size));
-  addl(result_end, result);
-  j(carry, gc_required);
-  Operand limit_operand = ExternalOperand(allocation_limit);
-  cmpl(result_end, limit_operand);
-  j(above, gc_required);
-
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch, flags);
-
-  // Tag the result if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    ASSERT(kHeapObjectTag == 1);
-    incl(result);
-  }
+  Allocate(result_end, result, result_end, scratch, gc_required, flags);
 }
 
 
@@ -4043,7 +3992,7 @@ void MacroAssembler::Allocate(Register object_size,
                               Register scratch,
                               Label* gc_required,
                               AllocationFlags flags) {
-  ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
+  ASSERT((flags & SIZE_IN_WORDS) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
