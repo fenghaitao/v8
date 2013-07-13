@@ -647,10 +647,10 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
                                                int num_arguments,
                                                int result_size) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]                 : return address
-  //  -- rsp[8]                 : argument num_arguments - 1
+  //  -- rsp[0]                           : return address
+  //  -- rsp[8]                           : argument num_arguments - 1
   //  ...
-  //  -- rsp[8 * num_arguments] : argument 0 (receiver)
+  //  -- rsp[(num_arguments - 1) * 4 + 8] : argument 0 (receiver)
   // -----------------------------------
 
   // TODO(1236192): Most runtime routines don't need the number of

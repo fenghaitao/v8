@@ -810,8 +810,8 @@ void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
                                                Code::Kind kind,
                                                Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rdx                      : receiver
+  // rcx : function name
+  // rdx : receiver
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
 
@@ -869,14 +869,14 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
                                      int argc,
                                      Label* miss) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rdi                 : function
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rdi                     : function
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
   __ JumpIfSmi(rdi, miss);
   // Check that the value is a JavaScript function.
@@ -893,13 +893,13 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 // The generated code falls through if the call should be handled by runtime.
 void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
   Label miss;
 
@@ -923,13 +923,13 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
                               IC::UtilityId id,
                               Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
 
   Counters* counters = masm->isolate()->counters();
@@ -996,13 +996,13 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
                                  int argc,
                                  Code::ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
 
   // Get the receiver of the function from the stack; 1 ~ return address.
@@ -1014,13 +1014,13 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
 
 void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
 
   // Get the receiver of the function from the stack; 1 ~ return address.
@@ -1125,13 +1125,13 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
 void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
 
   // Check if the name is really a name.
@@ -1293,13 +1293,13 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
                                              int argc) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
   Label slow, notin;
   __ movl(rdx, Operand(rsp, 1 * kHWRegSize + argc * kPointerSize));

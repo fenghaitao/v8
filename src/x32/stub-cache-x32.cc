@@ -423,13 +423,12 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
 // Undoes the effects of ReserveSpaceForFastApiCall.
 static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]                             : return address.
-  //  -- rsp[8]                             : last fast api call extra argument.
+  //  -- rsp[0]                                   : return address.
+  //  -- rsp[8]                                   : last extra argument.
   //  -- ...
-  //  -- rsp[kFastApiCallArguments * 8]     : first fast api call extra
-  //                                          argument.
-  //  -- rsp[kFastApiCallArguments * 8 + 8] : last argument in the internal
-  //                                          frame.
+  //  -- rsp[(kFastApiCallArguments - 1) * 4 + 8] : first extra argument.
+  //  -- rsp[kFastApiCallArguments * 4 + 8]       : last argument in the
+  //                                          internal frame.
   // -----------------------------------
   __ movq(scratch, Operand(rsp, 0));
   __ movq(Operand(rsp, kFastApiCallArguments * kPointerSize), scratch);
@@ -442,21 +441,21 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 const CallOptimization& optimization,
                                 int argc) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]              : return address
-  //  -- rsp[8]              : object passing the type check
+  //  -- rsp[0]                  : return address
+  //  -- rsp[8]                  : object passing the type check
   //                           (last fast api call extra argument,
   //                            set by CheckPrototypes)
-  //  -- rsp[16]             : api function
+  //  -- rsp[12]                 : api function
   //                           (first fast api call extra argument)
-  //  -- rsp[24]             : api call data
-  //  -- rsp[32]             : isolate
-  //  -- rsp[40]             : ReturnValue default value
-  //  -- rsp[48]             : ReturnValue
+  //  -- rsp[16]                 : api call data
+  //  -- rsp[20]                 : isolate
+  //  -- rsp[24]                 : ReturnValue default value
+  //  -- rsp[28]                 : ReturnValue
   //
-  //  -- rsp[56]             : last argument
+  //  -- rsp[32]                 : last argument
   //  -- ...
-  //  -- rsp[(argc + 6) * 8] : first argument
-  //  -- rsp[(argc + 7) * 8] : receiver
+  //  -- rsp[(argc + 5) * 4 + 8] : first argument
+  //  -- rsp[(argc + 6) * 4 + 8] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -1524,13 +1523,13 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
                                                 PropertyIndex index,
                                                 Handle<Name> name) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
   Label miss;
 
@@ -1632,11 +1631,11 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Handle<String> name,
     Code::StubType type) {
   // ----------- S t a t e -------------
-  //  -- rcx                 : name
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rcx                         : name
+  //  -- rsp[0]                      : return address
+  //  -- rsp[(argc - n - 1) * 4 + 8] : arg[n] (zero-based)
   //  -- ...
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
   // If object is not an array, bail out to regular call.
@@ -1883,11 +1882,11 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
     Handle<String> name,
     Code::StubType type) {
   // ----------- S t a t e -------------
-  //  -- rcx                 : name
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rcx                         : name
+  //  -- rsp[0]                      : return address
+  //  -- rsp[(argc - n - 1) * 4 + 8] : arg[n] (zero-based)
   //  -- ...
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
   // If object is not an array, bail out to regular call.
@@ -1965,11 +1964,11 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
     Handle<String> name,
     Code::StubType type) {
   // ----------- S t a t e -------------
-  //  -- rcx                 : function name
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rcx                         : function name
+  //  -- rsp[0]                      : return address
+  //  -- rsp[(argc - n - 1) * 4 + 8] : arg[n] (zero-based)
   //  -- ...
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
   // If object is not a string, bail out to regular call.
@@ -2046,11 +2045,11 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
     Handle<String> name,
     Code::StubType type) {
   // ----------- S t a t e -------------
-  //  -- rcx                 : function name
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rcx                         : function name
+  //  -- rsp[0]                      : return address
+  //  -- rsp[(argc - n - 1) * 4 + 8] : arg[n] (zero-based)
   //  -- ...
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
   // If object is not a string, bail out to regular call.
@@ -2127,11 +2126,11 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
     Handle<String> name,
     Code::StubType type) {
   // ----------- S t a t e -------------
-  //  -- rcx                 : function name
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rcx                         : function name
+  //  -- rsp[0]                      : return address
+  //  -- rsp[(argc - n - 1) * 4 + 8] : arg[n] (zero-based)
   //  -- ...
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
   // If the object is not a JSObject or we got an unexpected number of
@@ -2211,11 +2210,11 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
     Handle<String> name,
     Code::StubType type) {
   // ----------- S t a t e -------------
-  //  -- rcx                 : function name
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rcx                         : function name
+  //  -- rsp[0]                      : return address
+  //  -- rsp[(argc - n - 1) * 4 + 8] : arg[n] (zero-based)
   //  -- ...
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
   // If the object is not a JSObject or we got an unexpected number of
@@ -2371,13 +2370,13 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
                                               CheckType check,
                                               Label* success) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
   Label miss;
   GenerateNameCheck(name, &miss);
@@ -2517,13 +2516,13 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
                                                       Handle<JSObject> holder,
                                                       Handle<Name> name) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
   Label miss;
   GenerateNameCheck(name, &miss);
@@ -2580,13 +2579,13 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
     Handle<JSFunction> function,
     Handle<Name> name) {
   // ----------- S t a t e -------------
-  // rcx                 : function name
-  // rsp[0]              : return address
-  // rsp[8]              : argument argc
-  // rsp[16]             : argument argc - 1
+  // rcx                     : function name
+  // rsp[0]                  : return address
+  // rsp[8]                  : argument argc
+  // rsp[12]                 : argument argc - 1
   // ...
-  // rsp[argc * 8]       : argument 1
-  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // rsp[(argc - 1) * 4 + 8] : argument 1
+  // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
 
   if (HasCustomCallGenerator(function)) {

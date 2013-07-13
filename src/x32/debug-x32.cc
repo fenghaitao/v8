@@ -188,8 +188,8 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-x64.cc).
   // ----------- S t a t e -------------
-  //  -- rax    : receiver
-  //  -- rcx    : name
+  //  -- rax : receiver
+  //  -- rcx : name
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, rax.bit() | rcx.bit(), 0, false);
 }
@@ -198,9 +198,9 @@ void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   // Register state for IC store call (from ic-x64.cc).
   // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
+  //  -- rax : value
+  //  -- rcx : name
+  //  -- rdx : receiver
   // -----------------------------------
   Generate_DebugBreakCallHelper(
       masm, rax.bit() | rcx.bit() | rdx.bit(), 0, false);
@@ -210,8 +210,8 @@ void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC load call (from ic-x64.cc).
   // ----------- S t a t e -------------
-  //  -- rax     : key
-  //  -- rdx     : receiver
+  //  -- rax : key
+  //  -- rdx : receiver
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, rax.bit() | rdx.bit(), 0, false);
 }
@@ -220,9 +220,9 @@ void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC load call (from ic-x64.cc).
   // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : key
-  //  -- rdx    : receiver
+  //  -- rax : value
+  //  -- rcx : key
+  //  -- rdx : receiver
   // -----------------------------------
   Generate_DebugBreakCallHelper(
       masm, rax.bit() | rcx.bit() | rdx.bit(), 0, false);
@@ -232,7 +232,7 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
   // Register state for CompareNil IC
   // ----------- S t a t e -------------
-  //  -- rax    : value
+  //  -- rax : value
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, rax.bit(), 0, false);
 }

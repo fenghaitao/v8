@@ -43,15 +43,15 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
-  //  -- rax                 : number of arguments excluding receiver
-  //  -- rdi                 : called function (only guaranteed when
+  //  -- rax                     : number of arguments excluding receiver
+  //  -- rdi                     : called function (only guaranteed when
   //                           extra_args requires it)
-  //  -- rsi                 : context
-  //  -- rsp[0]              : return address
-  //  -- rsp[8]              : last argument
+  //  -- rsi                     : context
+  //  -- rsp[0]                  : return address
+  //  -- rsp[8]                  : last argument
   //  -- ...
-  //  -- rsp[8 * argc]       : first argument (argc == rax)
-  //  -- rsp[8 * (argc + 1)] : receiver
+  //  -- rsp[(argc - 1) * 4 + 8] : first argument (argc == rax)
+  //  -- rsp[argc * 4 + 8]       : receiver
   // -----------------------------------
 
   // Insert extra arguments.
@@ -530,10 +530,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // [rsp + kPointerSize]          : function
     // [rsp]                         : receiver
     // Current register contents:
-    // rax : argc
-    // rbx : argv
-    // rsi : context
-    // rdi : function
+    // rax                           : argc
+    // rbx                           : argv
+    // rsi                           : context
+    // rdi                           : function
 
     // Copy arguments to the stack in a loop.
     // Register rbx points to array of pointers to handle locations.
@@ -758,12 +758,12 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // Stack Layout:
-  // rsp[0]           : Return address
-  // rsp[8]           : Argument n
-  // rsp[16]          : Argument n-1
+  // rsp[0]               : Return address
+  // rsp[8]               : Argument n
+  // rsp[12]              : Argument n-1
   //  ...
-  // rsp[8 * n]       : Argument 1
-  // rsp[8 * (n + 1)] : Receiver (function to call)
+  // rsp[(n - 1) * 4 + 8] : Argument 1
+  // rsp[n * 4 + 8]       : Receiver (function to call)
   //
   // rax contains the number of arguments, n, not counting the receiver.
   //
@@ -935,16 +935,16 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Stack at entry:
   // rsp     : return address
   // rsp[8]  : arguments
-  // rsp[16] : receiver ("this")
-  // rsp[24] : function
+  // rsp[12] : receiver ("this")
+  // rsp[16] : function
   {
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Stack frame:
     // rbp     : Old base pointer
     // rbp[8]  : return address
     // rbp[16] : function arguments
-    // rbp[24] : receiver
-    // rbp[32] : function
+    // rbp[20] : receiver
+    // rbp[24] : function
     static const int kArgumentsOffset = 2 * kHWRegSize;
     static const int kReceiverOffset = 2 * kHWRegSize + 1 * kPointerSize;
     static const int kFunctionOffset = 2 * kHWRegSize + 2 * kPointerSize;
@@ -1162,11 +1162,11 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
 void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax                 : number of arguments
-  //  -- rdi                 : constructor function
-  //  -- rsp[0]              : return address
-  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rax                         : number of arguments
+  //  -- rdi                         : constructor function
+  //  -- rsp[0]                      : return address
+  //  -- rsp[(argc - n - 1) * 4 + 8] : arg[n] (zero-based)
+  //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->string_ctor_calls(), 1);

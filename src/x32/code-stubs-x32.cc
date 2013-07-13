@@ -2268,8 +2268,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // Stack layout:
   //  rsp[0]  : return address
   //  rsp[8]  : number of parameters (tagged)
-  //  rsp[16] : receiver displacement
-  //  rsp[24] : function
+  //  rsp[12] : receiver displacement
+  //  rsp[16] : function
   // Registers used over the whole function:
   //  rbx: the mapped parameter count (untagged)
   //  rax: the allocated object (tagged).
@@ -2484,8 +2484,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   // rsp[0]  : return address
   // rsp[8]  : number of parameters
-  // rsp[16] : receiver displacement
-  // rsp[24] : function
+  // rsp[12] : receiver displacement
+  // rsp[16] : function
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
@@ -2510,8 +2510,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // rsp[0]  : return address
   // rsp[8]  : number of parameters
-  // rsp[16] : receiver displacement
-  // rsp[24] : function
+  // rsp[12] : receiver displacement
+  // rsp[16] : function
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
@@ -2618,9 +2618,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Stack frame on entry.
   //  rsp[0]  : return address
   //  rsp[8]  : last_match_info (expected JSArray)
-  //  rsp[16] : previous index
-  //  rsp[24] : subject string
-  //  rsp[32] : JSRegExp object
+  //  rsp[12] : previous index
+  //  rsp[16] : subject string
+  //  rsp[20] : JSRegExp object
 
   static const int kLastMatchInfoOffset = 1 * kHWRegSize;
   static const int kPreviousIndexOffset = 1 * kHWRegSize + 1 * kPointerSize;
@@ -4234,12 +4234,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Expected input state with no inline cache:
   //   rsp[0]  : return address
   //   rsp[8]  : function pointer
-  //   rsp[16] : value
+  //   rsp[12] : value
   // Expected input state with an inline one-element cache:
   //   rsp[0]  : return address
   //   rsp[8]  : offset from return address to location of inline cache
-  //   rsp[16] : function pointer
-  //   rsp[24] : value
+  //   rsp[12] : function pointer
+  //   rsp[16] : value
   // Returns a bitwise zero to indicate that the value
   // is and instance of the function and anything else to
   // indicate that the value is not an instance.
@@ -5187,8 +5187,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Stack frame on entry.
   //  rsp[0]  : return address
   //  rsp[8]  : to
-  //  rsp[16] : from
-  //  rsp[24] : string
+  //  rsp[12] : from
+  //  rsp[16] : string
 
   const int kToOffset = 1 * kHWRegSize;
   const int kFromOffset = kToOffset + kPointerSize;
@@ -5549,7 +5549,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Stack frame on entry.
   //  rsp[0]  : return address
   //  rsp[8]  : right string
-  //  rsp[16] : left string
+  //  rsp[12] : left string
 
   __ movl(rdx, Operand(rsp, 1 * kHWRegSize + 1 * kPointerSize));  // left
   __ movl(rax, Operand(rsp, 1 * kHWRegSize));  // right
@@ -6433,7 +6433,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   //  -- rcx     : element index as smi
   //  -- rsp[0]  : return address
   //  -- rsp[8]  : array literal index in function
-  //  -- rsp[16] : array literal
+  //  -- rsp[12] : array literal
   // clobbers rbx, rdx, rdi
   // -----------------------------------
 

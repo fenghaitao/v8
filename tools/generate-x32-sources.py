@@ -209,25 +209,22 @@ comment_replacements = {
   "rsp[40]"   : "rsp[24]",
   "rsp[48]"   : "rsp[28]",
   "rsp[56]"   : "rsp[32]",
-  "rsp[argc * 8]          "  : "rsp[(argc - 1) * 4 + 8]",
-  "rsp[kFastApiCallArguments * 8]          "  : \
-              "rsp[(kFastApiCallArguments - 1) * 4 + 8]",
-  "rsp[8 * argc]          "  : "rsp[(argc - 1) * 4 + 8]",
-  "rsp[8 * n]          "     : "rsp[(n - 1) * 4 + 8]",
-  "rsp[8 * num_arguments]          "  : "rsp[(num_arguments - 1) * 4 + 8]",
-  "rsp[8 * (argc + 1)]" : "rsp[argc * 4 + 8]  ",
-  "rsp[kFastApiCallArguments * 8 + 8]" : "rsp[kFastApiCallArguments * 4 + 8]  ",
-  "rsp[8 * (n + 1)]"               : "rsp[n * 4 + 8]  ",
-  "rsp[(argc + 1) * 8]"            : "rsp[argc * 4 + 8]  ",
-  "rsp[(argc + 6) * 8]    "        : "rsp[(argc + 5) * 4 + 8]",
-  "rsp[(argc + 7) * 8]    "        : "rsp[(argc + 6) * 4 + 8]",
-  "rsp[(argc - n) * 8]          "  : "rsp[(argc - n - 1) * 4 + 8]",
+  "rsp[argc * 8]"                  : "rsp[(argc - 1) * 4 + 8]",
+  "rsp[kFastApiCallArguments * 8]" : "rsp[(kFastApiCallArguments - 1) * 4 + 8]",
+  "rsp[8 * argc]"                  : "rsp[(argc - 1) * 4 + 8]",
+  "rsp[8 * n]"                     : "rsp[(n - 1) * 4 + 8]",
+  "rsp[8 * num_arguments]"         : "rsp[(num_arguments - 1) * 4 + 8]",
+  "rsp[8 * (argc + 1)]"            : "rsp[argc * 4 + 8]",
+  "rsp[kFastApiCallArguments * 8 + 8]" : "rsp[kFastApiCallArguments * 4 + 8]",
+  "rsp[8 * (n + 1)]"               : "rsp[n * 4 + 8]",
+  "rsp[(argc + 1) * 8]"            : "rsp[argc * 4 + 8]",
+  "rsp[(argc + 6) * 8]"            : "rsp[(argc + 5) * 4 + 8]",
+  "rsp[(argc + 7) * 8]"            : "rsp[(argc + 6) * 4 + 8]",
+  "rsp[(argc - n) * 8]"            : "rsp[(argc - n - 1) * 4 + 8]",
 }
 
 def HandleComment(line):
   result = line
-  return result
-  ####### Temporarily disable the comment handling##################
   for comment in comment_replacements:
     if result.find(comment) != -1:
       result = result.replace(comment, comment_replacements[comment])
@@ -301,11 +298,37 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
       lines_out.append(line_in)
 
     return line_number - begin + 1
-  elif (line_in.find("rsp[") != -1 or line_in.find("rbp[") != -1) \
-        and line_in.find("//") !=-1:
-    line_out = HandleComment(line_in)
-    lines_out.append(line_out)
-    return 1
+  elif (line_in.lstrip().find("//") == 0 and line_in.find(" : ") != -1):
+    longest = 0
+    begin   = line_number
+    index   = line_number
+    comment = line_in
+    while comment.lstrip().find("//") == 0:
+      if comment.find(" : ") != -1:
+        left = comment[0:comment.find(" : ")].rstrip()
+        if (left.find("rsp[") != -1 or left.find("rbp[") != -1):
+          left = HandleComment(left)
+        longest = max(longest, len(left))
+      index += 1
+      if index >= len(lines_in):
+        break
+      comment = lines_in[index]
+
+    while (line_number < index):
+      line_in  = lines_in[line_number]
+      if line_in.find(" : ") != -1:
+        left  = line_in[0:line_in.find(" : ")].rstrip()
+        if (left.find("rsp[") != -1 or left.find("rbp[") != -1):
+          left = HandleComment(left)
+        for i in range(len(left), longest):
+          left += " "
+        right = line_in[line_in.find(" : "):]
+        line_out = left + right
+      else:
+        line_out = line_in
+      lines_out.append(line_out)
+      line_number += 1
+    return line_number - begin
   else:
     line_out = ProcessLine(line_in, is_assembler, debug)
     lines_out.append(line_out)
