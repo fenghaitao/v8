@@ -461,15 +461,10 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Get the bailout id from the stack.
   __ movl(arg_reg_3, Operand(rsp, kSavedRegistersAreaSize));
 
-  // Get the address of the location in the code object if possible
+  // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  if (type() == EAGER || type() == SOFT) {
-    __ Set(arg_reg_4, 0);
-    __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kHWRegSize));
-  } else {
-    __ movl(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kHWRegSize));
-    __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kHWRegSize));
-  }
+  __ movl(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kHWRegSize));
+  __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kHWRegSize));
 
   __ subl(arg5, rbp);
   __ negl(arg5);
@@ -513,12 +508,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ pop(Operand(rbx, dst_offset));
   }
 
-  // Remove the bailout id from the stack.
-  if (type() == EAGER || type() == SOFT) {
-    __ addl(rsp, Immediate(kHWRegSize));
-  } else {
-    __ addl(rsp, Immediate(2 * kHWRegSize));
-  }
+  // Remove the bailout id and return address from the stack.
+  __ addl(rsp, Immediate(2 * kHWRegSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
