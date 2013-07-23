@@ -618,71 +618,86 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
-// Get the integer part of a heap number.
-// Overwrites the contents of rdi, rbx and rcx. Result cannot be rdi or rbx.
-void IntegerConvert(MacroAssembler* masm,
-                    Register result,
-                    Register source) {
-  // Result may be rcx. If result and source are the same register, source will
-  // be overwritten.
-  ASSERT(!result.is(rdi) && !result.is(rbx));
-  // TODO(lrn): When type info reaches here, if value is a 32-bit integer, use
-  // cvttsd2si (32-bit version) directly.
-  Register double_exponent = rbx;
-  Register double_value = rdi;
-  Label done, exponent_63_plus;
-  // Get double and extract exponent.
-  __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
-  // Clear result preemptively, in case we need to return zero.
-  __ xorl(result, result);
-  __ movq(xmm0, double_value);  // Save copy in xmm0 in case we need it there.
-  // Double to remove sign bit, shift exponent down to least significant bits.
-  // and subtract bias to get the unshifted, unbiased exponent.
-  __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
-  __ shr(double_exponent, Immediate(64 - HeapNumber::kExponentBits));
-  __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
-  // Check whether the exponent is too big for a 63 bit unsigned integer.
-  __ cmpl(double_exponent, Immediate(63));
-  __ j(above_equal, &exponent_63_plus, Label::kNear);
-  // Handle exponent range 0..62.
-  __ cvttsd2siq(result, xmm0);
-  __ jmp(&done, Label::kNear);
+void DoubleToIStub::Generate(MacroAssembler* masm) {
+    Register input_reg = this->source();
+    Register final_result_reg = this->destination();
+    ASSERT(is_truncating());
 
-  __ bind(&exponent_63_plus);
-  // Exponent negative or 63+.
-  __ cmpl(double_exponent, Immediate(83));
-  // If exponent negative or above 83, number contains no significant bits in
-  // the range 0..2^31, so result is zero, and rcx already holds zero.
-  __ j(above, &done, Label::kNear);
+    Label check_negative, process_64_bits, done;
+    int double_offset = offset();
 
-  // Exponent in rage 63..83.
-  // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
-  // the least significant exponent-52 bits.
+    // Account for return address and saved regs if input is rsp.
+    if (input_reg.is(rsp)) double_offset += 3 * kHWRegSize;
 
-  // Negate low bits of mantissa if value is negative.
-  __ addq(double_value, double_value);  // Move sign bit to carry.
-  __ sbbl(result, result);  // And convert carry to -1 in result register.
-  // if scratch2 is negative, do (scratch2-1)^-1, otherwise (scratch2-0)^0.
-  __ addl(double_value, result);
-  // Do xor in opposite directions depending on where we want the result
-  // (depending on whether result is rcx or not).
+    MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
+    MemOperand exponent_operand(MemOperand(input_reg,
+                                           double_offset + kDoubleSize / 2));
 
-  if (result.is(rcx)) {
-    __ xorl(double_value, result);
-    // Left shift mantissa by (exponent - mantissabits - 1) to save the
-    // bits that have positional values below 2^32 (the extra -1 comes from the
-    // doubling done above to move the sign bit into the carry flag).
-    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
-    __ shll_cl(double_value);
-    __ movl(result, double_value);
-  } else {
-    // As the then-branch, but move double-value to result before shifting.
-    __ xorl(result, double_value);
-    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
-    __ shll_cl(result);
-  }
+    Register scratch1;
+    Register scratch_candidates[3] = { rbx, rdx, rdi };
+    for (int i = 0; i < 3; i++) {
+      scratch1 = scratch_candidates[i];
+      if (!final_result_reg.is(scratch1) && !input_reg.is(scratch1)) break;
+    }
 
-  __ bind(&done);
+    // Since we must use rcx for shifts below, use some other register (rax)
+    // to calculate the result if ecx is the requested return register.
+    Register result_reg = final_result_reg.is(rcx) ? rax : final_result_reg;
+    // Save ecx if it isn't the return register and therefore volatile, or if it
+    // is the return register, then save the temp register we use in its stead
+    // for the result.
+    Register save_reg = final_result_reg.is(rcx) ? rax : rcx;
+    __ push(scratch1);
+    __ push(save_reg);
+
+    bool stash_exponent_copy = !input_reg.is(rsp);
+    __ movl(scratch1, mantissa_operand);
+    __ movsd(xmm0, mantissa_operand);
+    __ movl(rcx, exponent_operand);
+    if (stash_exponent_copy) __ push(rcx);
+
+    __ andl(rcx, Immediate(HeapNumber::kExponentMask));
+    __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
+    __ leal(result_reg, MemOperand(rcx, -HeapNumber::kExponentBias));
+    __ cmpl(result_reg, Immediate(HeapNumber::kMantissaBits));
+    __ j(below, &process_64_bits);
+
+    // Result is entirely in lower 32-bits of mantissa
+    int delta = HeapNumber::kExponentBias + Double::kPhysicalSignificandSize;
+    __ subl(rcx, Immediate(delta));
+    __ xorl(result_reg, result_reg);
+    __ cmpl(rcx, Immediate(31));
+    __ j(above, &done);
+    __ shll_cl(scratch1);
+    __ jmp(&check_negative);
+
+    __ bind(&process_64_bits);
+    __ cvttsd2siq(result_reg, xmm0);
+    __ jmp(&done, Label::kNear);
+
+    // If the double was negative, negate the integer result.
+    __ bind(&check_negative);
+    __ movl(result_reg, scratch1);
+    __ negl(result_reg);
+    if (stash_exponent_copy) {
+        __ cmpl(MemOperand(rsp, 0), Immediate(0));
+    } else {
+        __ cmpl(exponent_operand, Immediate(0));
+    }
+    __ cmovl(greater, result_reg, scratch1);
+
+    // Restore registers
+    __ bind(&done);
+    if (stash_exponent_copy) {
+        __ addl(rsp, Immediate(kDoubleSize));
+    }
+    if (!final_result_reg.is(result_reg)) {
+        ASSERT(final_result_reg.is(rcx));
+        __ movl(final_result_reg, result_reg);
+    }
+    __ pop(save_reg);
+    __ pop(scratch1);
+    __ ret(0);
 }
 
 
@@ -1028,8 +1043,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ JumpIfSmi(left, &left_not_string, Label::kNear);
   __ CmpObjectType(left, FIRST_NONSTRING_TYPE, rcx);
   __ j(above_equal, &left_not_string, Label::kNear);
-  StringAddStub string_add_left_stub((StringAddFlags)
-      (ERECT_FRAME | NO_STRING_CHECK_LEFT_IN_STUB));
+  StringAddStub string_add_left_stub(
+      (StringAddFlags)(STRING_ADD_CHECK_RIGHT | STRING_ADD_ERECT_FRAME));
   BinaryOpStub_GenerateRegisterArgsPushUnderReturn(masm);
   __ TailCallStub(&string_add_left_stub);
 
@@ -1039,8 +1054,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CmpObjectType(right, FIRST_NONSTRING_TYPE, rcx);
   __ j(above_equal, &call_runtime, Label::kNear);
 
-  StringAddStub string_add_right_stub((StringAddFlags)
-      (ERECT_FRAME | NO_STRING_CHECK_RIGHT_IN_STUB));
+  StringAddStub string_add_right_stub(
+      (StringAddFlags)(STRING_ADD_CHECK_LEFT | STRING_ADD_ERECT_FRAME));
   BinaryOpStub_GenerateRegisterArgsPushUnderReturn(masm);
   __ TailCallStub(&string_add_right_stub);
 
@@ -1129,8 +1144,8 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   __ CmpObjectType(right, FIRST_NONSTRING_TYPE, rcx);
   __ j(above_equal, &call_runtime);
 
-  StringAddStub string_add_stub((StringAddFlags)
-                                (ERECT_FRAME | NO_STRING_CHECK_IN_STUB));
+  StringAddStub string_add_stub(
+      (StringAddFlags)(STRING_ADD_CHECK_NONE | STRING_ADD_ERECT_FRAME));
   BinaryOpStub_GenerateRegisterArgsPushUnderReturn(masm);
   __ TailCallStub(&string_add_stub);
 
@@ -1613,12 +1628,18 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
   __ JumpIfSmi(rax, &rax_is_smi);
 
   __ bind(&rax_is_object);
-  IntegerConvert(masm, rcx, rax);  // Uses rdi, rcx and rbx.
+  DoubleToIStub stub1(rax, rcx, HeapNumber::kValueOffset - kHeapObjectTag,
+                     true);
+  __ call(stub1.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+
   __ jmp(&done);
 
   __ bind(&rdx_is_object);
-  IntegerConvert(masm, rdx, rdx);  // Uses rdi, rcx and rbx.
+  DoubleToIStub stub2(rdx, rdx, HeapNumber::kValueOffset - kHeapObjectTag,
+                     true);
+  __ call(stub1.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   __ JumpIfNotSmi(rax, &rax_is_object);
+
   __ bind(&rax_is_smi);
   __ SmiToInteger32(rcx, rax);
 
@@ -1653,7 +1674,9 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ cmpl(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg1);
   // Get the untagged integer version of the rdx heap number in rcx.
-  IntegerConvert(masm, r8, rdx);
+  DoubleToIStub stub1(rdx, r8, HeapNumber::kValueOffset - kHeapObjectTag,
+                      true);
+  __ call(stub1.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
 
   // Here r8 has the untagged integer, rax has a Smi or a heap number.
   __ bind(&load_arg2);
@@ -1673,7 +1696,10 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ cmpl(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the rax heap number in rcx.
-  IntegerConvert(masm, rcx, rax);
+  DoubleToIStub stub2(rax, rcx, HeapNumber::kValueOffset - kHeapObjectTag,
+                      true);
+  __ call(stub2.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+
   __ bind(&done);
   __ movl(rax, r8);
 }
@@ -3141,7 +3167,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register result,
                                                          Register scratch1,
                                                          Register scratch2,
-                                                         bool object_is_smi,
                                                          Label* not_found) {
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
@@ -3165,39 +3190,36 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Label is_smi;
   Label load_result_from_cache;
   Factory* factory = masm->isolate()->factory();
-  if (!object_is_smi) {
-    __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object,
-                factory->heap_number_map(),
-                not_found,
-                DONT_DO_SMI_CHECK);
+  __ JumpIfSmi(object, &is_smi);
+  __ CheckMap(object,
+              factory->heap_number_map(),
+              not_found,
+              DONT_DO_SMI_CHECK);
 
-    STATIC_ASSERT(8 == kDoubleSize);
-    __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
-    __ xorl(scratch, FieldOperand(object, HeapNumber::kValueOffset));
-    GenerateConvertHashCodeToIndex(masm, scratch, mask);
+  STATIC_ASSERT(8 == kDoubleSize);
+  __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+  __ xorl(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+  GenerateConvertHashCodeToIndex(masm, scratch, mask);
 
-    Register index = scratch;
-    Register probe = mask;
-    __ movl(probe,
-            FieldOperand(number_string_cache,
-                         index,
-                         times_1,
-                         FixedArray::kHeaderSize));
-    __ JumpIfSmi(probe, not_found);
-    __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
-    __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
-    __ ucomisd(xmm0, xmm1);
-    __ j(parity_even, not_found);  // Bail out if NaN is involved.
-    __ j(not_equal, not_found);  // The cache did not contain this value.
-    __ jmp(&load_result_from_cache);
-  }
+  Register index = scratch;
+  Register probe = mask;
+  __ movl(probe,
+          FieldOperand(number_string_cache,
+                        index,
+                        times_1,
+                        FixedArray::kHeaderSize));
+  __ JumpIfSmi(probe, not_found);
+  __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+  __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
+  __ ucomisd(xmm0, xmm1);
+  __ j(parity_even, not_found);  // Bail out if NaN is involved.
+  __ j(not_equal, not_found);  // The cache did not contain this value.
+  __ jmp(&load_result_from_cache);
 
   __ bind(&is_smi);
   __ SmiToInteger32(scratch, object);
   GenerateConvertHashCodeToIndex(masm, scratch, mask);
 
-  Register index = scratch;
   // Check if the entry is the smi we are looking for.
   __ cmpl(object,
           FieldOperand(number_string_cache,
@@ -3236,7 +3258,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ movl(rbx, Operand(rsp, 1 * kHWRegSize));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, false, &runtime);
+  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, &runtime);
   __ ret(1 * kPointerSize);
 
   __ bind(&runtime);
@@ -3279,10 +3301,9 @@ static void BranchIfNotInternalizedString(MacroAssembler* masm,
   __ movl(scratch, FieldOperand(object, HeapObject::kMapOffset));
   __ movzxbl(scratch,
              FieldOperand(scratch, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ andl(scratch, Immediate(kIsNotStringMask | kIsInternalizedMask));
-  __ cmpb(scratch, Immediate(kInternalizedTag | kStringTag));
-  __ j(not_equal, label);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  __ testb(scratch, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  __ j(not_zero, label);
 }
 
 
@@ -3396,7 +3417,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
       Label first_non_object;
       __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
       __ j(below, &first_non_object, Label::kNear);
-      // Return non-zero (eax (not rax) is not zero)
+      // Return non-zero (rax (not rax) is not zero)
       Label return_not_equal;
       STATIC_ASSERT(kHeapObjectTag != 0);
       __ bind(&return_not_equal);
@@ -3458,7 +3479,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
         masm, &check_for_strings, rdx, kScratchRegister);
 
     // We've already checked for object identity, so if both operands are
-    // internalized strings they aren't equal. Register eax (not rax) already
+    // internalized strings they aren't equal. Register rax (not rax) already
     // holds a non-zero value, which indicates not equal, so just return.
     __ ret(0);
   }
@@ -4546,7 +4567,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movl(rdx, Operand(rsp, 1 * kHWRegSize));
 
   // Make sure that both arguments are strings if not known in advance.
-  if ((flags_ & NO_STRING_ADD_FLAGS) != 0) {
+  // Otherwise, at least one of the arguments is definitely a string,
+  // and we convert the one that is not known to be a string.
+  if ((flags_ & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
+    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT);
+    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT);
     __ JumpIfSmi(rax, &call_runtime);
     __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, r8);
     __ j(above_equal, &call_runtime);
@@ -4555,20 +4580,16 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(rdx, &call_runtime);
     __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, r9);
     __ j(above_equal, &call_runtime);
-  } else {
-    // Here at least one of the arguments is definitely a string.
-    // We convert the one that is not known to be a string.
-    if ((flags_ & NO_STRING_CHECK_LEFT_IN_STUB) == 0) {
-      ASSERT((flags_ & NO_STRING_CHECK_RIGHT_IN_STUB) != 0);
-      GenerateConvertArgument(masm, 1 * kHWRegSize + 1 * kPointerSize, rax,
-                              rbx, rcx, rdi, &call_builtin);
-      builtin_id = Builtins::STRING_ADD_RIGHT;
-    } else if ((flags_ & NO_STRING_CHECK_RIGHT_IN_STUB) == 0) {
-      ASSERT((flags_ & NO_STRING_CHECK_LEFT_IN_STUB) != 0);
-      GenerateConvertArgument(masm, 1 * kHWRegSize, rdx, rbx, rcx, rdi,
-                              &call_builtin);
-      builtin_id = Builtins::STRING_ADD_LEFT;
-    }
+  } else if ((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
+    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == 0);
+    GenerateConvertArgument(masm, 1 * kHWRegSize + 1 * kPointerSize, rax, rbx,
+                            rcx, rdi, &call_builtin);
+    builtin_id = Builtins::STRING_ADD_RIGHT;
+  } else if ((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
+    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == 0);
+    GenerateConvertArgument(masm, 1 * kHWRegSize, rdx, rbx, rcx, rdi,
+                            &call_builtin);
+    builtin_id = Builtins::STRING_ADD_LEFT;
   }
 
   // Both arguments are strings.
@@ -4604,7 +4625,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // If arguments where known to be strings, maps are not loaded to r8 and r9
   // by the code above.
-  if (flags_ != NO_STRING_ADD_FLAGS) {
+  if ((flags_ & STRING_ADD_CHECK_BOTH) != STRING_ADD_CHECK_BOTH) {
     __ movl(r8, FieldOperand(rax, HeapObject::kMapOffset));
     __ movl(r9, FieldOperand(rdx, HeapObject::kMapOffset));
   }
@@ -4823,7 +4844,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
 
-  if ((flags_ & ERECT_FRAME) != 0) {
+  if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
     GenerateRegisterArgsPop(masm, rcx);
     // Build a frame
     {
@@ -4838,7 +4859,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    if ((flags_ & ERECT_FRAME) != 0) {
+    if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
       GenerateRegisterArgsPop(masm, rcx);
       // Build a frame
       {
@@ -4891,7 +4912,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
                                                       scratch1,
                                                       scratch2,
                                                       scratch3,
-                                                      false,
                                                       &not_cached);
   __ movl(arg, scratch1);
   __ movl(Operand(rsp, stack_offset), arg);
@@ -5704,14 +5724,10 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ movl(tmp2, FieldOperand(right, HeapObject::kMapOffset));
   __ movzxbl(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzxbl(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ andl(tmp1, Immediate(kIsNotStringMask | kIsInternalizedMask));
-  __ cmpb(tmp1, Immediate(kInternalizedTag | kStringTag));
-  __ j(not_equal, &miss, Label::kNear);
-
-  __ andl(tmp2, Immediate(kIsNotStringMask | kIsInternalizedMask));
-  __ cmpb(tmp2, Immediate(kInternalizedTag | kStringTag));
-  __ j(not_equal, &miss, Label::kNear);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  __ orl(tmp1, tmp2);
+  __ testb(tmp1, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  __ j(not_zero, &miss, Label::kNear);
 
   // Internalized strings are compared by identity.
   Label done;
@@ -5748,7 +5764,6 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
   // Check that both operands are unique names. This leaves the instance
   // types loaded in tmp1 and tmp2.
-  STATIC_ASSERT(kInternalizedTag != 0);
   __ movl(tmp1, FieldOperand(left, HeapObject::kMapOffset));
   __ movl(tmp2, FieldOperand(right, HeapObject::kMapOffset));
   __ movzxbl(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
@@ -5821,10 +5836,10 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // strings.
   if (equality) {
     Label do_compare;
-    STATIC_ASSERT(kInternalizedTag != 0);
-    __ andl(tmp1, tmp2);
-    __ testb(tmp1, Immediate(kIsInternalizedMask));
-    __ j(zero, &do_compare, Label::kNear);
+    STATIC_ASSERT(kInternalizedTag == 0);
+    __ orl(tmp1, tmp2);
+    __ testb(tmp1, Immediate(kIsNotInternalizedMask));
+    __ j(not_zero, &do_compare, Label::kNear);
     // Make sure rax is non-zero. At this point input operands are
     // guaranteed to be non-zero.
     ASSERT(right.is(rax));

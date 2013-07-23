@@ -376,13 +376,7 @@ bool RelocInfo::IsPatchedReturnSequence() {
   // The 11th byte is int3 (0xCC) in the return sequence and
   // REX.WB (0x48+register bit) for the call sequence.
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // The recognized call sequence is:
-  //  movl(kScratchRegister, immediate32); call(kScratchRegister);
-  // It only needs to be distinguished from a return sequence
-  //  movl(rsp, rbp); pop(rbp); ret(n); int3 *3
-  // The 7th byte is int3 (0xCC) in the return sequence and
-  // call (0x41) for the call sequence.
-  return pc_[6] != 0xCC;
+  return pc_[2 + kPointerSize] != 0xCC;
 #else
   return false;
 #endif
