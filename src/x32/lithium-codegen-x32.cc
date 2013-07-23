@@ -1413,6 +1413,10 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     switch (instr->op()) {
       case Token::ROR:
         __ rorl_cl(ToRegister(left));
+        if (instr->can_deopt()) {
+          __ testl(ToRegister(left), Immediate(0x80000000));
+          DeoptimizeIf(not_zero, instr->environment());
+        }
         break;
       case Token::SAR:
         __ sarl_cl(ToRegister(left));
@@ -1420,7 +1424,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SHR:
         __ shrl_cl(ToRegister(left));
         if (instr->can_deopt()) {
-          __ testl(ToRegister(left), ToRegister(left));
+          __ testl(ToRegister(left), Immediate(0x80000000));
           DeoptimizeIf(negative, instr->environment());
         }
         break;
@@ -1436,7 +1440,10 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
       case Token::ROR:
-        if (shift_count != 0) {
+        if (shift_count == 0 && instr->can_deopt()) {
+          __ testl(ToRegister(left), Immediate(0x80000000));
+          DeoptimizeIf(not_zero, instr->environment());
+        } else {
           __ rorl(ToRegister(left), Immediate(shift_count));
         }
         break;
@@ -1447,7 +1454,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHR:
         if (shift_count == 0 && instr->can_deopt()) {
-          __ testl(ToRegister(left), ToRegister(left));
+          __ testl(ToRegister(left), Immediate(0x80000000));
           DeoptimizeIf(negative, instr->environment());
         } else {
           __ shrl(ToRegister(left), Immediate(shift_count));
@@ -4773,9 +4780,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ bind(&heap_number);
 
     __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    __ cvttsd2siq(input_reg, xmm0);
-    __ Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
-    __ cmpq(input_reg, kScratchRegister);
+    __ cvttsd2si(input_reg, xmm0);
+    __ cmpl(input_reg, Immediate(0x80000000));
     DeoptimizeIf(equal, instr->environment());
   } else {
     // Deoptimize if we don't have a heap number.
@@ -4863,11 +4869,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   if (instr->truncating()) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
-    __ cvttsd2siq(result_reg, input_reg);
-    __ movq(kScratchRegister,
-            V8_INT64_C(0x8000000000000000),
-            RelocInfo::NONE64);
-    __ cmpq(result_reg, kScratchRegister);
+    __ cvttsd2si(result_reg, input_reg);
+    __ cmpl(result_reg, Immediate(0x80000000));
     DeoptimizeIf(equal, instr->environment());
   } else {
     __ cvttsd2si(result_reg, input_reg);

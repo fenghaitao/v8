@@ -3051,7 +3051,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src,
                                 XMMRegister scratch) {
   if (FLAG_debug_code) {
-    cmpl(src, Immediate(0xffffffff));
+    cmpq(src, Immediate(0xffffffff));
     Assert(below_equal, "input GPR is expected to have upper32 cleared");
   }
   cvtqsi2sd(dst, src);
