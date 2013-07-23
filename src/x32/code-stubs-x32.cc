@@ -801,7 +801,8 @@ static void BinaryOpStub_GenerateSmiCode(
       break;
 
     case Token::SHL:
-      __ movl(kScratchRegister, left);
+      __ push(left);
+      __ push(right);
       __ SmiShiftLeft(left, left, right, &use_fp_on_smis);
       __ movl(rax, left);
       break;
@@ -812,7 +813,8 @@ static void BinaryOpStub_GenerateSmiCode(
       break;
 
     case Token::SHR:
-      __ movl(kScratchRegister, left);
+      __ push(left);
+      __ push(right);
       __ SmiShiftLogicalRight(left, left, right, &use_fp_on_smis);
       __ movl(rax, left);
       break;
@@ -822,6 +824,10 @@ static void BinaryOpStub_GenerateSmiCode(
   }
 
   // 5. Emit return of result in rax.  Some operations have registers pushed.
+  if (op == Token::SHL || op == Token::SHR) {
+    // drop arguments.
+    __ addq(rsp, Immediate(2 * kHWRegSize));
+  }
   __ ret(0);
 
   if (use_fp_on_smis.is_linked()) {
@@ -836,16 +842,21 @@ static void BinaryOpStub_GenerateSmiCode(
     }
 
     if (generate_inline_heapnumber_results) {
-      __ AllocateHeapNumber(rcx, rbx, slow);
+      Label goto_slow;
+      __ AllocateHeapNumber(rcx, rbx, &goto_slow);
       Comment perform_float(masm, "-- Perform float operation on smis");
       if (op == Token::SHL) {
         __ cvtlsi2sd(xmm0, left);
+        // drop arguments.
+        __ addq(rsp, Immediate(2 * kHWRegSize));
       } else if (op == Token::SHR) {
         // The value of left is from MacroAssembler::SmiShiftLogicalRight
         // We allow logical shift value:
         // 0 : might turn a signed integer into unsigned integer
         // 1 : the value might be above 2^30 - 1
         __ cvtqsi2sd(xmm0, left);
+        // drop arguments.
+        __ addq(rsp, Immediate(2 * kHWRegSize));
       } else {
         FloatingPointHelper::LoadSSE2SmiOperands(masm);
         switch (op) {
@@ -859,12 +870,17 @@ static void BinaryOpStub_GenerateSmiCode(
       __ movsd(FieldOperand(rcx, HeapNumber::kValueOffset), xmm0);
       __ movl(rax, rcx);
       __ ret(0);
-    } else {
-      // Restore the orignial left value from kScratchRegister for stub call
-      // KScratchRegister is not killed by MacroAssembler::SmiShiftLogicalRight
-      // and is not killed by MacroAssembler::SmiShiftLeft either.
+      __ bind(&goto_slow);
       if (op == Token::SHL || op == Token::SHR) {
-        __ movl(left, kScratchRegister);
+        __ pop(right);
+        __ pop(left);
+      }
+      __ jmp(slow);
+    } else {
+      // Restore the orignial left value
+      if (op == Token::SHL || op == Token::SHR) {
+        __ pop(right);
+        __ pop(left);
       }
       __ jmp(&fail);
     }
@@ -951,9 +967,12 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
     case Token::SHR: {
       Label non_smi_shr_result;
       Register heap_number_map = r9;
-      __ movl(kScratchRegister, rax);
+      Label goto_non_numeric_failure;
+      // Push arguments on stack
+      __ push(rdx);
+      __ push(rax);
       __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-      FloatingPointHelper::LoadAsIntegers(masm, non_numeric_failure,
+      FloatingPointHelper::LoadAsIntegers(masm, &goto_non_numeric_failure,
                                           heap_number_map);
       switch (op) {
         case Token::BIT_OR:  __ orl(rax, rcx); break;
@@ -970,14 +989,22 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
       STATIC_ASSERT(kSmiValueSize == 31);
       if (op == Token::SHR) {
         __ testl(rax, Immediate(0xc0000000));
-        __ j(not_zero, &non_smi_shr_result);
+        __ j(not_zero, &non_smi_shr_result, Label::kNear);
       } else {
         __ cmpl(rax, Immediate(0xc0000000));
         __ j(negative, &non_smi_shr_result, Label::kNear);
       }
+      // drop arguments.
+      __ addq(rsp, Immediate(2 * kHWRegSize));
       // Tag smi result and return.
       __ Integer32ToSmi(rax, rax);
       __ Ret();
+
+      __ bind(&goto_non_numeric_failure);
+      // drop arguments.
+      __ pop(rax);
+      __ pop(rdx);
+      __ jmp(non_numeric_failure);
 
       __ bind(&non_smi_shr_result);
       Label allocation_failed;
@@ -989,15 +1016,15 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
       Label skip_allocation;
       switch (mode) {
         case OVERWRITE_LEFT: {
-          __ movl(rax, rdx);
-          __ JumpIfNotSmi(rdx, &skip_allocation);
+          __ movl(rax, Operand(rsp, 1 * kHWRegSize));
+          __ JumpIfNotSmi(rax, &skip_allocation);
           __ Allocate(HeapNumber::kSize, rax, r8, no_reg, &allocation_failed,
                       TAG_OBJECT);
           __ bind(&skip_allocation);
           break;
         }
         case OVERWRITE_RIGHT:
-          __ movl(rax, kScratchRegister);
+          __ movl(rax, Operand(rsp, 0 * kHWRegSize));
           __ JumpIfNotSmi(rax, &skip_allocation);
           // Fall through!
         case NO_OVERWRITE:
@@ -1021,12 +1048,14 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
         __ cvtlsi2sd(xmm0, rbx);
       }
       __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm0);
+      // drop arguments.
+      __ addq(rsp, Immediate(2 * kHWRegSize));
       __ Ret();
 
       __ bind(&allocation_failed);
-      // Restore the right operand from kScratchRegister.
-      // Left operand is in rdx, not changed in this function.
-      __ movl(rax, kScratchRegister);
+      // Restore arguments from stack.
+      __ pop(rax);
+      __ pop(rdx);
       __ jmp(allocation_failure);
       break;
     }
