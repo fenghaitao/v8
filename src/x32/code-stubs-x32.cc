@@ -299,8 +299,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
 void ToNumberStub::Generate(MacroAssembler* masm) {
   // The ToNumber stub takes one argument in rax.
   Label check_heap_number, call_builtin;
-  __ SmiTest(rax);
-  __ j(not_zero, &check_heap_number, Label::kNear);
+  __ JumpIfNotSmi(rax, &check_heap_number, Label::kNear);
   __ Ret();
 
   __ bind(&check_heap_number);
@@ -624,6 +623,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     ASSERT(is_truncating());
 
     Label check_negative, process_64_bits, done;
+
     int double_offset = offset();
 
     // Account for return address and saved regs if input is rsp.

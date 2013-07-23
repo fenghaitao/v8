@@ -1147,6 +1147,7 @@ void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
 
 
 void MacroAssembler::SmiTest(Register src) {
+  AssertSmi(src);
   testl(src, src);
 }
 
@@ -2259,7 +2260,8 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
@@ -2305,7 +2307,8 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
