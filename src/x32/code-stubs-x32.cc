@@ -982,11 +982,31 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
       __ bind(&non_smi_shr_result);
       Label allocation_failed;
       __ movl(rbx, rax);  // rbx holds result value (uint32 value as int64).
+
       // Allocate heap number in new space.
       // Not using AllocateHeapNumber macro in order to reuse
       // already loaded heap_number_map.
-      __ Allocate(HeapNumber::kSize, rax, r8, no_reg, &allocation_failed,
-                  TAG_OBJECT);
+      Label skip_allocation;
+      switch (mode) {
+        case OVERWRITE_LEFT: {
+          __ movl(rax, rdx);
+          __ JumpIfNotSmi(rdx, &skip_allocation);
+          __ Allocate(HeapNumber::kSize, rax, r8, no_reg, &allocation_failed,
+                      TAG_OBJECT);
+          __ bind(&skip_allocation);
+          break;
+        }
+        case OVERWRITE_RIGHT:
+          __ movl(rax, kScratchRegister);
+          __ JumpIfNotSmi(rax, &skip_allocation);
+          // Fall through!
+        case NO_OVERWRITE:
+          __ Allocate(HeapNumber::kSize, rax, r8, no_reg, &allocation_failed,
+                      TAG_OBJECT);
+          __ bind(&skip_allocation);
+          break;
+        default: UNREACHABLE();
+      }
       // Set the map.
       __ AssertRootValue(heap_number_map,
                          Heap::kHeapNumberMapRootIndex,
