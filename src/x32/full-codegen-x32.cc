@@ -140,7 +140,7 @@ void FullCodeGenerator::Generate() {
     Label ok;
     __ testl(rcx, rcx);
     __ j(zero, &ok, Label::kNear);
-    int receiver_offset = 1 * kHWRegSize +
+    int receiver_offset = 1 * kRegisterSize +
                           info->scope()->num_parameters() * kPointerSize;
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ movl(Operand(rsp, receiver_offset), kScratchRegister);
@@ -680,7 +680,7 @@ MemOperand FullCodeGenerator::StackOperand(Variable* var) {
   int offset = -var->index() * kPointerSize;
   // Adjust by a (parameter or local) base offset.
   if (var->IsParameter()) {
-    offset += 2 * kHWRegSize +
+    offset += 2 * kRegisterSize +
               (info_->scope()->num_parameters() - 1) * kPointerSize;
   } else {
     offset += JavaScriptFrameConstants::kLocal0Offset;
@@ -2642,7 +2642,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   }
 
   // Push the receiver of the enclosing function and do runtime call.
-  __ Push(Operand(rbp, 2 * kHWRegSize +
+  __ Push(Operand(rbp, 2 * kRegisterSize +
                        info_->scope()->num_parameters() * kPointerSize));
 
   // Push the language mode.

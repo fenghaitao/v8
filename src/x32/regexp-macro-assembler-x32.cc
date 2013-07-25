@@ -693,12 +693,12 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
 #else
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9 (and then on stack).
   // Push register parameters on stack for reference.
-  ASSERT_EQ(kInputString, -1 * kHWRegSize);
-  ASSERT_EQ(kStartIndex, -2 * kHWRegSize);
-  ASSERT_EQ(kInputStart, -3 * kHWRegSize);
-  ASSERT_EQ(kInputEnd, -4 * kHWRegSize);
-  ASSERT_EQ(kRegisterOutput, -5 * kHWRegSize);
-  ASSERT_EQ(kNumOutputRegisters, -6 * kHWRegSize);
+  ASSERT_EQ(kInputString, -1 * kRegisterSize);
+  ASSERT_EQ(kStartIndex, -2 * kRegisterSize);
+  ASSERT_EQ(kInputStart, -3 * kRegisterSize);
+  ASSERT_EQ(kInputEnd, -4 * kRegisterSize);
+  ASSERT_EQ(kRegisterOutput, -5 * kRegisterSize);
+  ASSERT_EQ(kNumOutputRegisters, -6 * kRegisterSize);
   __ push(rdi);
   __ push(rsi);
   __ push(rdx);
@@ -1170,7 +1170,7 @@ void RegExpMacroAssemblerX32::CallCheckStackGuardState() {
   __ movl(rsi, code_object_pointer());
   // First argument: Next address on the stack (will be address of
   // return address).
-  __ leal(rdi, Operand(rsp, -kHWRegSize));
+  __ leal(rdi, Operand(rsp, -kRegisterSize));
 #endif
   ExternalReference stack_check =
       ExternalReference::re_check_stack_guard_state(isolate());

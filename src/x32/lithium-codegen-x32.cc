@@ -142,7 +142,7 @@ bool LCodeGen::GeneratePrologue() {
       Label ok;
       __ testl(rcx, rcx);
       __ j(zero, &ok, Label::kNear);
-      int receiver_offset = 1 * kHWRegSize +
+      int receiver_offset = 1 * kRegisterSize +
                             scope()->num_parameters() * kPointerSize;
       __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
       __ movl(Operand(rsp, receiver_offset), kScratchRegister);
@@ -695,12 +695,6 @@ void LCodeGen::DeoptimizeIf(Condition cc,
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
   DeoptimizeIf(cc, environment, bailout_type);
-}
-
-
-void LCodeGen::SoftDeoptimize(LEnvironment* environment) {
-  ASSERT(!info()->IsStub());
-  DeoptimizeIf(no_condition, environment, Deoptimizer::SOFT);
 }
 
 
@@ -2870,7 +2864,7 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
     int index = (const_length - const_index) + 1;
     __ movl(result, Operand(arguments, index * kPointerSize +
-                            2 * kHWRegSize - 2 * kPointerSize));
+                            2 * kRegisterSize - 2 * kPointerSize));
   } else {
     Register length = ToRegister(instr->length());
     // There are two words between the frame pointer and the last argument.
@@ -2880,10 +2874,10 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     } else {
       __ subl(length, ToOperand(instr->index()));
     }
-    // PC and FP are with kHWRegSize.
+    // PC and FP are with kRegisterSize.
     __ movl(result,
             Operand(arguments, length, times_pointer_size,
-                    2 * kHWRegSize - 1 *kPointerSize));
+                    2 * kRegisterSize - 1 *kPointerSize));
   }
 }
 
@@ -3093,7 +3087,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
   if (instr->hydrogen()->from_inlined()) {
-    __ leal(result, Operand(rsp, -2 * kHWRegSize));
+    __ leal(result, Operand(rsp, -2 * kRegisterSize));
   } else {
     // Check for arguments adapter frame.
     Label done, adapted;
@@ -3216,7 +3210,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ j(zero, &invoke, Label::kNear);
   __ bind(&loop);
   __ Push(Operand(elements, length, times_pointer_size,
-                  2 * kHWRegSize - 1 * kPointerSize));
+                  2 * kRegisterSize - 1 * kPointerSize));
   __ decl(length);
   __ j(not_zero, &loop);
 
@@ -5017,6 +5011,7 @@ void LCodeGen::DoCheckMapCommon(Register reg,
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
+  if (instr->hydrogen()->CanOmitMapChecks()) return;
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
@@ -5084,6 +5079,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
+  if (instr->hydrogen()->CanOmitPrototypeChecks()) return;
   Register reg = ToRegister(instr->temp());
 
   ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
@@ -5091,11 +5087,9 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   ASSERT(prototypes->length() == maps->length());
 
-  if (!instr->hydrogen()->CanOmitPrototypeChecks()) {
-    for (int i = 0; i < prototypes->length(); i++) {
-      __ LoadHeapObject(reg, prototypes->at(i));
-      DoCheckMapCommon(reg, maps->at(i), instr);
-    }
+  for (int i = 0; i < prototypes->length(); i++) {
+    __ LoadHeapObject(reg, prototypes->at(i));
+    DoCheckMapCommon(reg, maps->at(i), instr);
   }
 }
 
@@ -5427,11 +5421,15 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
-  if (instr->hydrogen_value()->IsSoftDeoptimize()) {
-    SoftDeoptimize(instr->environment());
-  } else {
-    DeoptimizeIf(no_condition, instr->environment());
+  Deoptimizer::BailoutType type = instr->hydrogen()->type();
+  // TODO(danno): Stubs expect all deopts to be lazy for historical reasons (the
+  // needed return address), even though the implementation of LAZY and EAGER is
+  // now identical. When LAZY is eventually completely folded into EAGER, remove
+  // the special case below.
+  if (info()->IsStub() && type == Deoptimizer::EAGER) {
+    type = Deoptimizer::LAZY;
   }
+  DeoptimizeIf(no_condition, instr->environment(), type);
 }
 
 

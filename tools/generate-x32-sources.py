@@ -35,9 +35,9 @@ import os
 #   ./generate-x32-source.py {debug|release} output_file_names input_file_names
 #
 # The annotations include:
-#   __a (argument) : Replace (n + 1) * kPointerSize with 1 * kHWRegSize +
+#   __a (argument) : Replace (n + 1) * kPointerSize with 1 * kRegisterSize +
 #                    n * kPointerSize and __a with __ or remove "__a ".
-#   The size of return address is kHWRegSize for X32, the current X64 codes
+#   The size of return address is kRegisterSize for X32, the current X64 codes
 #   assume return address size is kPointerSize, so we replace the argument
 #   access offset with the right value.
 #
@@ -49,7 +49,7 @@ import os
 #     3) Use push/pop for return address and FP register
 #     4) Get signed index register for SIB access
 #
-#   __q (quad) : Replace kPointerSize with kHWRegSize and __q with __
+#   __q (quad) : Replace kPointerSize with kRegisterSize and __q with __
 #                or remove "__q ".
 #   We need to use quadword for X32 when:
 #     1) Pass arguments to the C++ runtime, we need 8-byte in the stack
@@ -67,17 +67,17 @@ import os
 # be processed according to the operator_handlers (see below).
 
 argument_replacements = {
-  "1 * kPointerSize" : "1 * kHWRegSize",
-  "2 * kPointerSize" : "1 * kHWRegSize + 1 * kPointerSize",
-  "3 * kPointerSize" : "1 * kHWRegSize + 2 * kPointerSize",
-  "4 * kPointerSize" : "1 * kHWRegSize + 3 * kPointerSize",
-  "5 * kPointerSize" : "1 * kHWRegSize + 4 * kPointerSize",
-  "6 * kPointerSize" : "1 * kHWRegSize + 5 * kPointerSize",
-  "i * kPointerSize" : "1 * kHWRegSize + (i - 1) * kPointerSize",
-  "argc * kPointerSize" : "1 * kHWRegSize + (argc - 1) * kPointerSize",
-  "(argc - 0) * kPointerSize"  : "1 * kHWRegSize + (argc - 1) * kPointerSize",
-  "(argc + 1) * kPointerSize"  : "1 * kHWRegSize + argc * kPointerSize",
-  "(argc_ + 1) * kPointerSize" : "1 * kHWRegSize + argc_ * kPointerSize",
+  "1 * kPointerSize" : "1 * kRegisterSize",
+  "2 * kPointerSize" : "1 * kRegisterSize + 1 * kPointerSize",
+  "3 * kPointerSize" : "1 * kRegisterSize + 2 * kPointerSize",
+  "4 * kPointerSize" : "1 * kRegisterSize + 3 * kPointerSize",
+  "5 * kPointerSize" : "1 * kRegisterSize + 4 * kPointerSize",
+  "6 * kPointerSize" : "1 * kRegisterSize + 5 * kPointerSize",
+  "i * kPointerSize" : "1 * kRegisterSize + (i - 1) * kPointerSize",
+  "argc * kPointerSize" : "1 * kRegisterSize + (argc - 1) * kPointerSize",
+  "(argc - 0) * kPointerSize"  : "1 * kRegisterSize + (argc - 1) * kPointerSize",
+  "(argc + 1) * kPointerSize"  : "1 * kRegisterSize + argc * kPointerSize",
+  "(argc_ + 1) * kPointerSize" : "1 * kRegisterSize + argc_ * kPointerSize",
 }
 
 def HandleArgument(line):
@@ -98,7 +98,7 @@ def HandleKeep(line):
 
 def HandleQuad(line):
   result = line
-  result = result.replace("kPointerSize", "kHWRegSize")
+  result = result.replace("kPointerSize", "kRegisterSize")
   return (True, result)
 
 def HandleNone64(line):

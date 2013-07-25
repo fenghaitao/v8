@@ -794,7 +794,8 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   }
   // Load the value from ReturnValue
   movl(rax,
-       Operand(rbp, 2 * kHWRegSize + (return_value_offset - 2) * kPointerSize));
+       Operand(rbp,
+               2 * kRegisterSize + (return_value_offset - 2) * kPointerSize));
   bind(&prologue);
 
   // No more valid handles (the result handle was the last one). Restore
@@ -2723,7 +2724,8 @@ Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize + kHWRegSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                1 * kRegisterSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -2782,7 +2784,8 @@ void MacroAssembler::JumpToHandlerEntry() {
 
 void MacroAssembler::Throw(Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize + kHWRegSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                1 * kRegisterSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -2822,7 +2825,8 @@ void MacroAssembler::Throw(Register value) {
 
 void MacroAssembler::ThrowUncatchable(Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize + kHWRegSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                1 * kRegisterSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -3552,8 +3556,8 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   // Set up the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
-  ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kHWRegSize);
-  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kHWRegSize);
+  ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kRegisterSize);
+  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kRegisterSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
   push(rbp);
   movl(rbp, rsp);
@@ -3582,7 +3586,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   // Optionally save all XMM registers.
   if (save_doubles) {
     int space = XMMRegister::kMaxNumRegisters * kDoubleSize +
-    arg_stack_space * kHWRegSize;
+    arg_stack_space * kRegisterSize;
     subl(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
@@ -3590,7 +3594,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
       movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
-    subl(rsp, Immediate(arg_stack_space * kHWRegSize));
+    subl(rsp, Immediate(arg_stack_space * kRegisterSize));
   }
 
   // Get the required frame alignment for the OS.
@@ -3635,7 +3639,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     }
   }
   // Get the return address from the stack and restore the frame pointer.
-  movl(rcx, Operand(rbp, 1 * kHWRegSize));
+  movl(rcx, Operand(rbp, 1 * kRegisterSize));
   movl(rbp, Operand(rbp, 0 * kPointerSize));
 
   // Drop everything up to and including the arguments and the receiver
@@ -3913,6 +3917,7 @@ void MacroAssembler::Allocate(int object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
+  ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -4463,9 +4468,9 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   ASSERT(IsPowerOf2(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  subl(rsp, Immediate((argument_slots_on_stack + 1) * kHWRegSize));
+  subl(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
   andl(rsp, Immediate(-frame_alignment));
-  movq(Operand(rsp, argument_slots_on_stack * kHWRegSize), kScratchRegister);
+  movq(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
 }
 
 
@@ -4488,7 +4493,7 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   ASSERT(num_arguments >= 0);
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  movl(rsp, Operand(rsp, argument_slots_on_stack * kHWRegSize));
+  movl(rsp, Operand(rsp, argument_slots_on_stack * kRegisterSize));
 }
 
 

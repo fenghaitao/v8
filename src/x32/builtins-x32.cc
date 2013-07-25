@@ -707,19 +707,19 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   }
 
   // Get the full codegen state from the stack and untag it.
-  __ SmiToInteger32(r10, Operand(rsp, 1 * kHWRegSize));
+  __ SmiToInteger32(r10, Operand(rsp, 1 * kRegisterSize));
 
   // Switch on the state.
   Label not_no_registers, not_tos_rax;
   __ cmpl(r10, Immediate(FullCodeGenerator::NO_REGISTERS));
   __ j(not_equal, &not_no_registers, Label::kNear);
-  __ ret(1 * kHWRegSize);  // Remove state.
+  __ ret(1 * kRegisterSize);  // Remove state.
 
   __ bind(&not_no_registers);
-  __ movl(rax, Operand(rsp, 2 * kHWRegSize));
+  __ movl(rax, Operand(rsp, 2 * kRegisterSize));
   __ cmpl(r10, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
-  __ ret(1 * kHWRegSize + 1 * kPointerSize);  // Remove state, rax.
+  __ ret(1 * kRegisterSize + 1 * kPointerSize);  // Remove state, rax.
 
   __ bind(&not_tos_rax);
   __ Abort("no cases left");
@@ -782,7 +782,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //    if it is a function.
   Label slow, non_function;
   // The function to call is at position n+1 on the stack.
-  __ movl(rdi, Operand(rsp, rax, times_pointer_size, 1 * kHWRegSize));
+  __ movl(rdi, Operand(rsp, rax, times_pointer_size, 1 * kRegisterSize));
   __ JumpIfSmi(rdi, &non_function);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &slow);
@@ -836,7 +836,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     }
 
     // Restore the function to rdi.
-    __ movl(rdi, Operand(rsp, rax, times_pointer_size, 1 * kHWRegSize));
+    __ movl(rdi, Operand(rsp, rax, times_pointer_size, 1 * kRegisterSize));
     __ jmp(&patch_receiver, Label::kNear);
 
     // Use the global receiver object from the called function as the
@@ -945,9 +945,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // rbp[16] : function arguments
     // rbp[20] : receiver
     // rbp[24] : function
-    static const int kArgumentsOffset = 2 * kHWRegSize;
-    static const int kReceiverOffset = 2 * kHWRegSize + 1 * kPointerSize;
-    static const int kFunctionOffset = 2 * kHWRegSize + 2 * kPointerSize;
+    static const int kArgumentsOffset = 2 * kRegisterSize;
+    static const int kReceiverOffset = 2 * kRegisterSize + 1 * kPointerSize;
+    static const int kFunctionOffset = 2 * kRegisterSize + 2 * kPointerSize;
 
     __ Push(Operand(rbp, kFunctionOffset));
     __ Push(Operand(rbp, kArgumentsOffset));

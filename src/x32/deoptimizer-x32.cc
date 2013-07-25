@@ -339,7 +339,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     input_offset -= kPointerSize;
     output_offset -= kPointerSize;
     if (i == StandardFrameConstants::kCallerPCOffset) {
-      i -= kHWRegSize - kPointerSize;
+      i -= kRegisterSize - kPointerSize;
     }
   }
 
@@ -450,7 +450,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ push(r);
   }
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kHWRegSize +
+  const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
                                       kDoubleRegsSize;
 
   // We use this to keep the value of the fifth argument temporarily.
@@ -463,8 +463,8 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movl(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kHWRegSize));
-  __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kHWRegSize));
+  __ movl(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize));
+  __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kRegisterSize));
 
   __ subl(arg5, rbp);
   __ negl(arg5);
@@ -509,7 +509,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Remove the bailout id and return address from the stack.
-  __ addl(rsp, Immediate(2 * kHWRegSize));
+  __ addl(rsp, Immediate(2 * kRegisterSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
@@ -623,6 +623,19 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   }
   __ bind(&done);
 }
+
+
+void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
+  SetFrameSlot(offset + 4, 0);
+  SetFrameSlot(offset, value);
+}
+
+
+void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
+  SetFrameSlot(offset + 4, 0);
+  SetFrameSlot(offset, value);
+}
+
 
 #undef __
 
