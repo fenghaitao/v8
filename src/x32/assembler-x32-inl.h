@@ -51,12 +51,13 @@ void Assembler::emitl(uint32_t x) {
 }
 
 
-void Assembler::emitl(uint32_t x, RelocInfo::Mode rmode) {
-  Memory::uint32_at(pc_) = x;
+void Assembler::emitp(void* x, RelocInfo::Mode rmode) {
+  uintptr_t value = reinterpret_cast<uintptr_t>(x);
+  Memory::uintptr_at(pc_) = value;
   if (!RelocInfo::IsNone(rmode)) {
-    RecordRelocInfo(rmode, x);
+    RecordRelocInfo(rmode, value);
   }
-  pc_ += sizeof(uint32_t);
+  pc_ += sizeof(uintptr_t);
 }
 
 

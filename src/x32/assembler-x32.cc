@@ -1376,10 +1376,10 @@ void Assembler::leal(Register dst, const Operand& src) {
 void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   emit(0xA1);
+  emitp(value, mode);
   // In 64-bit mode, need to zero extend the operand to 8 bytes.
   // See 2.2.1.4 in Intel64 and IA32 Architectures Software
   // Developer's Manual Volume 2.
-  emitl(reinterpret_cast<uintptr_t>(value), mode);
   emitl(0);
 }
 
@@ -1495,7 +1495,7 @@ void Assembler::movl(Register dst, int32_t value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst);
   emit(0xB8 | dst.low_bits());
-  emitl(value, rmode);
+  emitp(reinterpret_cast<void*>(value), rmode);
 }
 
 
@@ -1545,7 +1545,7 @@ void Assembler::movl(Register dst, void* value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst);
   emit(0xB8 | dst.low_bits());
-  emitl(reinterpret_cast<uintptr_t>(value), rmode);
+  emitp(value, rmode);
 }
 
 
@@ -1620,7 +1620,7 @@ void Assembler::movl(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
     ASSERT(!HEAP->InNewSpace(*value));
     emit_optional_rex_32(dst);
     emit(0xB8 | dst.low_bits());
-    emitl(reinterpret_cast<uintptr_t>(value.location()), mode);
+    emitp(value.location(), mode);
   }
 }
 
@@ -2030,7 +2030,7 @@ void Assembler::xchgl(Register dst, Register src) {
 void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   emit(0xA3);
-  emitl(reinterpret_cast<uintptr_t>(dst), mode);
+  emitp(dst, mode);
   emitl(0);
 }
 
