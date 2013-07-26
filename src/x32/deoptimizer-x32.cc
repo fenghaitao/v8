@@ -542,7 +542,6 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Push state, pc, and continuation from the last output frame.
   if (type() != OSR) {
-    __ Push(Immediate(0));
     __ Push(Operand(rbx, FrameDescription::state_offset()));
   }
   __ Push(Immediate(0));

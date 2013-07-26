@@ -688,7 +688,9 @@ void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
     // Tear down internal frame.
   }
 
-  __ pop(MemOperand(rsp, 0));  // Ignore state offset
+  __ pop(kScratchRegister);  // Pop return address
+  __ leal(rsp, Operand(rsp, 4));  // Pop state
+  __ push(kScratchRegister);  // Push return address
   __ ret(0);  // Return to IC Miss stub, continuation still on stack.
 }
 
@@ -713,13 +715,13 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   Label not_no_registers, not_tos_rax;
   __ cmpl(r10, Immediate(FullCodeGenerator::NO_REGISTERS));
   __ j(not_equal, &not_no_registers, Label::kNear);
-  __ ret(1 * kRegisterSize);  // Remove state.
+  __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
-  __ movl(rax, Operand(rsp, 2 * kRegisterSize));
+  __ movl(rax, Operand(rsp, 1 * kRegisterSize + 1 * kPointerSize));
   __ cmpl(r10, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
-  __ ret(1 * kRegisterSize + 1 * kPointerSize);  // Remove state, rax.
+  __ ret(2 * kPointerSize);  // Remove state, rax.
 
   __ bind(&not_tos_rax);
   __ Abort("no cases left");
