@@ -411,9 +411,18 @@ bool LCodeGen::IsTaggedConstant(LConstantOperand* op) const {
 }
 
 
-int LCodeGen::ToInteger32(LConstantOperand* op) const {
+int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
+  return ToRepresentation(op, Representation::Integer32());
+}
+
+
+int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
+                                   const Representation& r) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  return constant->Integer32Value();
+  int32_t value = constant->Integer32Value();
+  if (r.IsInteger32()) return value;
+  ASSERT(r.IsSmiOrTagged());
+  return reinterpret_cast<int32_t>(Smi::FromInt(value));
 }
 
 
@@ -1300,9 +1309,19 @@ void LCodeGen::DoMulI(LMulI* instr) {
       __ imull(left, left, Immediate(right_value));
     }
   } else if (right->IsStackSlot()) {
-    __ imull(left, ToOperand(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ SmiToInteger32(left, left);
+      __ imull(left, ToOperand(right));
+    } else {
+      __ imull(left, ToOperand(right));
+    }
   } else {
-    __ imull(left, ToRegister(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ SmiToInteger32(left, left);
+      __ imull(left, ToRegister(right));
+    } else {
+      __ imull(left, ToRegister(right));
+    }
   }
 
   if (can_overflow) {
@@ -1341,7 +1360,8 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->IsRegister());
 
   if (right->IsConstantOperand()) {
-    int right_operand = ToInteger32(LConstantOperand::cast(right));
+    int right_operand = ToRepresentation(LConstantOperand::cast(right),
+                                         instr->hydrogen()->representation());
     switch (instr->op()) {
       case Token::BIT_AND:
         __ andl(ToRegister(left), Immediate(right_operand));
@@ -1451,7 +1471,11 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHL:
         if (shift_count != 0) {
-          __ shll(ToRegister(left), Immediate(shift_count));
+          if (instr->hydrogen_value()->representation().IsSmi()) {
+            __ shll(ToRegister(left), Immediate(shift_count));
+          } else {
+            __ shll(ToRegister(left), Immediate(shift_count));
+          }
         }
         break;
       default:
@@ -1469,11 +1493,20 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
   if (right->IsConstantOperand()) {
     __ subl(ToRegister(left),
-            Immediate(ToInteger32(LConstantOperand::cast(right))));
+            Immediate(ToRepresentation(LConstantOperand::cast(right),
+                                       instr->hydrogen()->representation())));
   } else if (right->IsRegister()) {
-    __ subl(ToRegister(left), ToRegister(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ subl(ToRegister(left), ToRegister(right));
+    } else {
+      __ subl(ToRegister(left), ToRegister(right));
+    }
   } else {
-    __ subl(ToRegister(left), ToOperand(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ subl(ToRegister(left), ToOperand(right));
+    } else {
+      __ subl(ToRegister(left), ToOperand(right));
+    }
   }
 
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
@@ -1649,21 +1682,35 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
-      int32_t offset = ToInteger32(LConstantOperand::cast(right));
+      int32_t offset = ToRepresentation(LConstantOperand::cast(right),
+                                        instr->hydrogen()->representation());
       __ leal(ToRegister(instr->result()),
               MemOperand(ToRegister(left), offset));
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
-      __ leal(ToRegister(instr->result()), address);
+      if (instr->hydrogen()->representation().IsSmi()) {
+        __ leal(ToRegister(instr->result()), address);
+      } else {
+        __ leal(ToRegister(instr->result()), address);
+      }
     }
   } else {
     if (right->IsConstantOperand()) {
       __ addl(ToRegister(left),
-              Immediate(ToInteger32(LConstantOperand::cast(right))));
+              Immediate(ToRepresentation(LConstantOperand::cast(right),
+                                         instr->hydrogen()->representation())));
     } else if (right->IsRegister()) {
-      __ addl(ToRegister(left), ToRegister(right));
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ addl(ToRegister(left), ToRegister(right));
+      } else {
+        __ addl(ToRegister(left), ToRegister(right));
+      }
     } else {
-      __ addl(ToRegister(left), ToOperand(right));
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ addl(ToRegister(left), ToOperand(right));
+      } else {
+        __ addl(ToRegister(left), ToOperand(right));
+      }
     }
     if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
       DeoptimizeIf(overflow, instr->environment());
@@ -1677,7 +1724,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   LOperand* right = instr->right();
   ASSERT(left->Equals(instr->result()));
   HMathMinMax::Operation operation = instr->hydrogen()->operation();
-  if (instr->hydrogen()->representation().IsInteger32()) {
+  if (instr->hydrogen()->representation().IsSmiOrInteger32()) {
     Label return_left;
     Condition condition = (operation == HMathMinMax::kMathMin)
         ? less_equal
@@ -1685,18 +1732,27 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     Register left_reg = ToRegister(left);
     if (right->IsConstantOperand()) {
       Immediate right_imm =
-          Immediate(ToInteger32(LConstantOperand::cast(right)));
+          Immediate(ToRepresentation(LConstantOperand::cast(right),
+                                     instr->hydrogen()->representation()));
       __ cmpl(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
       __ movl(left_reg, right_imm);
     } else if (right->IsRegister()) {
       Register right_reg = ToRegister(right);
-      __ cmpl(left_reg, right_reg);
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ cmpl(left_reg, right_reg);
+      } else {
+        __ cmpl(left_reg, right_reg);
+      }
       __ j(condition, &return_left, Label::kNear);
       __ movl(left_reg, right_reg);
     } else {
       Operand right_op = ToOperand(right);
-      __ cmpl(left_reg, right_op);
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ cmpl(left_reg, right_op);
+      } else {
+        __ cmpl(left_reg, right_op);
+      }
       __ j(condition, &return_left, Label::kNear);
       __ movl(left_reg, right_op);
     }
@@ -4007,6 +4063,18 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
+void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
+  if (FLAG_debug_code && check->hydrogen()->skip_check()) {
+    Label done;
+    __ j(NegateCondition(cc), &done, Label::kNear);
+    __ int3();
+    __ bind(&done);
+  } else {
+    DeoptimizeIf(cc, check->environment());
+  }
+}
+
+
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->hydrogen()->skip_check()) return;
 
@@ -4044,7 +4112,9 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
       __ cmpl(length, ToRegister(instr->index()));
     }
   }
-  DeoptimizeIf(below_equal, instr->environment());
+  Condition condition =
+      instr->hydrogen()->allow_equality() ? below : below_equal;
+  ApplyCheckIf(condition, instr);
 }
 
 
