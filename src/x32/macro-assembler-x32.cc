@@ -2044,7 +2044,8 @@ void MacroAssembler::SmiShiftLogicalRightConstant(
       testl(dst, dst);
       j(negative, on_not_smi_result, near_jump);
     }
-    shrl(dst, Immediate(shift_value + kSmiShift));
+    SmiToInteger32(dst, dst);
+    shll(dst, Immediate(kSmiShift));
     testl(dst, Immediate(0xc0000000));
     j(not_zero, on_not_smi_result, near_jump);
     shll(dst, Immediate(kSmiShift));
