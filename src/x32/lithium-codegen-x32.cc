@@ -4560,7 +4560,7 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // the value in there. If that fails, call the runtime system.
   __ SmiToInteger32(reg, reg);
   __ xorl(reg, Immediate(0x80000000));
-  __ cvtlsi2sd(xmm0, reg);
+  __ cvtlsi2sd(xmm1, reg);
 
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, &slow);
@@ -4581,7 +4581,7 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // Heap number allocated. Put the value in xmm0 into the value of the
   // allocated heap number.
   __ bind(&done);
-  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), xmm0);
+  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), xmm1);
   __ StoreToSafepointRegisterSlot(reg, reg);
 }
 

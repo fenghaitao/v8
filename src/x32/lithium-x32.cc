@@ -1893,7 +1893,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else {
-        LNumberTagI* result = new(zone()) LNumberTagI(value);
+        LOperand* temp = FixedTemp(xmm1);
+        LNumberTagI* result = new(zone()) LNumberTagI(value, temp);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       }
     } else if (to.IsSmi()) {

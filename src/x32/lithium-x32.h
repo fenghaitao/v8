@@ -1926,13 +1926,15 @@ class LUint32ToDouble: public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
+class LNumberTagI: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LNumberTagI(LOperand* value) {
+  explicit LNumberTagI(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagI, "number-tag-i")
 };
