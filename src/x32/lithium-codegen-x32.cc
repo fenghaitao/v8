@@ -439,6 +439,13 @@ double LCodeGen::ToDouble(LConstantOperand* op) const {
 }
 
 
+ExternalReference LCodeGen::ToExternalReference(LConstantOperand* op) const {
+  HConstant* constant = chunk_->LookupConstant(op);
+  ASSERT(constant->HasExternalReferenceValue());
+  return constant->ExternalReferenceValue();
+}
+
+
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsSmiOrTagged());
@@ -1539,6 +1546,11 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
     __ Set(tmp, int_val);
     __ movq(res, tmp);
   }
+}
+
+
+void LCodeGen::DoConstantE(LConstantE* instr) {
+  __ LoadAddress(ToRegister(instr->result()), instr->value());
 }
 
 
@@ -2711,6 +2723,19 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
+
+  if (access.IsExternalMemory()) {
+    Register result = ToRegister(instr->result());
+    if (instr->object()->IsConstantOperand()) {
+      ASSERT(result.is(rax));
+      __ load_rax(ToExternalReference(LConstantOperand::cast(instr->object())));
+    } else {
+      Register object = ToRegister(instr->object());
+      __ movl(result, MemOperand(object, offset));
+    }
+    return;
+  }
+
   Register object = ToRegister(instr->object());
   if (FLAG_track_double_fields &&
       instr->hydrogen()->representation().IsDouble()) {
@@ -3957,11 +3982,23 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Representation representation = instr->representation();
 
-  Register object = ToRegister(instr->object());
-
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
 
+  if (access.IsExternalMemory()) {
+    Register value = ToRegister(instr->value());
+    if (instr->object()->IsConstantOperand()) {
+      ASSERT(value.is(rax));
+      LConstantOperand* object = LConstantOperand::cast(instr->object());
+      __ store_rax(ToExternalReference(object));
+    } else {
+      Register object = ToRegister(instr->object());
+      __ movl(MemOperand(object, offset), value);
+    }
+    return;
+  }
+
+  Register object = ToRegister(instr->object());
   Handle<Map> transition = instr->transition();
 
   if (FLAG_track_fields && representation.IsSmi()) {
@@ -4325,7 +4362,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     ASSERT_NE(instr->temp(), NULL);
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         ToRegister(instr->temp()), kDontSaveFPRegs);
-  } else if (FLAG_compiled_transitions) {
+  } else {
     PushSafepointRegistersScope scope(this);
     if (!object_reg.is(rax)) {
       __ movl(rax, object_reg);
@@ -4335,28 +4372,6 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ CallStub(&stub);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-  } else if (IsFastSmiElementsKind(from_kind) &&
-            IsFastDoubleElementsKind(to_kind)) {
-    Register fixed_object_reg = ToRegister(instr->temp());
-    ASSERT(fixed_object_reg.is(rdx));
-    Register new_map_reg = ToRegister(instr->new_map_temp());
-    ASSERT(new_map_reg.is(rbx));
-    __ movl(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
-    __ movl(fixed_object_reg, object_reg);
-    CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
-             RelocInfo::CODE_TARGET, instr);
-  } else if (IsFastDoubleElementsKind(from_kind) &&
-             IsFastObjectElementsKind(to_kind)) {
-    Register fixed_object_reg = ToRegister(instr->temp());
-    ASSERT(fixed_object_reg.is(rdx));
-    Register new_map_reg = ToRegister(instr->new_map_temp());
-    ASSERT(new_map_reg.is(rbx));
-    __ movl(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
-    __ movl(fixed_object_reg, object_reg);
-    CallCode(isolate()->builtins()->TransitionElementsDoubleToObject(),
-             RelocInfo::CODE_TARGET, instr);
-  } else {
-    UNREACHABLE();
   }
   __ bind(&not_applicable);
 }

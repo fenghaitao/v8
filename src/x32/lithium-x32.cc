@@ -2007,6 +2007,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   } else if (r.IsDouble()) {
     LOperand* temp = TempRegister();
     return DefineAsRegister(new(zone()) LConstantD(temp));
+  } else if (r.IsExternal()) {
+    return DefineAsRegister(new(zone()) LConstantE);
   } else if (r.IsTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {
@@ -2084,6 +2086,10 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
+  if (instr->access().IsExternalMemory() && instr->access().offset() == 0) {
+    LOperand* obj = UseRegisterOrConstantAtStart(instr->object());
+    return DefineFixed(new(zone()) LLoadNamedField(obj), rax);
+  }
   LOperand* obj = UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(obj));
 }
@@ -2246,19 +2252,10 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, new_map_reg, temp_reg);
     return result;
-  } else if (FLAG_compiled_transitions) {
+  } else {
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, NULL, NULL);
     return AssignPointerMap(result);
-  } else {
-    LOperand* object = UseFixed(instr->object(), rax);
-    LOperand* fixed_object_reg = FixedTemp(rdx);
-    LOperand* new_map_reg = FixedTemp(rbx);
-    LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object,
-                                            new_map_reg,
-                                            fixed_object_reg);
-    return MarkAsCall(result, instr);
   }
 }
 
@@ -2275,6 +2272,8 @@ LInstruction* LChunkBuilder::DoTrapAllocationMemento(
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool is_in_object = instr->access().IsInobject();
+  bool is_external_location = instr->access().IsExternalMemory() &&
+      instr->access().offset() == 0;
   bool needs_write_barrier = instr->NeedsWriteBarrier();
   bool needs_write_barrier_for_map = !instr->transition().is_null() &&
       instr->NeedsWriteBarrierForMap();
@@ -2284,6 +2283,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     obj = is_in_object
         ? UseRegister(instr->object())
         : UseTempRegister(instr->object());
+  } else if (is_external_location) {
+    ASSERT(!is_in_object);
+    ASSERT(!needs_write_barrier);
+    ASSERT(!needs_write_barrier_for_map);
+    obj = UseRegisterOrConstant(instr->object());
   } else {
     obj = needs_write_barrier_for_map
         ? UseRegister(instr->object())
@@ -2297,6 +2301,8 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* val;
   if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
+  } else if (is_external_location) {
+    val = UseFixed(instr->value(), rax);
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
   } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {

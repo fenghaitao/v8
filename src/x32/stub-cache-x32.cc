@@ -410,9 +410,9 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument in the internal frame of the caller
   // -----------------------------------
-  __ movq(scratch, Operand(rsp, 0));
+  __ movq(scratch, StackOperandForReturnAddress(0));
   __ subl(rsp, Immediate(kFastApiCallArguments * kPointerSize));
-  __ movq(Operand(rsp, 0), scratch);
+  __ movq(StackOperandForReturnAddress(0), scratch);
   __ Move(scratch, Smi::FromInt(0));
   for (int i = 1; i <= kFastApiCallArguments; i++) {
      __ movl(Operand(rsp, 1 * kRegisterSize + (i - 1) * kPointerSize), scratch);
@@ -430,8 +430,9 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   //  -- rsp[kFastApiCallArguments * 4 + 8]       : last argument in the
   //                                          internal frame.
   // -----------------------------------
-  __ movq(scratch, Operand(rsp, 0));
-  __ movq(Operand(rsp, kFastApiCallArguments * kPointerSize), scratch);
+  __ movq(scratch, StackOperandForReturnAddress(0));
+  __ movq(StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize),
+          scratch);
   __ addl(rsp, Immediate(kPointerSize * kFastApiCallArguments));
 }
 
@@ -2350,8 +2351,9 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
                   name, depth, &miss);
 
   // Move the return address on top of the stack.
-  __ movq(rax, Operand(rsp, kFastApiCallArguments * kPointerSize));
-  __ movq(Operand(rsp, 0 * kPointerSize), rax);
+  __ movq(rax,
+          StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize));
+  __ movq(StackOperandForReturnAddress(0), rax);
 
   GenerateFastApiCall(masm(), optimization, argc);
 

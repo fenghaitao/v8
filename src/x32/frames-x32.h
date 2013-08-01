@@ -127,6 +127,13 @@ inline Object* JavaScriptFrame::function_slot_object() const {
   return Memory::Object_at(fp() + offset);
 }
 
+
+inline void StackHandler::SetFp(Address slot, Address fp) {
+  Memory::Address_at(slot + kPointerSize) = 0;
+  Memory::Address_at(slot) = fp;
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_X32_FRAMES_X32_H_

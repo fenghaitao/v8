@@ -592,13 +592,13 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
-  SetFrameSlot(offset + 4, 0);
+  SetFrameSlot(offset + kPointerSize, 0);
   SetFrameSlot(offset, value);
 }
 
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
-  SetFrameSlot(offset + 4, 0);
+  SetFrameSlot(offset + kPointerSize, 0);
   SetFrameSlot(offset, value);
 }
 
