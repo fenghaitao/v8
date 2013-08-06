@@ -2246,7 +2246,6 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   Label not_smi;
   STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfNotSmi(rax, &not_smi);
-  __ SmiToInteger32(rax, rax);
 
   // Set ebx to 1...1 (== -1) if the argument is negative, or to 0...0
   // otherwise.
@@ -2265,7 +2264,6 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   __ j(negative, &slow);
 
   // Smi case done.
-  __ Integer32ToSmi(rax, rax);
   __ ret(2 * kPointerSize);
 
   // Check if the argument is a heap number and load its value.

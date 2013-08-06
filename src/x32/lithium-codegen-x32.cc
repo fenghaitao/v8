@@ -3492,10 +3492,8 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ andpd(input_reg, scratch);
-  } else if (r.IsInteger32()) {
+  } else if (r.IsSmiOrInteger32()) {
     EmitIntegerMathAbs(instr);
-  } else if (r.IsSmi()) {
-    EmitInteger64MathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
         new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);
@@ -4930,8 +4928,11 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   if (instr->truncating()) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
-    __ cvttsd2si(result_reg, input_reg);
-    __ cmpl(result_reg, Immediate(0x80000000));
+    __ cvttsd2siq(result_reg, input_reg);
+    __ movq(kScratchRegister,
+            V8_INT64_C(0x8000000000000000),
+            RelocInfo::NONE64);
+    __ cmpq(result_reg, kScratchRegister);
     DeoptimizeIf(equal, instr->environment());
   } else {
     __ cvttsd2si(result_reg, input_reg);
