@@ -450,8 +450,8 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-void MacroAssembler::Assert(Condition cc, const char* msg) {
-  if (emit_debug_code()) Check(cc, msg);
+void MacroAssembler::Assert(Condition cc, BailoutReason reason) {
+  if (emit_debug_code()) Check(cc, reason);
 }
 
 
@@ -467,16 +467,16 @@ void MacroAssembler::AssertFastElements(Register elements) {
     CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
                 Heap::kFixedCOWArrayMapRootIndex);
     j(equal, &ok, Label::kNear);
-    Abort("JSObject with fast elements map has slow elements");
+    Abort(kJSObjectWithFastElementsMapHasSlowElements);
     bind(&ok);
   }
 }
 
 
-void MacroAssembler::Check(Condition cc, const char* msg) {
+void MacroAssembler::Check(Condition cc, BailoutReason reason) {
   Label L;
   j(cc, &L, Label::kNear);
-  Abort(msg);
+  Abort(reason);
   // Control will not return here.
   bind(&L);
 }
@@ -509,12 +509,13 @@ void MacroAssembler::NegativeZeroTest(Register result,
 }
 
 
-void MacroAssembler::Abort(const char* msg) {
+void MacroAssembler::Abort(BailoutReason reason) {
   // We want to pass the msg string like a smi to avoid GC
   // problems, however msg is not guaranteed to be aligned
   // properly. Instead, we pass an aligned pointer that is
   // a proper v8 smi, but also pass the alignment difference
   // from the real pointer as a smi.
+  const char* msg = GetBailoutReason(reason);
   intptr_t p1 = reinterpret_cast<intptr_t>(msg);
   intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
   // Note: p0 might not be a valid Smi _value_, but it has a valid Smi tag.
@@ -841,7 +842,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   CompareRoot(return_value, Heap::kNullValueRootIndex);
   j(equal, &ok, Label::kNear);
 
-  Abort("API call returned invalid object");
+  Abort(kAPICallReturnedInvalidObject);
 
   bind(&ok);
 #endif
@@ -1093,7 +1094,7 @@ void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
     Label ok;
     j(zero, &ok, Label::kNear);
     if (allow_stub_calls()) {
-      Abort("Integer32ToSmiField writing to non-smi location");
+      Abort(kInteger32ToSmiFieldWritingToNonSmiLocation);
     } else {
       int3();
     }
@@ -1679,12 +1680,12 @@ void MacroAssembler::SmiAdd(Register dst,
     if (emit_debug_code()) {
       movl(kScratchRegister, src1);
       addl(kScratchRegister, src2);
-      Check(no_overflow, "Smi addition overflow");
+      Check(no_overflow, kSmiAdditionOverflow);
     }
     leal(dst, Operand(src1, src2, times_1, 0));
   } else {
     addl(dst, src2);
-    Assert(no_overflow, "Smi addition overflow");
+    Assert(no_overflow, kSmiAdditionOverflow);
   }
 }
 
@@ -1716,7 +1717,7 @@ void MacroAssembler::SmiSub(Register dst, Register src1, Register src2) {
     movl(dst, src1);
   }
   subl(dst, src2);
-  Assert(no_overflow, "Smi subtraction overflow");
+  Assert(no_overflow, kSmiSubtractionOverflow);
 }
 
 
@@ -1748,7 +1749,7 @@ void MacroAssembler::SmiSub(Register dst,
     movl(dst, src1);
   }
   subl(dst, src2);
-  Assert(no_overflow, "Smi subtraction overflow");
+  Assert(no_overflow, kSmiSubtractionOverflow);
 }
 
 
@@ -2168,7 +2169,7 @@ void MacroAssembler::SelectNonSmi(Register dst,
 #ifdef DEBUG
   if (allow_stub_calls()) {  // Check contains a stub call.
     Condition not_both_smis = NegateCondition(CheckBothSmi(src1, src2));
-    Check(not_both_smis, "Both registers were smis in SelectNonSmi.");
+    Check(not_both_smis, kBothRegistersWereSmisInSelectNonSmi);
   }
 #endif
   STATIC_ASSERT(kSmiTag == 0);
@@ -2878,9 +2879,9 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
   if (is_uint16(bytes_dropped)) {
     ret(bytes_dropped);
   } else {
-    pop(scratch);
+    PopReturnAddressTo(scratch);
     addl(rsp, Immediate(bytes_dropped));
-    push(scratch);
+    PushReturnAddressFrom(scratch);
     ret(0);
   }
 }
@@ -3064,7 +3065,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
                                 XMMRegister scratch) {
   if (FLAG_debug_code) {
     cmpq(src, Immediate(0xffffffff));
-    Assert(below_equal, "input GPR is expected to have upper32 cleared");
+    Assert(below_equal, kInputGPRIsExpectedToHaveUpper32Cleared);
   }
   cvtqsi2sd(dst, src);
 }
@@ -3113,7 +3114,7 @@ void MacroAssembler::AssertNumber(Register object) {
     j(is_smi, &ok, Label::kNear);
     Cmp(FieldOperand(object, HeapObject::kMapOffset),
         isolate()->factory()->heap_number_map());
-    Check(equal, "Operand is not a number");
+    Check(equal, kOperandIsNotANumber);
     bind(&ok);
   }
 }
@@ -3122,7 +3123,7 @@ void MacroAssembler::AssertNumber(Register object) {
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     Condition is_smi = CheckSmi(object);
-    Check(NegateCondition(is_smi), "Operand is a smi");
+    Check(NegateCondition(is_smi), kOperandIsASmi);
   }
 }
 
@@ -3130,7 +3131,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {
     Condition is_smi = CheckSmi(object);
-    Check(is_smi, "Operand is not a smi");
+    Check(is_smi, kOperandIsNotASmi);
   }
 }
 
@@ -3138,7 +3139,7 @@ void MacroAssembler::AssertSmi(Register object) {
 void MacroAssembler::AssertSmi(const Operand& object) {
   if (emit_debug_code()) {
     Condition is_smi = CheckSmi(object);
-    Check(is_smi, "Operand is not a smi");
+    Check(is_smi, kOperandIsNotASmi);
   }
 }
 
@@ -3148,7 +3149,7 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
     ASSERT(!int32_register.is(kScratchRegister));
     movq(kScratchRegister, 0x100000000l, RelocInfo::NONE64);
     cmpq(kScratchRegister, int32_register);
-    Check(above_equal, "32 bit value in register is not zero-extended");
+    Check(above_equal, k32BitValueInRegisterIsNotZeroExtended);
   }
 }
 
@@ -3156,12 +3157,12 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
 void MacroAssembler::AssertString(Register object) {
   if (emit_debug_code()) {
     testb(object, Immediate(kSmiTagMask));
-    Check(not_equal, "Operand is a smi and not a string");
+    Check(not_equal, kOperandIsASmiAndNotAString);
     Push(object);
     movl(object, FieldOperand(object, HeapObject::kMapOffset));
     CmpInstanceType(object, FIRST_NONSTRING_TYPE);
     Pop(object);
-    Check(below, "Operand is not a string");
+    Check(below, kOperandIsNotAString);
   }
 }
 
@@ -3169,24 +3170,24 @@ void MacroAssembler::AssertString(Register object) {
 void MacroAssembler::AssertName(Register object) {
   if (emit_debug_code()) {
     testb(object, Immediate(kSmiTagMask));
-    Check(not_equal, "Operand is a smi and not a name");
+    Check(not_equal, kOperandIsASmiAndNotAName);
     Push(object);
     movl(object, FieldOperand(object, HeapObject::kMapOffset));
     CmpInstanceType(object, LAST_NAME_TYPE);
     Pop(object);
-    Check(below_equal, "Operand is not a name");
+    Check(below_equal, kOperandIsNotAName);
   }
 }
 
 
 void MacroAssembler::AssertRootValue(Register src,
                                      Heap::RootListIndex root_value_index,
-                                     const char* message) {
+                                     BailoutReason reason) {
   if (emit_debug_code()) {
     ASSERT(!src.is(kScratchRegister));
     LoadRoot(kScratchRegister, root_value_index);
     cmpl(src, kScratchRegister);
-    Check(equal, message);
+    Check(equal, reason);
   }
 }
 
@@ -3538,7 +3539,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
          isolate()->factory()->undefined_value(),
          RelocInfo::EMBEDDED_OBJECT);
     cmpl(Operand(rsp, 0), kScratchRegister);
-    Check(not_equal, "code object not properly patched");
+    Check(not_equal, kCodeObjectNotProperlyPatched);
   }
 }
 
@@ -3547,7 +3548,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
     Move(kScratchRegister, Smi::FromInt(type));
     cmpl(Operand(rbp, StandardFrameConstants::kMarkerOffset), kScratchRegister);
-    Check(equal, "stack frame types must match");
+    Check(equal, kStackFrameTypesMustMatch);
   }
   movl(rsp, rbp);
   pop(rbp);
@@ -3647,8 +3648,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // from the caller stack.
   leal(rsp, Operand(r15, 1 * kPointerSize));
 
-  // Push the return address to get ready to return.
-  push(rcx);
+  PushReturnAddressFrom(rcx);
 
   LeaveExitFrameEpilogue();
 }
@@ -3692,7 +3692,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // When generating debug code, make sure the lexical context is set.
   if (emit_debug_code()) {
     cmpl(scratch, Immediate(0));
-    Check(not_equal, "we should not have an empty lexical context");
+    Check(not_equal, kWeShouldNotHaveAnEmptyLexicalContext);
   }
   // Load the native context of the current context.
   int offset =
@@ -3704,7 +3704,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   if (emit_debug_code()) {
     Cmp(FieldOperand(scratch, HeapObject::kMapOffset),
         isolate()->factory()->native_context_map());
-    Check(equal, "JSGlobalObject::native_context should be a native context.");
+    Check(equal, kJSGlobalObjectNativeContextShouldBeANativeContext);
   }
 
   // Check if both contexts are the same.
@@ -3723,12 +3723,12 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     movl(holder_reg,
          FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
     CompareRoot(holder_reg, Heap::kNullValueRootIndex);
-    Check(not_equal, "JSGlobalProxy::context() should not be null.");
+    Check(not_equal, kJSGlobalProxyContextShouldNotBeNull);
 
     // Read the first word and compare to native_context_map(),
     movl(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
     CompareRoot(holder_reg, Heap::kNativeContextMapRootIndex);
-    Check(equal, "JSGlobalObject::native_context should be a native context.");
+    Check(equal, kJSGlobalObjectNativeContextShouldBeANativeContext);
     Pop(holder_reg);
   }
 
@@ -3874,7 +3874,7 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
     // Assert that result actually contains top on entry.
     Operand top_operand = ExternalOperand(allocation_top);
     cmpl(result, top_operand);
-    Check(equal, "Unexpected allocation top");
+    Check(equal, kUnexpectedAllocationTop);
 #endif
     return;
   }
@@ -3895,7 +3895,7 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                AllocationFlags flags) {
   if (emit_debug_code()) {
     testl(result_end, Immediate(kObjectAlignmentMask));
-    Check(zero, "Unaligned allocation in new space");
+    Check(zero, kUnalignedAllocationInNewSpace);
   }
 
   ExternalReference allocation_top =
@@ -4069,7 +4069,7 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object) {
   Operand top_operand = ExternalOperand(new_space_allocation_top);
 #ifdef DEBUG
   cmpl(object, top_operand);
-  Check(below, "Undo allocation of non allocated memory");
+  Check(below, kUndoAllocationOfNonAllocatedMemory);
 #endif
   movl(top_operand, object);
 }
@@ -4259,7 +4259,7 @@ void MacroAssembler::CopyBytes(Register destination,
   ASSERT(min_length >= 0);
   if (emit_debug_code()) {
     cmpl(length, Immediate(min_length));
-    Assert(greater_equal, "Invalid min_length");
+    Assert(greater_equal, kInvalidMinLength);
   }
   Label loop, done, short_string, short_loop;
 
@@ -4343,7 +4343,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (emit_debug_code()) {
     CompareRoot(FieldOperand(dst, HeapObject::kMapOffset),
                 Heap::kWithContextMapRootIndex);
-    Check(not_equal, "Variable resolved to with context.");
+    Check(not_equal, kVariableResolvedToWithContext);
   }
 }
 
@@ -4434,7 +4434,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     CheckMap(map, isolate()->factory()->meta_map(), &fail, DO_SMI_CHECK);
     jmp(&ok);
     bind(&fail);
-    Abort("Global functions must have initial map");
+    Abort(kGlobalFunctionsMustHaveInitialMap);
     bind(&ok);
   }
 }

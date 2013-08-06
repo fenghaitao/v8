@@ -97,7 +97,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LChunkBuilder::Abort(const char* reason) {
+void LChunkBuilder::Abort(BailoutReason reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -671,7 +671,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
-    Abort("bailout was not prepared");
+    Abort(kBailoutWasNotPrepared);
     return;
   }
 
@@ -1661,7 +1661,7 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ cmpl(value, Immediate(encoding == String::ONE_BYTE_ENCODING
                                  ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, "Unexpected string type");
+    __ Check(equal, kUnexpectedStringType);
     __ Pop(value);
   }
 
@@ -2590,7 +2590,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     // The argument count parameter is a smi
     __ SmiToInteger32(reg, reg);
     Register return_addr_reg = reg.is(rcx) ? rbx : rcx;
-    __ pop(return_addr_reg);
+    __ PopReturnAddressTo(return_addr_reg);
     __ shll(reg, Immediate(kPointerSizeLog2));
     __ addl(rsp, reg);
     __ jmp(return_addr_reg);
@@ -3119,7 +3119,7 @@ Operand LCodeGen::BuildFastArrayOperand(
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
-      Abort("array index constant value too big");
+      Abort(kArrayIndexConstantValueTooBig);
     }
     return Operand(elements_pointer_reg,
                    ((constant_value + additional_index) << shift_size)
@@ -3458,6 +3458,17 @@ void LCodeGen::EmitIntegerMathAbs(LMathAbs* instr) {
 }
 
 
+void LCodeGen::EmitInteger64MathAbs(LMathAbs* instr) {
+  Register input_reg = ToRegister(instr->value());
+  __ testl(input_reg, input_reg);
+  Label is_positive;
+  __ j(not_sign, &is_positive, Label::kNear);
+  __ negl(input_reg);  // Sets flags.
+  DeoptimizeIf(negative, instr->environment());
+  __ bind(&is_positive);
+}
+
+
 void LCodeGen::DoMathAbs(LMathAbs* instr) {
   // Class for deferred case.
   class DeferredMathAbsTaggedHeapNumber: public LDeferredCode {
@@ -3483,6 +3494,8 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     __ andpd(input_reg, scratch);
   } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
+  } else if (r.IsSmi()) {
+    EmitInteger64MathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
         new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);

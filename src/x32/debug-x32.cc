@@ -128,7 +128,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       if ((non_object_regs & (1 << r)) != 0) {
         if (FLAG_debug_code) {
           __ testl(reg, Immediate(0xc0000000));
-          __ Assert(zero, "Unable to encode value as smi");
+          __ Assert(zero, kUnableToEncodeValueAsSmi);
         }
         __ Integer32ToSmi(reg, reg);
         __ Push(reg);

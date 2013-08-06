@@ -122,7 +122,9 @@ def Replace(line, key):
   return line.replace(key, operator_handlers[key][0])
 
 def HandlePushPop(line, key):
-  if line.find("push(rbp)") == -1 and line.find("pop(rbp)") == -1:
+  if line.find("push(rbp)") == -1 and line.find("pop(rbp)") == -1 and \
+     line.find("PopReturnAddressTo") == -1 and \
+     line.find("PushReturnAddressFrom") == -1:
     return Replace(line, key)
   else:
     return line
