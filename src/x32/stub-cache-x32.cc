@@ -2247,10 +2247,12 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfNotSmi(rax, &not_smi);
 
+  // Branchless abs implementation, refer to below:
+  // http://graphics.stanford.edu/~seander/bithacks.html#IntegerAbs
   // Set ebx to 1...1 (== -1) if the argument is negative, or to 0...0
   // otherwise.
   __ movl(rbx, rax);
-  __ sarl(rbx, Immediate(kBitsPerInt - 1));
+  __ sarl(rbx, Immediate(kBitsPerPointer - 1));
 
   // Do bitwise not or do nothing depending on ebx.
   __ xorl(rax, rbx);
@@ -2263,7 +2265,6 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   Label slow;
   __ j(negative, &slow);
 
-  // Smi case done.
   __ ret(2 * kPointerSize);
 
   // Check if the argument is a heap number and load its value.
