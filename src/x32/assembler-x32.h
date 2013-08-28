@@ -1405,6 +1405,8 @@ class Assembler : public AssemblerBase {
   void movmskps(Register dst, XMMRegister src);
   void pcmpeqd(XMMRegister dst, XMMRegister src);
 
+  void cmpltsd(XMMRegister dst, XMMRegister src);
+
   // The first argument is the reg field, the second argument is the r/m field.
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(XMMRegister reg, const Operand& adr);

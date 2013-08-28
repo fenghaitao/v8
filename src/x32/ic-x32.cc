@@ -903,8 +903,8 @@ void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
   // -----------------------------------
   Label miss;
 
-  // Get the receiver of the function from the stack.
-  __ movl(rdx, Operand(rsp, 1 * kRegisterSize + argc * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movl(rdx, args.GetReceiverOperand());
 
   GenerateNameDictionaryReceiverCheck(masm, rdx, rax, rbx, &miss);
 
@@ -939,8 +939,8 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
     __ IncrementCounter(counters->keyed_call_miss(), 1);
   }
 
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ movl(rdx, Operand(rsp, 1 * kRegisterSize + argc * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movl(rdx, args.GetReceiverOperand());
 
   // Enter an internal frame.
   {
@@ -964,8 +964,7 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
   // This can happen only for regular CallIC but not KeyedCallIC.
   if (id == IC::kCallIC_Miss) {
     Label invoke, global;
-    // receiver
-    __ movl(rdx, Operand(rsp, 1 * kRegisterSize + argc * kPointerSize));
+    __ movl(rdx, args.GetReceiverOperand());
     __ JumpIfSmi(rdx, &invoke);
     __ CmpObjectType(rdx, JS_GLOBAL_OBJECT_TYPE, rcx);
     __ j(equal, &global);
@@ -975,7 +974,7 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
     // Patch the receiver on the stack.
     __ bind(&global);
     __ movl(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
-    __ movl(Operand(rsp, 1 * kRegisterSize + argc * kPointerSize), rdx);
+    __ movl(args.GetReceiverOperand(), rdx);
     __ bind(&invoke);
   }
 
@@ -1005,8 +1004,8 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
   // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
 
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ movl(rdx, Operand(rsp, 1 * kRegisterSize + argc * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movl(rdx, args.GetReceiverOperand());
   GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC, extra_ic_state);
   GenerateMiss(masm, argc, extra_ic_state);
 }
@@ -1023,8 +1022,8 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
 
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ movl(rdx, Operand(rsp, 1 * kRegisterSize + argc * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movl(rdx, args.GetReceiverOperand());
 
   Label do_call, slow_call, slow_load;
   Label check_number_dictionary, check_name, lookup_monomorphic_cache;
@@ -1302,7 +1301,8 @@ void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
   // rsp[argc * 4 + 8]       : argument 0 = receiver
   // -----------------------------------
   Label slow, notin;
-  __ movl(rdx, Operand(rsp, 1 * kRegisterSize + argc * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movl(rdx, args.GetReceiverOperand());
   Operand mapped_location = GenerateMappedArgumentsLookup(
       masm, rdx, rcx, rbx, rax, r8, &notin, &slow);
   __ movl(rdi, mapped_location);
