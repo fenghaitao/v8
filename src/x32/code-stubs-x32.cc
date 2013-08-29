@@ -39,6 +39,17 @@ namespace v8 {
 namespace internal {
 
 
+void FastNewClosureStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rbx };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -292,141 +303,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Create a new closure from the given function info in new
-  // space. Set the context to the current context in rsi.
-  Counters* counters = masm->isolate()->counters();
-
-  Label gc;
-  __ Allocate(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
-
-  __ IncrementCounter(counters->fast_new_closure_total(), 1);
-
-  // Get the function info from the stack.
-  StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movl(rdx, args.GetArgumentOperand(0));
-
-  int map_index = Context::FunctionMapIndex(language_mode_, is_generator_);
-
-  // Compute the function map in the current native context and set that
-  // as the map of the allocated object.
-  __ movl(rcx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ movl(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
-  __ movl(rbx, Operand(rcx, Context::SlotOffset(map_index)));
-  __ movl(FieldOperand(rax, JSObject::kMapOffset), rbx);
-
-  // Initialize the rest of the function. We don't have to update the
-  // write barrier because the allocated object is in new space.
-  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
-  __ LoadRoot(r8, Heap::kTheHoleValueRootIndex);
-  __ LoadRoot(rdi, Heap::kUndefinedValueRootIndex);
-  __ movl(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
-  __ movl(FieldOperand(rax, JSObject::kElementsOffset), rbx);
-  __ movl(FieldOperand(rax, JSFunction::kPrototypeOrInitialMapOffset), r8);
-  __ movl(FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset), rdx);
-  __ movl(FieldOperand(rax, JSFunction::kContextOffset), rsi);
-  __ movl(FieldOperand(rax, JSFunction::kLiteralsOffset), rbx);
-
-  // Initialize the code pointer in the function to be the one
-  // found in the shared function info object.
-  // But first check if there is an optimized version for our context.
-  Label check_optimized;
-  Label install_unoptimized;
-  if (FLAG_cache_optimized_code) {
-    __ movl(rbx,
-            FieldOperand(rdx, SharedFunctionInfo::kOptimizedCodeMapOffset));
-    __ testl(rbx, rbx);
-    __ j(not_zero, &check_optimized, Label::kNear);
-  }
-  __ bind(&install_unoptimized);
-  __ movl(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset),
-          rdi);  // Initialize with undefined.
-  __ movl(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  __ leal(rdx, FieldOperand(rdx, Code::kHeaderSize));
-  __ movl(FieldOperand(rax, JSFunction::kCodeEntryOffset), rdx);
-
-  // Return and remove the on-stack parameter.
-  __ ret(1 * kPointerSize);
-
-  __ bind(&check_optimized);
-
-  __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1);
-
-  // rcx holds native context, rbx points to fixed array of 3-element entries
-  // (native context, optimized code, literals).
-  // The optimized code map must never be empty, so check the first elements.
-  Label install_optimized;
-  // Speculatively move code object into edx.
-  __ movl(rdx, FieldOperand(rbx, SharedFunctionInfo::kFirstCodeSlot));
-  __ cmpl(rcx, FieldOperand(rbx, SharedFunctionInfo::kFirstContextSlot));
-  __ j(equal, &install_optimized);
-
-  // Iterate through the rest of map backwards. rdx holds an index.
-  Label loop;
-  Label restore;
-  __ movl(rdx, FieldOperand(rbx, FixedArray::kLengthOffset));
-  __ SmiToInteger32(rdx, rdx);
-  __ bind(&loop);
-  // Do not double check first entry.
-  __ cmpl(rdx, Immediate(SharedFunctionInfo::kSecondEntryIndex));
-  __ j(equal, &restore);
-  __ subl(rdx, Immediate(SharedFunctionInfo::kEntryLength));
-  __ cmpl(rcx, FieldOperand(rbx,
-                            rdx,
-                            times_pointer_size,
-                            FixedArray::kHeaderSize));
-  __ j(not_equal, &loop, Label::kNear);
-  // Hit: fetch the optimized code.
-  __ movl(rdx, FieldOperand(rbx,
-                            rdx,
-                            times_pointer_size,
-                            FixedArray::kHeaderSize + 1 * kPointerSize));
-
-  __ bind(&install_optimized);
-  __ IncrementCounter(counters->fast_new_closure_install_optimized(), 1);
-
-  // TODO(fschneider): Idea: store proper code pointers in the map and either
-  // unmangle them on marking or do nothing as the whole map is discarded on
-  // major GC anyway.
-  __ leal(rdx, FieldOperand(rdx, Code::kHeaderSize));
-  __ movl(FieldOperand(rax, JSFunction::kCodeEntryOffset), rdx);
-
-  // Now link a function into a list of optimized functions.
-  __ movl(rdx, ContextOperand(rcx, Context::OPTIMIZED_FUNCTIONS_LIST));
-
-  __ movl(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset), rdx);
-  // No need for write barrier as JSFunction (rax) is in the new space.
-
-  __ movl(ContextOperand(rcx, Context::OPTIMIZED_FUNCTIONS_LIST), rax);
-  // Store JSFunction (rax) into rdx before issuing write barrier as
-  // it clobbers all the registers passed.
-  __ movl(rdx, rax);
-  __ RecordWriteContextSlot(
-      rcx,
-      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST),
-      rdx,
-      rbx,
-      kDontSaveFPRegs);
-
-  // Return and remove the on-stack parameter.
-  __ ret(1 * kPointerSize);
-
-  __ bind(&restore);
-  __ movl(rdx, args.GetArgumentOperand(0));
-  __ jmp(&install_unoptimized);
-
-  // Create a new closure through the slower runtime call.
-  __ bind(&gc);
-  __ PopReturnAddressTo(rcx);
-  __ Pop(rdx);
-  __ Push(rsi);
-  __ Push(rdx);
-  __ PushRoot(Heap::kFalseValueRootIndex);
-  __ PushReturnAddressFrom(rcx);
-  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
 
@@ -3613,6 +3489,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    __ Integer32ToSmi(rax, rax);
     __ Push(rax);
     __ Push(rdi);
     __ Push(rbx);
@@ -3623,6 +3500,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     __ Pop(rbx);
     __ Pop(rdi);
     __ Pop(rax);
+    __ SmiToInteger32(rax, rax);
   }
   __ jmp(&done);
 
