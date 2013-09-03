@@ -956,7 +956,10 @@ void MacroAssembler::Set(const Operand& dst, int32_t x) {
 }
 
 
-bool MacroAssembler::IsUnsafeInt(const int x) {
+// ----------------------------------------------------------------------------
+// Smi tagging, untagging and tag detection.
+
+bool MacroAssembler::IsUnsafeInt(const int32_t x) {
   static const int kMaxBits = 17;
   return !is_intn(x, kMaxBits);
 }
@@ -984,9 +987,6 @@ void MacroAssembler::SafePush(Smi* src) {
   }
 }
 
-
-// ----------------------------------------------------------------------------
-// Smi tagging, untagging and tag detection.
 
 Register MacroAssembler::GetSmiConstant(Smi* source) {
   int value = source->value();
@@ -2205,6 +2205,17 @@ void MacroAssembler::AddSmiField(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Push(Smi* source) {
+  intptr_t smi = reinterpret_cast<intptr_t>(source);
+  if (is_int32(smi)) {
+    Push(Immediate(static_cast<int32_t>(smi)));
+  } else {
+    Register constant = GetSmiConstant(source);
+    Push(constant);
+  }
+}
+
+
 void MacroAssembler::PushInt64AsTwoSmis(Register src, Register scratch) {
   movl(scratch, src);
   // High bits.
@@ -2227,6 +2238,14 @@ void MacroAssembler::PopInt64AsTwoSmis(Register dst, Register scratch) {
   shll(dst, Immediate(64 - kSmiShift));
   orl(dst, scratch);
 }
+
+
+void MacroAssembler::Test(const Operand& src, Smi* source) {
+  testl(src, Immediate(source));
+}
+
+
+// ----------------------------------------------------------------------------
 
 
 void MacroAssembler::JumpIfNotString(Register object,
@@ -2419,55 +2438,6 @@ void MacroAssembler::Push(Handle<Object> source) {
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movl(result, cell, RelocInfo::CELL);
-    movl(result, Operand(result, 0));
-  } else {
-    Move(result, object);
-  }
-}
-
-
-void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movl(kScratchRegister, cell, RelocInfo::CELL);
-    cmpl(reg, Operand(kScratchRegister, 0));
-  } else {
-    Cmp(reg, object);
-  }
-}
-
-
-void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movl(kScratchRegister, cell, RelocInfo::CELL);
-    movl(kScratchRegister, Operand(kScratchRegister, 0));
-    Push(kScratchRegister);
-  } else {
-    Push(object);
-  }
-}
-
-
-void MacroAssembler::LoadGlobalCell(Register dst, Handle<Cell> cell) {
-  if (dst.is(rax)) {
-    AllowDeferredHandleDereference embedding_raw_address;
-    load_rax(cell.location(), RelocInfo::CELL);
-  } else {
-    movl(dst, cell, RelocInfo::CELL);
-    movl(dst, Operand(dst, 0));
-  }
-}
-
-
 void MacroAssembler::Push(Immediate value) {
   leal(rsp, Operand(rsp, -4));
   movl(Operand(rsp, 0), value);
@@ -2522,13 +2492,51 @@ void MacroAssembler::Pop(const Operand& dst) {
 }
 
 
-void MacroAssembler::Push(Smi* source) {
-  intptr_t smi = reinterpret_cast<intptr_t>(source);
-  if (is_int32(smi)) {
-    Push(Immediate(static_cast<int32_t>(smi)));
+void MacroAssembler::LoadHeapObject(Register result,
+                                    Handle<HeapObject> object) {
+  AllowDeferredHandleDereference using_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    movl(result, cell, RelocInfo::CELL);
+    movl(result, Operand(result, 0));
   } else {
-    Register constant = GetSmiConstant(source);
-    Push(constant);
+    Move(result, object);
+  }
+}
+
+
+void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
+  AllowDeferredHandleDereference using_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    movl(kScratchRegister, cell, RelocInfo::CELL);
+    cmpl(reg, Operand(kScratchRegister, 0));
+  } else {
+    Cmp(reg, object);
+  }
+}
+
+
+void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
+  AllowDeferredHandleDereference using_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    movl(kScratchRegister, cell, RelocInfo::CELL);
+    movl(kScratchRegister, Operand(kScratchRegister, 0));
+    Push(kScratchRegister);
+  } else {
+    Push(object);
+  }
+}
+
+
+void MacroAssembler::LoadGlobalCell(Register dst, Handle<Cell> cell) {
+  if (dst.is(rax)) {
+    AllowDeferredHandleDereference embedding_raw_address;
+    load_rax(cell.location(), RelocInfo::CELL);
+  } else {
+    movl(dst, cell, RelocInfo::CELL);
+    movl(dst, Operand(dst, 0));
   }
 }
 
@@ -2537,11 +2545,6 @@ void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
     addl(rsp, Immediate(stack_elements * kPointerSize));
   }
-}
-
-
-void MacroAssembler::Test(const Operand& src, Smi* source) {
-  testl(src, Immediate(source));
 }
 
 

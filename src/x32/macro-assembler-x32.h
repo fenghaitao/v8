@@ -375,6 +375,11 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Smi tagging, untagging and operations on tagged smis.
 
+  // Support for constant splitting.
+  bool IsUnsafeInt(const int32_t x);
+  void SafeMove(Register dst, Smi* src);
+  void SafePush(Smi* src);
+
   void InitializeSmiConstantRegister() {
     movl(kSmiConstantRegister,
          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
@@ -720,13 +725,6 @@ class MacroAssembler: public Assembler {
     movl(dst, constant);
   }
 
-  void Push(Immediate value);
-  void Push_imm32(int32_t imm32);
-  void Push(Register src);
-  void Push(const Operand& src);
-  void Pop(Register dst);
-  void Pop(const Operand& dst);
-
   void Push(Smi* smi);
 
   // Save away a 64-bit integer on the stack as two 32-bit integers
@@ -790,11 +788,6 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
-  // Support for constant splitting.
-  bool IsUnsafeInt(const int x);
-  void SafeMove(Register dst, Smi* src);
-  void SafePush(Smi* src);
-
   // Bit-field support.
   void TestBit(const Operand& dst, int bit_index);
 
@@ -806,6 +799,13 @@ class MacroAssembler: public Assembler {
   void Cmp(Register dst, Smi* src);
   void Cmp(const Operand& dst, Smi* src);
   void Push(Handle<Object> source);
+
+  void Push(Immediate value);
+  void Push_imm32(int32_t imm32);
+  void Push(Register src);
+  void Push(const Operand& src);
+  void Pop(Register dst);
+  void Pop(const Operand& dst);
 
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
