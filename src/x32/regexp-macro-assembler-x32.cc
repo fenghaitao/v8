@@ -999,7 +999,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_.GetCode(&code_desc);
-  Isolate* isolate = ISOLATE;
+  Isolate* isolate = this->isolate();
   Handle<Code> code = isolate->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP),
       masm_.CodeObject());
@@ -1189,7 +1189,6 @@ int RegExpMacroAssemblerX32::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  ASSERT(isolate == Isolate::Current());
   if (isolate->stack_guard()->IsStackOverflow()) {
     isolate->StackOverflow();
     return EXCEPTION;
