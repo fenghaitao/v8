@@ -1547,7 +1547,7 @@ void Assembler::movl(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   } else {
     EnsureSpace ensure_space(this);
     ASSERT(value->IsHeapObject());
-    ASSERT(!HEAP->InNewSpace(*value));
+    ASSERT(!isolate()->heap()->InNewSpace(*value));
     emit_optional_rex_32(dst);
     emit(0xB8 | dst.low_bits());
     emitp(value.location(), mode);
