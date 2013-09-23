@@ -119,6 +119,7 @@ class LCodeGen;
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
+  V(LoadRoot)                                   \
   V(LoadFieldByIndex)                           \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
@@ -1245,7 +1246,7 @@ class LCmpMapAndBranch V8_FINAL : public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
-  Handle<Map> map() const { return hydrogen()->map(); }
+  Handle<Map> map() const { return hydrogen()->map().handle(); }
 };
 
 
@@ -1518,6 +1519,15 @@ class LLoadFunctionPrototype V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
 
   LOperand* function() { return inputs_[0]; }
+};
+
+
+class LLoadRoot V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(LoadRoot, "load-root")
+  DECLARE_HYDROGEN_ACCESSOR(LoadRoot)
+
+  Heap::RootListIndex index() const { return hydrogen()->index(); }
 };
 
 
@@ -2193,8 +2203,10 @@ class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 1, 2> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Map> original_map() { return hydrogen()->original_map(); }
-  Handle<Map> transitioned_map() { return hydrogen()->transitioned_map(); }
+  Handle<Map> original_map() { return hydrogen()->original_map().handle(); }
+  Handle<Map> transitioned_map() {
+    return hydrogen()->transitioned_map().handle();
+  }
   ElementsKind from_kind() { return hydrogen()->from_kind(); }
   ElementsKind to_kind() { return hydrogen()->to_kind(); }
 };
