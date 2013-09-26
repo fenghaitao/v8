@@ -2099,6 +2099,10 @@ void Assembler::testq(Register dst, Register src) {
 
 
 void Assembler::testq(Register dst, Immediate mask) {
+  if (is_uint8(mask.value_)) {
+    testb(dst, mask);
+    return;
+  }
   EnsureSpace ensure_space(this);
   if (dst.is(rax)) {
     emit_rex_64();
