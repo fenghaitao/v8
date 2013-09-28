@@ -446,49 +446,45 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 bool restore_context) {
   // ----------- S t a t e -------------
   //  -- rsp[0]                  : return address
-  //  -- rsp[8]                  : context save
-  //  -- rsp[12]                 : object passing the type check
-  //                           (last fast api call extra argument,
-  //                            set by CheckPrototypes)
-  //  -- rsp[16]                 : api function
-  //                           (first fast api call extra argument)
-  //  -- rsp[20]                 : api call data
-  //  -- rsp[24]                 : isolate
-  //  -- rsp[28]                 : ReturnValue default value
-  //  -- rsp[32]                 : ReturnValue
-  //
+  //  -- rsp[8] - rsp[58]        : FunctionCallbackInfo, incl.
+  //                             :  object passing the type check
+  //                            (set by CheckPrototypes)
   //  -- rsp[64]                 : last argument
   //  -- ...
   //  -- rsp[(argc + 6) * 4 + 8] : first argument
   //  -- rsp[(argc + 8) * 8]     : receiver
   // -----------------------------------
-  int api_call_argc = argc + kFastApiCallArguments;
-  StackArgumentsAccessor args(rsp, api_call_argc);
+  typedef FunctionCallbackArguments FCA;
+  StackArgumentsAccessor args(rsp, argc + kFastApiCallArguments);
 
   // Save calling context.
-  __ movl(args.GetArgumentOperand(api_call_argc), rsi);
+  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kContextSaveIndex), rsi);
 
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   __ LoadHeapObject(rdi, function);
   __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-  // Pass the additional arguments.
-  __ movl(args.GetArgumentOperand(api_call_argc - 2), rdi);
+  // Construct the FunctionCallbackInfo on the stack.
+  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kCalleeIndex), rdi);
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
     __ Move(rcx, api_call_info);
     __ movl(rbx, FieldOperand(rcx, CallHandlerInfo::kDataOffset));
-    __ movl(args.GetArgumentOperand(api_call_argc - 3), rbx);
+    __ movl(args.GetArgumentOperand(argc + 1 - FCA::kDataIndex), rbx);
   } else {
-    __ Move(args.GetArgumentOperand(api_call_argc - 3), call_data);
+    __ Move(args.GetArgumentOperand(argc + 1 - FCA::kDataIndex), call_data);
   }
   __ movl(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
-  __ movl(args.GetArgumentOperand(api_call_argc - 4), kScratchRegister);
+  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kIsolateIndex),
+          kScratchRegister);
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-  __ movl(args.GetArgumentOperand(api_call_argc - 5), kScratchRegister);
-  __ movl(args.GetArgumentOperand(api_call_argc - 6), kScratchRegister);
+  __ movl(
+      args.GetArgumentOperand(argc + 1 - FCA::kReturnValueDefaultValueIndex),
+      kScratchRegister);
+  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kReturnValueOffset),
+          kScratchRegister);
 
   // Prepare arguments.
   STATIC_ASSERT(kFastApiCallArguments == 7);
@@ -527,15 +523,16 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   StackArgumentsAccessor args_from_rbp(rbp, kFastApiCallArguments,
                                        ARGUMENTS_DONT_CONTAIN_RECEIVER);
   Operand context_restore_operand = args_from_rbp.GetArgumentOperand(
-      -FunctionCallbackArguments::kContextSaveIndex);
-  Operand return_value_operand = args_from_rbp.GetArgumentOperand(0);
-  __ CallApiFunctionAndReturn(function_address,
-                              thunk_address,
-                              callback_arg,
-                              api_call_argc + 1,
-                              return_value_operand,
-                              restore_context ?
-                                  &context_restore_operand : NULL);
+      -FCA::kContextSaveIndex);
+  Operand return_value_operand = args_from_rbp.GetArgumentOperand(
+      -FCA::kReturnValueOffset);
+  __ CallApiFunctionAndReturn(
+      function_address,
+      thunk_address,
+      callback_arg,
+      argc + kFastApiCallArguments + 1,
+      return_value_operand,
+      restore_context ? &context_restore_operand : NULL);
 }
 
 
@@ -551,13 +548,15 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   int api_call_argc = argc + kFastApiCallArguments;
   StackArgumentsAccessor args(rsp, api_call_argc);
+  const int kHolderIndex = api_call_argc + 1 -
+      (kFastApiCallArguments + FunctionCallbackArguments::kHolderIndex);
 
   __ movq(scratch, StackOperandForReturnAddress(0));
   // Assign stack space for the call arguments and receiver.
   __ subl(rsp, Immediate((api_call_argc + 1) * kPointerSize));
   __ movq(StackOperandForReturnAddress(0), scratch);
   // Write holder to stack frame.
-  __ movl(args.GetArgumentOperand(api_call_argc - 1), receiver);
+  __ movl(args.GetArgumentOperand(kHolderIndex), receiver);
   __ movl(args.GetReceiverOperand(), receiver);
   // Write the arguments to stack frame.
   for (int i = 0; i < argc; i++) {
