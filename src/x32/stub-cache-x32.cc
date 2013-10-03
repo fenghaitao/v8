@@ -446,7 +446,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 bool restore_context) {
   // ----------- S t a t e -------------
   //  -- rsp[0]                  : return address
-  //  -- rsp[8] - rsp[58]        : FunctionCallbackInfo, incl.
+  //  -- rsp[8] - rsp[32]        : FunctionCallbackInfo, incl.
   //                             :  object passing the type check
   //                            (set by CheckPrototypes)
   //  -- rsp[64]                 : last argument
@@ -458,38 +458,37 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   StackArgumentsAccessor args(rsp, argc + kFastApiCallArguments);
 
   // Save calling context.
-  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kContextSaveIndex), rsi);
+  int offset = argc + kFastApiCallArguments;
+  __ movl(args.GetArgumentOperand(offset - FCA::kContextSaveIndex), rsi);
 
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   __ LoadHeapObject(rdi, function);
   __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
   // Construct the FunctionCallbackInfo on the stack.
-  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kCalleeIndex), rdi);
+  __ movl(args.GetArgumentOperand(offset - FCA::kCalleeIndex), rdi);
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
     __ Move(rcx, api_call_info);
     __ movl(rbx, FieldOperand(rcx, CallHandlerInfo::kDataOffset));
-    __ movl(args.GetArgumentOperand(argc + 1 - FCA::kDataIndex), rbx);
+    __ movl(args.GetArgumentOperand(offset - FCA::kDataIndex), rbx);
   } else {
-    __ Move(args.GetArgumentOperand(argc + 1 - FCA::kDataIndex), call_data);
+    __ Move(args.GetArgumentOperand(offset - FCA::kDataIndex), call_data);
   }
   __ movl(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
-  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kIsolateIndex),
+  __ movl(args.GetArgumentOperand(offset - FCA::kIsolateIndex),
           kScratchRegister);
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-  __ movl(
-      args.GetArgumentOperand(argc + 1 - FCA::kReturnValueDefaultValueIndex),
-      kScratchRegister);
-  __ movl(args.GetArgumentOperand(argc + 1 - FCA::kReturnValueOffset),
+  __ movl(args.GetArgumentOperand(offset - FCA::kReturnValueDefaultValueIndex),
+          kScratchRegister);
+  __ movl(args.GetArgumentOperand(offset - FCA::kReturnValueOffset),
           kScratchRegister);
 
   // Prepare arguments.
   STATIC_ASSERT(kFastApiCallArguments == 7);
-  __ leal(rbx, Operand(rsp, 1 * kRegisterSize +
-                      (kFastApiCallArguments - 1) * kPointerSize));
+  __ leal(rbx, args.GetArgumentOperand(offset - FCA::kHolderIndex));
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
@@ -500,11 +499,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   __ PrepareCallApiFunction(kApiStackSpace);
 
-  __ movl(StackSpaceOperand(0), rbx);  // v8::Arguments::implicit_args_.
-  __ addl(rbx, Immediate(argc * kPointerSize));
-  __ movl(StackSpaceOperand(1), rbx);  // v8::Arguments::values_.
-  __ Set(StackSpaceOperand(2), argc);  // v8::Arguments::length_.
-  // v8::Arguments::is_construct_call_.
+  __ movl(StackSpaceOperand(0), rbx);  // FunctionCallbackInfo::implicit_args_.
+  __ addl(rbx, Immediate((argc + kFastApiCallArguments - 1) * kPointerSize));
+  __ movl(StackSpaceOperand(1), rbx);  // FunctionCallbackInfo::values_.
+  __ Set(StackSpaceOperand(2), argc);  // FunctionCallbackInfo::length_.
+  // FunctionCallbackInfo::is_construct_call_.
   __ Set(StackSpaceOperand(3), 0);
 
 #if defined(__MINGW64__) || defined(_WIN64)
@@ -523,9 +522,9 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   StackArgumentsAccessor args_from_rbp(rbp, kFastApiCallArguments,
                                        ARGUMENTS_DONT_CONTAIN_RECEIVER);
   Operand context_restore_operand = args_from_rbp.GetArgumentOperand(
-      -FCA::kContextSaveIndex);
+      kFastApiCallArguments - 1 - FCA::kContextSaveIndex);
   Operand return_value_operand = args_from_rbp.GetArgumentOperand(
-      -FCA::kReturnValueOffset);
+      kFastApiCallArguments - 1 - FCA::kReturnValueOffset);
   __ CallApiFunctionAndReturn(
       function_address,
       thunk_address,
@@ -546,14 +545,14 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(optimization.is_simple_api_call());
   ASSERT(!receiver.is(scratch));
 
-  int api_call_argc = argc + kFastApiCallArguments;
-  StackArgumentsAccessor args(rsp, api_call_argc);
-  const int kHolderIndex = api_call_argc + 1 -
-      (kFastApiCallArguments + FunctionCallbackArguments::kHolderIndex);
+  const int fast_api_call_argc = argc + kFastApiCallArguments;
+  StackArgumentsAccessor args(rsp, fast_api_call_argc);
+  const int kHolderIndex = argc +
+      kFastApiCallArguments - FunctionCallbackArguments::kHolderIndex;
 
   __ movq(scratch, StackOperandForReturnAddress(0));
   // Assign stack space for the call arguments and receiver.
-  __ subl(rsp, Immediate((api_call_argc + 1) * kPointerSize));
+  __ subl(rsp, Immediate((fast_api_call_argc + 1) * kPointerSize));
   __ movq(StackOperandForReturnAddress(0), scratch);
   // Write holder to stack frame.
   __ movl(args.GetArgumentOperand(kHolderIndex), receiver);
@@ -1113,9 +1112,10 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
 
   StackArgumentsAccessor args(rsp, kFastApiCallArguments,
                               ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  const int kHolderIndex = kFastApiCallArguments - 1 -
+      FunctionCallbackArguments::kHolderIndex;
   if (save_at_depth == depth) {
-    __ movl(args.GetArgumentOperand(-FunctionCallbackArguments::kHolderIndex),
-            object_reg);
+    __ movl(args.GetArgumentOperand(kHolderIndex), object_reg);
   }
 
   // Check the maps in the prototype chain.
@@ -1175,8 +1175,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     }
 
     if (save_at_depth == depth) {
-      __ movl(args.GetArgumentOperand(-FunctionCallbackArguments::kHolderIndex),
-              reg);
+      __ movl(args.GetArgumentOperand(kHolderIndex), reg);
     }
 
     // Go to the next object in the prototype chain.
@@ -1334,12 +1333,13 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   ASSERT(!scratch4().is(reg));
   __ PopReturnAddressTo(scratch4());
 
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == -1);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == -2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == -3);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == -4);
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == -5);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
   __ Push(receiver());  // receiver
   if (heap()->InNewSpace(callback->data())) {
     ASSERT(!scratch2().is(reg));
@@ -1357,7 +1357,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ Push(reg);  // holder
   __ Push(name());  // name
   // Save a pointer to where we pushed the arguments pointer.  This will be
-  // passed as the const ExecutableAccessorInfo& to the C++ callback.
+  // passed as the const PropertyAccessorInfo& to the C++ callback.
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
 
@@ -1382,10 +1382,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   const int kArgStackSpace = 1;
 
   __ PrepareCallApiFunction(kArgStackSpace);
-  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
-  __ leal(rax, Operand(name_arg, 6 * kPointerSize));
+  __ leal(rax, Operand(name_arg, 1 * kPointerSize));
 
-  // v8::AccessorInfo::args_.
+  // v8::PropertyAccessorInfo::args_.
   __ movl(StackSpaceOperand(0), rax);
 
   // The context register (rsi) has been saved in PrepareCallApiFunction and
@@ -1396,7 +1395,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 
   StackArgumentsAccessor args(rbp, PropertyCallbackArguments::kArgsLength);
   Operand return_value_operand = args.GetArgumentOperand(
-      -PropertyCallbackArguments::kReturnValueOffset);
+      PropertyCallbackArguments::kArgsLength - 1 -
+      PropertyCallbackArguments::kReturnValueOffset);
   __ CallApiFunctionAndReturn(getter_address,
                               thunk_address,
                               getter_arg,
