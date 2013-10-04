@@ -569,8 +569,8 @@ class MacroAssembler: public Assembler {
               Label::Distance near_jump = Label::kFar);
 
   // Adds smi values and return the result as a smi.
-  // If dst is src1, then src1 will be destroyed, even if
-  // the operation is unsuccessful.
+  // If dst is src1, then src1 will be destroyed if the operation is
+  // successful, otherwise kept intact.
   void SmiAdd(Register dst,
               Register src1,
               Register src2,
@@ -781,6 +781,10 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // Macro instructions.
+
+  // Load/store with specific representation.
+  void Load(Register dst, const Operand& src, Representation r);
+  void Store(const Operand& dst, Register src, Representation r);
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
@@ -1247,13 +1251,20 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Call a runtime function and save the value of XMM registers.
-  void CallRuntimeSaveDoubles(Runtime::FunctionId id);
+  void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, function->nargs, kSaveFPRegs);
+  }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id, int num_arguments);
+  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  }
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,

@@ -606,22 +606,9 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
-void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
-  CallRuntime(Runtime::FunctionForId(id), num_arguments);
-}
-
-
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  const Runtime::Function* function = Runtime::FunctionForId(id);
-  Set(rax, function->nargs);
-  LoadAddress(rbx, ExternalReference(function, isolate()));
-  CEntryStub ces(1, kSaveFPRegs);
-  CallStub(&ces);
-}
-
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+                                 int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
@@ -636,7 +623,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Set(rax, num_arguments);
   LoadAddress(rbx, ExternalReference(f, isolate()));
-  CEntryStub ces(f->result_size);
+  CEntryStub ces(f->result_size, save_doubles);
   CallStub(&ces);
 }
 
@@ -958,6 +945,28 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
 void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
   xorps(dst, dst);
   cvtlsi2sd(dst, src);
+}
+
+
+void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
+  if (r.IsByte()) {
+    movzxbl(dst, src);
+  } else if (r.IsInteger32()) {
+    movl(dst, src);
+  } else {
+    movl(dst, src);
+  }
+}
+
+
+void MacroAssembler::Store(const Operand& dst, Register src, Representation r) {
+  if (r.IsByte()) {
+    movb(dst, src);
+  } else if (r.IsInteger32()) {
+    movl(dst, src);
+  } else {
+    movl(dst, src);
+  }
 }
 
 
@@ -1503,10 +1512,14 @@ void MacroAssembler::SmiAddConstant(Register dst,
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
 
+    Label done;
     LoadSmiConstant(kScratchRegister, constant);
-    addl(kScratchRegister, src);
-    j(overflow, on_not_smi_result, near_jump);
-    movl(dst, kScratchRegister);
+    addl(dst, kScratchRegister);
+    j(no_overflow, &done, Label::kNear);
+    // Restore src.
+    subl(dst, kScratchRegister);
+    jmp(on_not_smi_result, near_jump);
+    bind(&done);
   } else {
     LoadSmiConstant(dst, constant);
     addl(dst, src);
@@ -1606,6 +1619,29 @@ void MacroAssembler::SmiNeg(Register dst,
 }
 
 
+template<class T>
+static void SmiAddHelper(MacroAssembler* masm,
+                         Register dst,
+                         Register src1,
+                         T src2,
+                         Label* on_not_smi_result,
+                         Label::Distance near_jump) {
+  if (dst.is(src1)) {
+    Label done;
+    masm->addl(dst, src2);
+    masm->j(no_overflow, &done, Label::kNear);
+    // Restore src1.
+    masm->subl(dst, src2);
+    masm->jmp(on_not_smi_result, near_jump);
+    masm->bind(&done);
+  } else {
+    masm->movl(dst, src1);
+    masm->addl(dst, src2);
+    masm->j(overflow, on_not_smi_result, near_jump);
+  }
+}
+
+
 void MacroAssembler::SmiAdd(Register dst,
                             Register src1,
                             Register src2,
@@ -1613,16 +1649,7 @@ void MacroAssembler::SmiAdd(Register dst,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
-    movl(kScratchRegister, src1);
-    addl(kScratchRegister, src2);
-    j(overflow, on_not_smi_result, near_jump);
-    movl(dst, kScratchRegister);
-  } else {
-    movl(dst, src1);
-    addl(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-  }
+  SmiAddHelper<Register>(this, dst, src1, src2, on_not_smi_result, near_jump);
 }
 
 
@@ -1632,17 +1659,8 @@ void MacroAssembler::SmiAdd(Register dst,
                             Label* on_not_smi_result,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
-  if (dst.is(src1)) {
-    movl(kScratchRegister, src1);
-    addl(kScratchRegister, src2);
-    j(overflow, on_not_smi_result, near_jump);
-    movl(dst, kScratchRegister);
-  } else {
-    ASSERT(!src2.AddressUsesRegister(dst));
-    movl(dst, src1);
-    addl(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-  }
+  ASSERT(!src2.AddressUsesRegister(dst));
+  SmiAddHelper<Operand>(this, dst, src1, src2, on_not_smi_result, near_jump);
 }
 
 

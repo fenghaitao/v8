@@ -104,24 +104,6 @@ void LChunkBuilder::Abort(BailoutReason reason) {
 }
 
 
-void LCodeGen::Comment(const char* format, ...) {
-  if (!FLAG_code_comments) return;
-  char buffer[4 * KB];
-  StringBuilder builder(buffer, ARRAY_SIZE(buffer));
-  va_list arguments;
-  va_start(arguments, format);
-  builder.AddFormattedList(format, arguments);
-  va_end(arguments);
-
-  // Copy the string before recording it in the assembler to avoid
-  // issues when the stack allocated buffer goes out of scope.
-  int length = builder.position();
-  Vector<char> copy = Vector<char>::New(length + 1);
-  OS::MemCopy(copy.start(), builder.Finalize(), copy.length());
-  masm()->RecordComment(copy.start());
-}
-
-
 #ifdef _MSC_VER
 void LCodeGen::MakeSureStackPagesMapped(int offset) {
   const int kPageSize = 4 * KB;
@@ -271,36 +253,6 @@ void LCodeGen::GenerateOsrPrologue() {
   int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
   ASSERT(slots >= 0);
   __ subl(rsp, Immediate(slots * kPointerSize));
-}
-
-
-bool LCodeGen::GenerateBody() {
-  ASSERT(is_generating());
-  bool emit_instructions = true;
-  for (current_instruction_ = 0;
-       !is_aborted() && current_instruction_ < instructions_->length();
-       current_instruction_++) {
-    LInstruction* instr = instructions_->at(current_instruction_);
-
-    // Don't emit code for basic blocks with a replacement.
-    if (instr->IsLabel()) {
-      emit_instructions = !LLabel::cast(instr)->HasReplacement();
-    }
-    if (!emit_instructions) continue;
-
-    if (FLAG_code_comments && instr->HasInterestingComment(this)) {
-      Comment(";;; <@%d,#%d> %s",
-              current_instruction_,
-              instr->hydrogen_value()->id(),
-              instr->Mnemonic());
-    }
-
-    RecordAndUpdatePosition(instr->position());
-
-    instr->CompileToNative(this);
-  }
-  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-  return !is_aborted();
 }
 
 
@@ -647,13 +599,15 @@ void LCodeGen::CallCode(Handle<Code> code,
 
 void LCodeGen::CallRuntime(const Runtime::Function* function,
                            int num_arguments,
-                           LInstruction* instr) {
+                           LInstruction* instr,
+                           SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
   ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
 
-  __ CallRuntime(function, num_arguments);
+  __ CallRuntime(function, num_arguments, save_doubles);
+
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT, 0);
 }
 
@@ -1923,14 +1877,6 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 }
 
 
-int LCodeGen::GetNextEmittedBlock() const {
-  for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
-    if (!chunk_->GetLabel(i)->HasReplacement()) return i;
-  }
-  return -1;
-}
-
-
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
   int left_block = instr->TrueDestination(chunk_);
@@ -2802,14 +2748,13 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!access.representation().IsInteger32());
     Register result = ToRegister(instr->result());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(result.is(rax));
       __ load_rax(ToExternalReference(LConstantOperand::cast(instr->object())));
     } else {
       Register object = ToRegister(instr->object());
-      __ movl(result, MemOperand(object, offset));
+      __ Load(result, MemOperand(object, offset), access.representation());
     }
     return;
   }
@@ -2823,20 +2768,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register result = ToRegister(instr->result());
-  if (access.IsInobject()) {
-    if (access.representation().IsInteger32()) {
-      __ movl(result, FieldOperand(object, offset));
-    } else {
-      __ movl(result, FieldOperand(object, offset));
-    }
-  } else {
+  if (!access.IsInobject()) {
     __ movl(result, FieldOperand(object, JSObject::kPropertiesOffset));
-    if (access.representation().IsInteger32()) {
-      __ movl(result, FieldOperand(result, offset));
-    } else {
-      __ movl(result, FieldOperand(result, offset));
-    }
+    object = result;
   }
+  __ Load(result, FieldOperand(object, offset), access.representation());
 }
 
 
@@ -3935,7 +3871,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
-  CallRuntime(instr->function(), instr->arity(), instr);
+  CallRuntime(instr->function(), instr->arity(), instr, instr->save_doubles());
 }
 
 
@@ -3961,16 +3897,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(!access.representation().IsInteger32());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(value.is(rax));
+      ASSERT(!access.representation().IsSpecialization());
       LConstantOperand* object = LConstantOperand::cast(instr->object());
       __ store_rax(ToExternalReference(object));
     } else {
       Register object = ToRegister(instr->object());
-      __ movl(MemOperand(object, offset), value);
+      __ Store(MemOperand(object, offset), value, representation);
     }
     return;
   }
@@ -4039,24 +3975,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (operand_value->IsRegister()) {
-      if (access.representation().IsInteger32()) {
-        __ movl(FieldOperand(write_register, offset),
-                ToRegister(operand_value));
-      } else {
-        __ movl(FieldOperand(write_register, offset),
-                ToRegister(operand_value));
-      }
+      Register value = ToRegister(operand_value);
+      __ Store(FieldOperand(write_register, offset), value, representation);
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
       __ Move(FieldOperand(write_register, offset), handle_value);
     }
   } else {
-    if (access.representation().IsInteger32()) {
-      __ movl(FieldOperand(write_register, offset), ToRegister(instr->value()));
-    } else {
-      __ movl(FieldOperand(write_register, offset), ToRegister(instr->value()));
-    }
+    Register value = ToRegister(instr->value());
+    __ Store(FieldOperand(write_register, offset), value, representation);
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {

@@ -547,9 +547,9 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   const int fast_api_call_argc = argc + kFastApiCallArguments;
   StackArgumentsAccessor args(rsp, fast_api_call_argc);
-  const int kHolderIndex = argc +
-      kFastApiCallArguments - FunctionCallbackArguments::kHolderIndex;
-
+  // argc + 1 is the argument number before FastApiCall arguments, 1 ~ receiver
+  const int kHolderIndex = argc + 1 +
+      kFastApiCallArguments - 1 - FunctionCallbackArguments::kHolderIndex;
   __ movq(scratch, StackOperandForReturnAddress(0));
   // Assign stack space for the call arguments and receiver.
   __ subl(rsp, Immediate((fast_api_call_argc + 1) * kPointerSize));
@@ -1114,6 +1114,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
                               ARGUMENTS_DONT_CONTAIN_RECEIVER);
   const int kHolderIndex = kFastApiCallArguments - 1 -
       FunctionCallbackArguments::kHolderIndex;
+
   if (save_at_depth == depth) {
     __ movl(args.GetArgumentOperand(kHolderIndex), object_reg);
   }
@@ -1393,6 +1394,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
 
+  // The name handler is counted as an argument.
   StackArgumentsAccessor args(rbp, PropertyCallbackArguments::kArgsLength);
   Operand return_value_operand = args.GetArgumentOperand(
       PropertyCallbackArguments::kArgsLength - 1 -
