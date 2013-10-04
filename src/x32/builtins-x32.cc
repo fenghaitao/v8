@@ -885,9 +885,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // rbp[16] : function arguments
     // rbp[20] : receiver
     // rbp[24] : function
-    static const int kArgumentsOffset = 2 * kRegisterSize;
-    static const int kReceiverOffset = 2 * kRegisterSize + 1 * kPointerSize;
-    static const int kFunctionOffset = 2 * kRegisterSize + 2 * kPointerSize;
+    static const int kArgumentsOffset = kFPOnStackSize + kPCOnStackSize;
+    static const int kReceiverOffset = kArgumentsOffset + kPointerSize;
+    static const int kFunctionOffset = kReceiverOffset + kPointerSize;
 
     __ Push(Operand(rbp, kFunctionOffset));
     __ Push(Operand(rbp, kArgumentsOffset));
