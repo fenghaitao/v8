@@ -949,6 +949,7 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
 
 
 void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
+  ASSERT(!r.IsDouble());
   if (r.IsByte()) {
     movzxbl(dst, src);
   } else if (r.IsInteger32()) {
@@ -960,6 +961,7 @@ void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
 
 
 void MacroAssembler::Store(const Operand& dst, Register src, Representation r) {
+  ASSERT(!r.IsDouble());
   if (r.IsByte()) {
     movb(dst, src);
   } else if (r.IsInteger32()) {
@@ -4166,6 +4168,10 @@ void MacroAssembler::Allocate(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  if (isolate()->heap_profiler()->is_tracking_allocations()) {
+    RecordObjectAllocation(isolate(), result, object_size);
+  }
+
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
@@ -4251,6 +4257,10 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
+
+  if (isolate()->heap_profiler()->is_tracking_allocations()) {
+    RecordObjectAllocation(isolate(), result, object_size);
+  }
 
   // Align the next allocation. Storing the filler map without checking top is
   // safe in new-space because the limit of the heap is aligned there.
@@ -5000,8 +5010,8 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
-    Register scratch_reg) {
-  Label no_memento_available;
+    Register scratch_reg,
+    Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -5011,12 +5021,43 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   movl(kScratchRegister, new_space_start);
   cmpl(scratch_reg, kScratchRegister);
-  j(less, &no_memento_available);
+  j(less, no_memento_found);
   cmpl(scratch_reg, ExternalOperand(new_space_allocation_top));
-  j(greater, &no_memento_available);
+  j(greater, no_memento_found);
   CompareRoot(MemOperand(scratch_reg, -AllocationMemento::kSize),
               Heap::kAllocationMementoMapRootIndex);
-  bind(&no_memento_available);
+}
+
+
+void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
+                                            Register object,
+                                            Register object_size) {
+  FrameScope frame(this, StackFrame::EXIT);
+  PushSafepointRegisters();
+  PrepareCallCFunction(3);
+  // In case object is rdx
+  movl(kScratchRegister, object);
+  movl(arg_reg_3, object_size);
+  movl(arg_reg_2, kScratchRegister);
+  movl(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
+  CallCFunction(
+      ExternalReference::record_object_allocation_function(isolate), 3);
+  PopSafepointRegisters();
+}
+
+
+void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
+                                            Register object,
+                                            int object_size) {
+  FrameScope frame(this, StackFrame::EXIT);
+  PushSafepointRegisters();
+  PrepareCallCFunction(3);
+  movl(arg_reg_2, object);
+  movl(arg_reg_3, Immediate(object_size));
+  movl(arg_reg_1, isolate, RelocInfo::EXTERNAL_REFERENCE);
+  CallCFunction(
+      ExternalReference::record_object_allocation_function(isolate), 3);
+  PopSafepointRegisters();
 }
 
 
