@@ -3008,15 +3008,6 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 }
 
 
-void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit(0x0f);
-  emit(0x76);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };
   emit_operand(ireg, adr);
