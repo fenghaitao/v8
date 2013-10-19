@@ -1785,6 +1785,43 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
     Memory::Object_at(d.destination()) = *num;
   }
 
+  // Materialize all float32x4 before looking at arguments because when the
+  // output frames are used to materialize arguments objects later on they need
+  // to already contain valid float32x4 values.
+  for (int i = 0; i < deferred_float32x4s_.length(); i++) {
+    Float32x4MaterializationDescriptor<Address> d = deferred_float32x4s_[i];
+    Handle<Object> float32x4 = isolate_->factory()->NewFloat32x4(d.value());
+    if (trace_scope_ != NULL) {
+      PrintF(trace_scope_->file(),
+             "Materialized a new float32x4 %p "
+             "[float32x4(%e, %e, %e, %e)] in slot %p\n",
+             reinterpret_cast<void*>(*float32x4),
+             d.value().storage[0], d.value().storage[1],
+             d.value().storage[2], d.value().storage[3],
+             d.destination());
+    }
+    Memory::Object_at(d.destination()) = *float32x4;
+  }
+
+  // Materialize all int32x4 before looking at arguments because when the
+  // output frames are used to materialize arguments objects later on they need
+  // to already contain valid int32x4 values.
+  for (int i = 0; i < deferred_int32x4s_.length(); i++) {
+    Int32x4MaterializationDescriptor<Address> d = deferred_int32x4s_[i];
+    Handle<Object> int32x4 = isolate_->factory()->NewInt32x4(d.value());
+    if (trace_scope_ != NULL) {
+      PrintF(trace_scope_->file(),
+             "Materialized a new int32x4 %p "
+             "[int32x4(%u, %u, %u, %u)] in slot %p\n",
+             reinterpret_cast<void*>(*int32x4),
+             d.value().storage[0], d.value().storage[1],
+             d.value().storage[2], d.value().storage[3],
+             d.destination());
+    }
+    Memory::Object_at(d.destination()) = *int32x4;
+  }
+
+
   // Materialize all heap numbers required for arguments/captured objects.
   for (int i = 0; i < deferred_objects_double_values_.length(); i++) {
     HeapNumberMaterializationDescriptor<int> d =
@@ -1803,6 +1840,48 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
 
   // Play it safe and clear all object double values before we continue.
   deferred_objects_double_values_.Clear();
+
+  // Materialize all float32x4 values required for arguments/captured objects.
+  for (int i = 0; i < deferred_objects_float32x4_values_.length(); i++) {
+    Float32x4MaterializationDescriptor<int> d =
+        deferred_objects_float32x4_values_[i];
+    Handle<Object> float32x4 = isolate_->factory()->NewFloat32x4(d.value());
+    if (trace_scope_ != NULL) {
+      PrintF(trace_scope_->file(),
+             "Materialized a new float32x4 %p "
+             "[float32x4(%e, %e, %e, %e)] for object at %d\n",
+             reinterpret_cast<void*>(*float32x4),
+             d.value().storage[0], d.value().storage[1],
+             d.value().storage[2], d.value().storage[3],
+             d.destination());
+    }
+    ASSERT(values.at(d.destination())->IsTheHole());
+    values.Set(d.destination(), float32x4);
+  }
+
+  // Play it safe and clear all object float32x4 values before we continue.
+  deferred_objects_float32x4_values_.Clear();
+
+  // Materialize all int32x4 values required for arguments/captured objects.
+  for (int i = 0; i < deferred_objects_int32x4_values_.length(); i++) {
+    Int32x4MaterializationDescriptor<int> d =
+        deferred_objects_int32x4_values_[i];
+    Handle<Object> int32x4 = isolate_->factory()->NewInt32x4(d.value());
+    if (trace_scope_ != NULL) {
+      PrintF(trace_scope_->file(),
+             "Materialized a new int32x4 %p "
+             "[int32x4(%u, %u, %u, %u)] for object at %d\n",
+             reinterpret_cast<void*>(*int32x4),
+             d.value().storage[0], d.value().storage[1],
+             d.value().storage[2], d.value().storage[3],
+             d.destination());
+    }
+    ASSERT(values.at(d.destination())->IsTheHole());
+    values.Set(d.destination(), int32x4);
+  }
+
+  // Play it safe and clear all object int32x4 values before we continue.
+  deferred_objects_int32x4_values_.Clear();
 
   // Materialize arguments/captured objects.
   if (!deferred_objects_.is_empty()) {
@@ -2015,6 +2094,40 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::FLOAT32x4_REGISTER: {
+      int input_reg = iterator->Next();
+      float32x4_value_t value = input_->GetFloat32x4Register(input_reg);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot),
+               field_index);
+        PrintF(trace_scope_->file(),
+               "float32x4(%e, %e, %e, %e) ; %s\n", value.storage[0],
+               value.storage[1], value.storage[2], value.storage[3],
+               Float32x4Register::AllocationIndexToString(input_reg));
+      }
+      AddObjectFloat32x4Value(value);
+      return;
+    }
+
+    case Translation::INT32x4_REGISTER: {
+      int input_reg = iterator->Next();
+      int32x4_value_t value = input_->GetInt32x4Register(input_reg);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot),
+               field_index);
+        PrintF(trace_scope_->file(),
+               "int32x4(%u, %u, %u, %u) ; %s\n", value.storage[0],
+               value.storage[1], value.storage[2], value.storage[3],
+               Int32x4Register::AllocationIndexToString(input_reg));
+      }
+      AddObjectInt32x4Value(value);
+      return;
+    }
+
     case Translation::STACK_SLOT: {
       int input_slot_index = iterator->Next();
       unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
@@ -2099,6 +2212,42 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
                "%e ; [sp + %d]\n", value, input_offset);
       }
       AddObjectDoubleValue(value);
+      return;
+    }
+
+    case Translation::FLOAT32x4_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      float32x4_value_t value = input_->GetFloat32x4FrameSlot(input_offset);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot),
+               field_index);
+        PrintF(trace_scope_->file(),
+               "float32x4(%e, %e, %e, %e) ; [sp + %d]\n",
+               value.storage[0], value.storage[1], value.storage[2],
+               value.storage[3], input_offset);
+      }
+      AddObjectFloat32x4Value(value);
+      return;
+    }
+
+    case Translation::INT32x4_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      int32x4_value_t value = input_->GetInt32x4FrameSlot(input_offset);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot),
+               field_index);
+        PrintF(trace_scope_->file(),
+               "int32x4(%u, %u, %u, %u) ; [sp + %d]\n",
+               value.storage[0], value.storage[1], value.storage[2],
+               value.storage[3], input_offset);
+      }
+      AddObjectInt32x4Value(value);
       return;
     }
 
@@ -2284,6 +2433,46 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::FLOAT32x4_REGISTER: {
+      int input_reg = iterator->Next();
+      float32x4_value_t value = input_->GetFloat32x4Register(input_reg);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "    0x%08" V8PRIxPTR ":"
+               " [top + %d] <- float32x4(%e, %e, %e, %e) ; %s\n",
+               output_[frame_index]->GetTop() + output_offset,
+               output_offset,
+               value.storage[0], value.storage[1],
+               value.storage[2], value.storage[3],
+               Float32x4Register::AllocationIndexToString(input_reg));
+      }
+      // We save the untagged value on the side and store a GC-safe
+      // temporary placeholder in the frame.
+      AddFloat32x4Value(output_[frame_index]->GetTop() + output_offset, value);
+      output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      return;
+    }
+
+    case Translation::INT32x4_REGISTER: {
+      int input_reg = iterator->Next();
+      int32x4_value_t value = input_->GetInt32x4Register(input_reg);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "    0x%08" V8PRIxPTR ":"
+               " [top + %d] <- int32x4(%u, %u, %u, %u) ; %s\n",
+               output_[frame_index]->GetTop() + output_offset,
+               output_offset,
+               value.storage[0], value.storage[1],
+               value.storage[2], value.storage[3],
+               Int32x4Register::AllocationIndexToString(input_reg));
+      }
+      // We save the untagged value on the side and store a GC-safe
+      // temporary placeholder in the frame.
+      AddInt32x4Value(output_[frame_index]->GetTop() + output_offset, value);
+      output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      return;
+    }
+
     case Translation::STACK_SLOT: {
       int input_slot_index = iterator->Next();
       unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
@@ -2381,6 +2570,48 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       // We save the untagged value on the side and store a GC-safe
       // temporary placeholder in the frame.
       AddDoubleValue(output_[frame_index]->GetTop() + output_offset, value);
+      output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      return;
+    }
+
+    case Translation::FLOAT32x4_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      float32x4_value_t value = input_->GetFloat32x4FrameSlot(input_offset);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "    0x%08" V8PRIxPTR ": "
+               "[top + %d] <- float32x4(%e, %e, %e, %e) ; [sp + %d]\n",
+               output_[frame_index]->GetTop() + output_offset,
+               output_offset,
+               value.storage[0], value.storage[1],
+               value.storage[2], value.storage[3],
+               input_offset);
+      }
+      // We save the untagged value on the side and store a GC-safe
+      // temporary placeholder in the frame.
+      AddFloat32x4Value(output_[frame_index]->GetTop() + output_offset, value);
+      output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      return;
+    }
+
+    case Translation::INT32x4_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      int32x4_value_t value = input_->GetInt32x4FrameSlot(input_offset);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "    0x%08" V8PRIxPTR ": "
+               "[top + %d] <- int32x4(%u, %u, %u, %u) ; [sp + %d]\n",
+               output_[frame_index]->GetTop() + output_offset,
+               output_offset,
+               value.storage[0], value.storage[1],
+               value.storage[2], value.storage[3],
+               input_offset);
+      }
+      // We save the untagged value on the side and store a GC-safe
+      // temporary placeholder in the frame.
+      AddInt32x4Value(output_[frame_index]->GetTop() + output_offset, value);
       output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       return;
     }
@@ -2533,10 +2764,42 @@ void Deoptimizer::AddObjectDoubleValue(double value) {
 }
 
 
+void Deoptimizer::AddObjectFloat32x4Value(float32x4_value_t value) {
+  deferred_objects_tagged_values_.Add(isolate()->heap()->the_hole_value());
+  Float32x4MaterializationDescriptor<int> value_desc(
+      deferred_objects_tagged_values_.length() - 1, value);
+  deferred_objects_float32x4_values_.Add(value_desc);
+}
+
+
+void Deoptimizer::AddObjectInt32x4Value(int32x4_value_t value) {
+  deferred_objects_tagged_values_.Add(isolate()->heap()->the_hole_value());
+  Int32x4MaterializationDescriptor<int> value_desc(
+      deferred_objects_tagged_values_.length() - 1, value);
+  deferred_objects_int32x4_values_.Add(value_desc);
+}
+
+
 void Deoptimizer::AddDoubleValue(intptr_t slot_address, double value) {
   HeapNumberMaterializationDescriptor<Address> value_desc(
       reinterpret_cast<Address>(slot_address), value);
   deferred_heap_numbers_.Add(value_desc);
+}
+
+
+void Deoptimizer::AddFloat32x4Value(intptr_t slot_address,
+                                    float32x4_value_t value) {
+  Float32x4MaterializationDescriptor<Address> value_desc(
+      reinterpret_cast<Address>(slot_address), value);
+  deferred_float32x4s_.Add(value_desc);
+}
+
+
+void Deoptimizer::AddInt32x4Value(intptr_t slot_address,
+                                    int32x4_value_t value) {
+  Int32x4MaterializationDescriptor<Address> value_desc(
+      reinterpret_cast<Address>(slot_address), value);
+  deferred_int32x4s_.Add(value_desc);
 }
 
 
@@ -2780,6 +3043,18 @@ void Translation::StoreDoubleRegister(DoubleRegister reg) {
 }
 
 
+void Translation::StoreFloat32x4Register(Float32x4Register reg) {
+  buffer_->Add(FLOAT32x4_REGISTER, zone());
+  buffer_->Add(Float32x4Register::ToAllocationIndex(reg), zone());
+}
+
+
+void Translation::StoreInt32x4Register(Int32x4Register reg) {
+  buffer_->Add(INT32x4_REGISTER, zone());
+  buffer_->Add(Int32x4Register::ToAllocationIndex(reg), zone());
+}
+
+
 void Translation::StoreStackSlot(int index) {
   buffer_->Add(STACK_SLOT, zone());
   buffer_->Add(index, zone());
@@ -2800,6 +3075,18 @@ void Translation::StoreUint32StackSlot(int index) {
 
 void Translation::StoreDoubleStackSlot(int index) {
   buffer_->Add(DOUBLE_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
+
+
+void Translation::StoreFloat32x4StackSlot(int index) {
+  buffer_->Add(FLOAT32x4_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
+
+
+void Translation::StoreInt32x4StackSlot(int index) {
+  buffer_->Add(INT32x4_STACK_SLOT, zone());
   buffer_->Add(index, zone());
 }
 
@@ -2831,10 +3118,14 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case INT32_REGISTER:
     case UINT32_REGISTER:
     case DOUBLE_REGISTER:
+    case FLOAT32x4_REGISTER:
+    case INT32x4_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
     case UINT32_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
+    case FLOAT32x4_STACK_SLOT:
+    case INT32x4_STACK_SLOT:
     case LITERAL:
     case COMPILED_STUB_FRAME:
       return 1;
@@ -2894,6 +3185,8 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
     case Translation::DOUBLE_REGISTER:
+    case Translation::FLOAT32x4_REGISTER:
+    case Translation::INT32x4_REGISTER:
       // We are at safepoint which corresponds to call.  All registers are
       // saved by caller so there would be no live registers at this
       // point. Thus these translation commands should not be used.
@@ -2921,6 +3214,18 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
       int slot_index = iterator->Next();
       Address slot_addr = SlotAddress(frame, slot_index);
       return SlotRef(slot_addr, SlotRef::DOUBLE);
+    }
+
+    case Translation::FLOAT32x4_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::FLOAT32x4);
+    }
+
+    case Translation::INT32x4_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::INT32x4);
     }
 
     case Translation::LITERAL: {

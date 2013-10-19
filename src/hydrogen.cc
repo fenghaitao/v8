@@ -5414,7 +5414,9 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadMonomorphic() {
-  if (!CanInlinePropertyAccess(*map_)) return IsStringLength();
+  if (!CanInlinePropertyAccess(*map_)) {
+    return IsStringLength() || IsFloat32x4OrInt32x4PropertyCallback();
+  }
   if (IsJSObjectFieldAccessor()) return true;
   if (!LookupDescriptor()) return false;
   if (lookup_.IsFound()) return true;
@@ -5431,6 +5433,15 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
   if (IsStringLength()) {
     for (int i = 1; i < types->length(); ++i) {
       if (types->at(i)->instance_type() >= FIRST_NONSTRING_TYPE) return false;
+    }
+    return true;
+  }
+
+  if (IsFloat32x4OrInt32x4PropertyCallback()) {
+    for (int i = 1; i < types->length(); ++i) {
+      if (types->at(i)->instance_type() == types->first()->instance_type()) {
+        return false;
+      }
     }
     return true;
   }
@@ -5464,6 +5475,65 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
 }
 
 
+static BuiltinFunctionId NameToId(Isolate* isolate, Handle<String> name,
+                                  InstanceType type) {
+  BuiltinFunctionId id;
+  if (name->Equals(isolate->heap()->signMask())) {
+    id = type == FLOAT32x4_TYPE ? kFloat32x4SignMask : kInt32x4SignMask;
+  } else if (name->Equals(isolate->heap()->x())) {
+    id = type == FLOAT32x4_TYPE ? kFloat32x4X : kInt32x4X;
+  } else if (name->Equals(isolate->heap()->y())) {
+    id = type == FLOAT32x4_TYPE ? kFloat32x4Y : kInt32x4Y;
+  } else if (name->Equals(isolate->heap()->z())) {
+    id = type == FLOAT32x4_TYPE ? kFloat32x4Z : kInt32x4Z;
+  } else if (name->Equals(isolate->heap()->w())) {
+    id = type == FLOAT32x4_TYPE ? kFloat32x4W : kInt32x4W;
+  } else if (name->Equals(isolate->heap()->flagX())) {
+    ASSERT(type == INT32x4_TYPE);
+    id = kInt32x4FlagX;
+  } else if (name->Equals(isolate->heap()->flagY())) {
+    ASSERT(type == INT32x4_TYPE);
+    id = kInt32x4FlagY;
+  } else if (name->Equals(isolate->heap()->flagZ())) {
+    ASSERT(type == INT32x4_TYPE);
+    id = kInt32x4FlagZ;
+  } else if (name->Equals(isolate->heap()->flagW())) {
+    ASSERT(type == INT32x4_TYPE);
+    id = kInt32x4FlagW;
+  } else {
+    UNREACHABLE();
+    id = kFloat32x4OrInt32x4Unreachable;
+  }
+
+  return id;
+}
+
+
+static bool IsSIMDProperty(Handle<String> name, uint8_t* mask) {
+  SmartArrayPointer<char> cstring = name->ToCString();
+  int i = 0;
+  while (i <= 3) {
+    int shift = 0;
+    switch (cstring[i]) {
+      case 'W':
+        shift++;
+      case 'Z':
+        shift++;
+      case 'Y':
+        shift++;
+      case 'X':
+        break;
+      default:
+        return false;
+    }
+    *mask |= (shift << 2*i);
+    i++;
+  }
+
+  return true;
+}
+
+
 HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
     PropertyAccessInfo* info,
     HValue* object,
@@ -5486,6 +5556,18 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
   if (!info->lookup()->IsFound()) return graph()->GetConstantUndefined();
 
   if (info->lookup()->IsField()) {
+    if (info->map()->constructor()->IsJSFunction()) {
+      JSFunction* constructor = JSFunction::cast(info->map()->constructor());
+      String* class_name =
+          String::cast(constructor->shared()->instance_class_name());
+      uint8_t mask = 0;
+      if (class_name->Equals(isolate()->heap()->simd()) &&
+          IsSIMDProperty(info->name(), &mask) &&
+          CpuFeatures::IsSupported(SSE2)) {
+        return New<HConstant>(mask);
+      }
+    }
+
     return BuildLoadNamedField(checked_holder, info->access());
   }
 
@@ -6593,6 +6675,24 @@ static bool AreStringTypes(SmallMapList* types) {
 }
 
 
+static bool AreInt32x4Types(SmallMapList* types) {
+  if (types == NULL || types->length() == 0) return false;
+  for (int i = 0; i < types->length(); i++) {
+    if (types->at(i)->instance_type() != INT32x4_TYPE) return false;
+  }
+  return true;
+}
+
+
+static bool AreFloat32x4Types(SmallMapList* types) {
+  if (types == NULL || types->length() == 0) return false;
+  for (int i = 0; i < types->length(); i++) {
+    if (types->at(i)->instance_type() != FLOAT32x4_TYPE) return false;
+  }
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::BuildLoad(Property* expr,
                                        BailoutId ast_id) {
   HInstruction* instr = NULL;
@@ -6623,16 +6723,44 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
             ast_id, expr->LoadId(), object, types, name);
       }
 
-      BuildCheckHeapObject(object);
-      HInstruction* checked_object;
       if (AreStringTypes(types)) {
-        checked_object =
+        BuildCheckHeapObject(object);
+        HInstruction* checked_object =
             Add<HCheckInstanceType>(object, HCheckInstanceType::IS_STRING);
+        instr = BuildLoadMonomorphic(
+            &info, object, checked_object, ast_id, expr->LoadId());
+      } else if (AreFloat32x4Types(types) && CpuFeatures::IsSupported(SSE2)) {
+        Handle<JSFunction> function(
+            isolate()->native_context()->float32x4_function());
+        HInstruction* constant_function = Add<HConstant>(function);
+        HObjectAccess map_access = HObjectAccess::ForPrototypeOrInitialMap();
+        HInstruction* map = Add<HLoadNamedField>(constant_function, map_access);
+        HObjectAccess prototype_access = HObjectAccess::ForMapPrototype();
+        HInstruction* prototype = Add<HLoadNamedField>(map, prototype_access);
+        Handle<Map> initial_function_prototype_map(
+            isolate()->native_context()->float32x4_function_prototype_map());
+        BuildCheckMap(prototype, initial_function_prototype_map);
+        BuiltinFunctionId id = NameToId(isolate(), name, FLOAT32x4_TYPE);
+        instr = NewUncasted<HUnarySIMDOperation>(object, id);
+      } else if (AreInt32x4Types(types) && CpuFeatures::IsSupported(SSE2)) {
+        Handle<JSFunction> function(
+            isolate()->native_context()->int32x4_function());
+        HInstruction* constant_function = Add<HConstant>(function);
+        HObjectAccess map_access = HObjectAccess::ForPrototypeOrInitialMap();
+        HInstruction* map = Add<HLoadNamedField>(constant_function, map_access);
+        HObjectAccess prototype_access = HObjectAccess::ForMapPrototype();
+        HInstruction* prototype = Add<HLoadNamedField>(map, prototype_access);
+        Handle<Map> initial_function_prototype_map(
+            isolate()->native_context()->int32x4_function_prototype_map());
+        BuildCheckMap(prototype, initial_function_prototype_map);
+        BuiltinFunctionId id = NameToId(isolate(), name, INT32x4_TYPE);
+        instr = NewUncasted<HUnarySIMDOperation>(object, id);
       } else {
-        checked_object = Add<HCheckMaps>(object, types);
+        BuildCheckHeapObject(object);
+        HInstruction* checked_object = Add<HCheckMaps>(object, types);
+        instr = BuildLoadMonomorphic(
+            &info, object, checked_object, ast_id, expr->LoadId());
       }
-      instr = BuildLoadMonomorphic(
-          &info, object, checked_object, ast_id, expr->LoadId());
       if (instr == NULL) return;
       if (instr->IsLinked()) return ast_context()->ReturnValue(instr);
     } else {
@@ -7394,6 +7522,116 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
         return true;
       }
       break;
+    case kFloat32x4Zero:
+    case kInt32x4Zero:
+      if (expr->arguments()->length() == 0) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        Drop(1);  // Receiver.
+        HInstruction* op = NewUncasted<HNullarySIMDOperation>(id);
+        if (drop_extra) Drop(1);  // Optionally drop the function.
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kSIMDAbs:
+    case kSIMDNeg:
+    case kSIMDNegU32:
+    case kSIMDReciprocal:
+    case kSIMDReciprocalSqrt:
+    case kSIMDSqrt:
+    case kSIMDBitsToFloat32x4:
+    case kSIMDToFloat32x4:
+    case kSIMDBitsToInt32x4:
+    case kSIMDToInt32x4:
+    case kFloat32x4Splat:
+    case kInt32x4Splat:
+      if (expr->arguments()->length() == 1) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        HValue* argument = Pop();
+        Drop(1);  // Receiver.
+        HInstruction* op = NewUncasted<HUnarySIMDOperation>(argument, id);
+        if (drop_extra) Drop(1);  // Optionally drop the function.
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kSIMDAdd:
+    case kSIMDSub:
+    case kSIMDMul:
+    case kSIMDDiv:
+    case kSIMDMin:
+    case kSIMDMax:
+    case kSIMDScale:
+    case kSIMDAnd:
+    case kSIMDOr:
+    case kSIMDXor:
+    case kSIMDAddU32:
+    case kSIMDSubU32:
+    case kSIMDMulU32:
+    case kSIMDShuffle:
+    case kSIMDShuffleU32:
+    case kSIMDLessThan:
+    case kSIMDLessThanOrEqual:
+    case kSIMDEqual:
+    case kSIMDNotEqual:
+    case kSIMDGreaterThanOrEqual:
+    case kSIMDGreaterThan:
+    case kSIMDWithX:
+    case kSIMDWithY:
+    case kSIMDWithZ:
+    case kSIMDWithW:
+    case kSIMDWithXu32:
+    case kSIMDWithYu32:
+    case kSIMDWithZu32:
+    case kSIMDWithWu32:
+    case kSIMDWithFlagX:
+    case kSIMDWithFlagY:
+    case kSIMDWithFlagZ:
+    case kSIMDWithFlagW:
+      if (expr->arguments()->length() == 2) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        HValue* right = Pop();
+        HValue* left = Pop();
+        Drop(1);  // Receiver.
+        HInstruction* op = NewUncasted<HBinarySIMDOperation>(left, right, id);
+        if (drop_extra) Drop(1);  // Optionally drop the function.
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kSIMDSelect:
+    case kSIMDShuffleMix:
+    case kSIMDClamp:
+      if (expr->arguments()->length() == 3) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        HValue* right = Pop();
+        HValue* left = Pop();
+        HValue* value = Pop();
+        Drop(1);  // Receiver.
+        HInstruction* op =
+            NewUncasted<HTernarySIMDOperation>(value, left, right, id);
+        if (drop_extra) Drop(1);  // Optionally drop the function.
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kFloat32x4Constructor:
+    case kInt32x4Constructor:
+    case kInt32x4Bool:
+      if (expr->arguments()->length() == 4) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        HValue* w = Pop();
+        HValue* z = Pop();
+        HValue* y = Pop();
+        HValue* x = Pop();
+        Drop(1);  // Receiver.
+        HInstruction* op =
+            NewUncasted<HQuarternarySIMDOperation>(x, y, z, w, id);
+        if (drop_extra) Drop(1);  // Optionally drop the function.
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
     default:
       // Not supported for inlining yet.
       break;
@@ -7515,6 +7753,159 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         Drop(1);  // Receiver.
         HInstruction* result = HMul::NewImul(zone(), context(), left, right);
         ast_context()->ReturnInstruction(result, expr->id());
+        return true;
+      }
+      break;
+    case kFloat32x4Zero:
+    case kInt32x4Zero:
+      if (argument_count == 1 && check_type == RECEIVER_MAP_CHECK) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        Drop(1);  // Receiver.
+        HInstruction* op = NewUncasted<HNullarySIMDOperation>(id);
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kSIMDAbs:
+    case kSIMDNeg:
+    case kSIMDNegU32:
+    case kSIMDReciprocal:
+    case kSIMDReciprocalSqrt:
+    case kSIMDSqrt:
+    case kSIMDBitsToFloat32x4:
+    case kSIMDToFloat32x4:
+    case kSIMDBitsToInt32x4:
+    case kSIMDToInt32x4:
+    case kFloat32x4Splat:
+    case kInt32x4Splat:
+      if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        HValue* argument = Pop();
+        Drop(1);  // Receiver.
+        HInstruction* op = NewUncasted<HUnarySIMDOperation>(argument, id);
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kSIMDAdd:
+    case kSIMDSub:
+    case kSIMDMul:
+    case kSIMDDiv:
+    case kSIMDMin:
+    case kSIMDMax:
+    case kSIMDScale:
+    case kSIMDAnd:
+    case kSIMDOr:
+    case kSIMDXor:
+    case kSIMDAddU32:
+    case kSIMDSubU32:
+    case kSIMDMulU32:
+    case kSIMDShuffle:
+    case kSIMDShuffleU32:
+    case kSIMDLessThan:
+    case kSIMDLessThanOrEqual:
+    case kSIMDEqual:
+    case kSIMDNotEqual:
+    case kSIMDGreaterThanOrEqual:
+    case kSIMDGreaterThan:
+    case kSIMDWithX:
+    case kSIMDWithY:
+    case kSIMDWithZ:
+    case kSIMDWithW:
+    case kSIMDWithXu32:
+    case kSIMDWithYu32:
+    case kSIMDWithZu32:
+    case kSIMDWithWu32:
+    case kSIMDWithFlagX:
+    case kSIMDWithFlagY:
+    case kSIMDWithFlagZ:
+    case kSIMDWithFlagW:
+      if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        HValue* right = Pop();
+        HValue* left = Pop();
+        Drop(1);  // Receiver.
+        HInstruction* op = NewUncasted<HBinarySIMDOperation>(left, right, id);
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kSIMDSelect:
+    case kSIMDShuffleMix:
+    case kSIMDClamp:
+      if (argument_count == 4 && check_type == RECEIVER_MAP_CHECK) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        HValue* right = Pop();
+        HValue* left = Pop();
+        HValue* value = Pop();
+        Drop(1);  // Receiver.
+        HInstruction* op =
+            NewUncasted<HTernarySIMDOperation>(value, left, right, id);
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kInt32x4Bool:
+      if (argument_count == 5 && check_type == RECEIVER_MAP_CHECK) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        HValue* w = Pop();
+        HValue* z = Pop();
+        HValue* y = Pop();
+        HValue* x = Pop();
+        Drop(1);  // Receiver.
+        HValue* context = environment()->context();
+        HInstruction* op =
+            HQuarternarySIMDOperation::New(zone(), context, x, y, z, w, id);
+        op->set_position(expr->position());
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kFloat32x4ArrayGetAt:
+    case kInt32x4ArrayGetAt:
+      if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        HValue* key = Pop();
+        HValue* typed32x4_array = Pop();
+        ASSERT(typed32x4_array == receiver);
+        HInstruction* instr = BuildUncheckedMonomorphicElementAccess(
+            typed32x4_array, key, NULL,
+            receiver_map->instance_type() == JS_ARRAY_TYPE,
+            receiver_map->elements_kind(),
+            false,  // is_store.
+            NEVER_RETURN_HOLE,  // load_mode.
+            STANDARD_STORE);
+        ast_context()->ReturnValue(instr);
+        return true;
+      }
+      break;
+    case kFloat32x4ArraySetAt:
+    case kInt32x4ArraySetAt:
+      if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
+        if (!CpuFeatures::IsSupported(SSE2)) return false;
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        HValue* value = Pop();
+        HValue* key = Pop();
+        HValue* typed32x4_array = Pop();
+        ASSERT(typed32x4_array == receiver);
+        // TODO(haitao): add STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS.
+        KeyedAccessStoreMode store_mode = STANDARD_STORE;
+        BuildUncheckedMonomorphicElementAccess(
+            typed32x4_array, key, value,
+            receiver_map->instance_type() == JS_ARRAY_TYPE,
+            receiver_map->elements_kind(),
+            true,  // is_store.
+            NEVER_RETURN_HOLE,  // load_mode.
+            store_mode);
+        Push(value);
+        Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+        ast_context()->ReturnValue(Pop());
         return true;
       }
       break;
@@ -10681,6 +11072,12 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
       if (op->IsDoubleRegister()) {
         trace_.Add(" \"%s\"",
                    DoubleRegister::AllocationIndexToString(assigned_reg));
+      } else if (op->IsFloat32x4Register()) {
+        trace_.Add(" \"%s\"",
+                   Float32x4Register::AllocationIndexToString(assigned_reg));
+      } else if (op->IsInt32x4Register()) {
+        trace_.Add(" \"%s\"",
+                   Int32x4Register::AllocationIndexToString(assigned_reg));
       } else {
         ASSERT(op->IsRegister());
         trace_.Add(" \"%s\"", Register::AllocationIndexToString(assigned_reg));
@@ -10689,6 +11086,10 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
       LOperand* op = range->TopLevel()->GetSpillOperand();
       if (op->IsDoubleStackSlot()) {
         trace_.Add(" \"double_stack:%d\"", op->index());
+      } else if (op->IsFloat32x4StackSlot()) {
+        trace_.Add(" \"float32x4_stack:%d\"", op->index());
+      } else if (op->IsInt32x4StackSlot()) {
+        trace_.Add(" \"int32x4_stack:%d\"", op->index());
       } else {
         ASSERT(op->IsStackSlot());
         trace_.Add(" \"stack:%d\"", op->index());

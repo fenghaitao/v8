@@ -405,6 +405,31 @@ void LGapResolver::EmitMove(int index) {
         cgen_->X87Mov(dst, src);
       }
     }
+  } else if (source->IsFloat32x4Register() || source->IsInt32x4Register()) {
+    ASSERT(CpuFeatures::IsSupported(SSE2));
+    CpuFeatureScope scope(cgen_->masm(), SSE2);
+    XMMRegister src = cgen_->ToXMMRegister(source);
+    if (destination->IsFloat32x4Register() ||
+        destination->IsInt32x4Register()) {
+      __ movaps(cgen_->ToXMMRegister(destination), src);
+    } else {
+      ASSERT(destination->IsFloat32x4StackSlot() ||
+             destination->IsInt32x4StackSlot());
+      __ movups(cgen_->ToOperand(destination), src);
+    }
+  } else if (source->IsFloat32x4StackSlot() || source->IsInt32x4StackSlot()) {
+    ASSERT(CpuFeatures::IsSupported(SSE2));
+    CpuFeatureScope scope(cgen_->masm(), SSE2);
+    Operand src = cgen_->ToOperand(source);
+    if (destination->IsFloat32x4Register() ||
+        destination->IsInt32x4Register()) {
+      __ movups(cgen_->ToXMMRegister(destination), src);
+    } else {
+      ASSERT(destination->IsFloat32x4StackSlot() ||
+             destination->IsInt32x4StackSlot());
+      __ movups(xmm0, src);
+      __ movups(cgen_->ToOperand(destination), xmm0);
+    }
   } else {
     UNREACHABLE();
   }
@@ -505,6 +530,59 @@ void LGapResolver::EmitSwap(int index) {
     __ mov(tmp, src1);
     __ mov(dst1, tmp);
     __ movsd(src0, xmm0);
+
+  } else if ((source->IsFloat32x4Register() &&
+              destination->IsFloat32x4Register()) ||
+             (source->IsInt32x4Register() &&
+              destination->IsInt32x4Register())) {
+    // Swap two XMM registers.
+    XMMRegister source_reg = cgen_->ToXMMRegister(source);
+    XMMRegister destination_reg = cgen_->ToXMMRegister(destination);
+    __ movaps(xmm0, source_reg);
+    __ movaps(source_reg, destination_reg);
+    __ movaps(destination_reg, xmm0);
+
+  } else if ((source->IsFloat32x4Register() ||
+              destination->IsFloat32x4Register()) ||
+             (source->IsInt32x4Register() ||
+              destination->IsInt32x4Register())) {
+    // Swap a xmm register and a xmm stack slot.
+    ASSERT((source->IsFloat32x4Register() &&
+            destination->IsFloat32x4StackSlot()) ||
+           (source->IsFloat32x4StackSlot() &&
+            destination->IsFloat32x4Register()) ||
+           (source->IsInt32x4Register() &&
+            destination->IsInt32x4StackSlot()) ||
+           (source->IsInt32x4StackSlot() &&
+            destination->IsInt32x4Register()));
+    XMMRegister reg = cgen_->ToXMMRegister((source->IsFloat32x4Register() ||
+                                            source->IsInt32x4Register())
+                                                  ? source
+                                                  : destination);
+    LOperand* other = (source->IsFloat32x4Register() ||
+                       source->IsInt32x4Register())
+                              ? destination
+                              : source;
+    ASSERT(other->IsFloat32x4StackSlot() || other->IsInt32x4StackSlot());
+    Operand other_operand = cgen_->ToOperand(other);
+    __ movups(xmm0, other_operand);
+    __ movups(other_operand, reg);
+    __ movaps(reg, xmm0);
+
+  } else if ((source->IsFloat32x4StackSlot() &&
+              destination->IsFloat32x4StackSlot()) ||
+             (source->IsInt32x4StackSlot() &&
+              destination->IsInt32x4StackSlot())) {
+    // Swap two XMM stack slots.
+    Operand src = cgen_->ToOperand(source);
+    Operand dst = cgen_->ToOperand(destination);
+    Register tmp = EnsureTempRegister();
+    __ movups(xmm0, src);
+    for (int offset = 0; offset < kFloat32x4Size; offset += kFloatSize) {
+      __ mov(tmp, Operand(dst, offset));
+      __ mov(Operand(src, offset), tmp);
+    }
+    __ movups(dst, xmm0);
 
   } else {
     // No other combinations are possible.

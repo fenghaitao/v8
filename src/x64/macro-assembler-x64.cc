@@ -897,10 +897,10 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   }
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
-    subq(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    subq(rsp, Immediate(kFloat32x4Size * XMMRegister::kMaxNumRegisters));
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      movsd(Operand(rsp, i * kDoubleSize), reg);
+      movups(Operand(rsp, i * kFloat32x4Size), reg);
     }
   }
 }
@@ -913,9 +913,9 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
   if (fp_mode == kSaveFPRegs) {
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      movsd(reg, Operand(rsp, i * kDoubleSize));
+      movups(reg, Operand(rsp, i * kFloat32x4Size));
     }
-    addq(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    addq(rsp, Immediate(kFloat32x4Size * XMMRegister::kMaxNumRegisters));
   }
   for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
     Register reg = saved_regs[i];
@@ -2360,6 +2360,59 @@ void MacroAssembler::LookupNumberStringCache(Register object,
 }
 
 
+void MacroAssembler::absps(XMMRegister dst) {
+  static const struct V8_ALIGNED(16) {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+  } float_absolute_constant =
+      { 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF };
+  Set(kScratchRegister, reinterpret_cast<intptr_t>(&float_absolute_constant));
+  andps(dst, Operand(kScratchRegister, 0));
+}
+
+
+void MacroAssembler::negateps(XMMRegister dst) {
+  static const struct V8_ALIGNED(16) {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+  } float_negate_constant =
+      { 0x80000000, 0x80000000, 0x80000000, 0x80000000 };
+  Set(kScratchRegister, reinterpret_cast<intptr_t>(&float_negate_constant));
+  xorps(dst, Operand(kScratchRegister, 0));
+}
+
+
+void MacroAssembler::notps(XMMRegister dst) {
+  static const struct V8_ALIGNED(16) {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+  } float_not_constant =
+      { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
+  Set(kScratchRegister, reinterpret_cast<intptr_t>(&float_not_constant));
+  xorps(dst, Operand(kScratchRegister, 0));
+}
+
+
+void MacroAssembler::pnegd(XMMRegister dst) {
+  static const struct V8_ALIGNED(16) {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+  } int32_one_constant = { 0x1, 0x1, 0x1, 0x1 };
+  notps(dst);
+  Set(kScratchRegister, reinterpret_cast<intptr_t>(&int32_one_constant));
+  paddd(dst, Operand(kScratchRegister, 0));
+}
+
+
+
 void MacroAssembler::JumpIfNotString(Register object,
                                      Register object_map,
                                      Label* not_string,
@@ -3776,13 +3829,13 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 #endif
   // Optionally save all XMM registers.
   if (save_doubles) {
-    int space = XMMRegister::kMaxNumAllocatableRegisters * kDoubleSize +
+    int space = XMMRegister::kMaxNumRegisters * kFloat32x4Size +
         arg_stack_space * kPointerSize;
     subq(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
       XMMRegister reg = XMMRegister::FromAllocationIndex(i);
-      movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
+      movups(Operand(rbp, offset - ((i + 1) * kFloat32x4Size)), reg);
     }
   } else if (arg_stack_space > 0) {
     subq(rsp, Immediate(arg_stack_space * kPointerSize));
@@ -3826,7 +3879,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
       XMMRegister reg = XMMRegister::FromAllocationIndex(i);
-      movsd(reg, Operand(rbp, offset - ((i + 1) * kDoubleSize)));
+      movups(reg, Operand(rbp, offset - ((i + 1) * kFloat32x4Size)));
     }
   }
   // Get the return address from the stack and restore the frame pointer.
@@ -4262,6 +4315,30 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 
   // Set the map.
   LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+void MacroAssembler::AllocateFloat32x4(Register result,
+                                       Register scratch,
+                                       Label* gc_required) {
+  // Allocate heap number in new space.
+  Allocate(Float32x4::kSize, result, scratch, no_reg, gc_required, TAG_OBJECT);
+
+  // Set the map.
+  LoadRoot(kScratchRegister, Heap::kFloat32x4MapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+void MacroAssembler::AllocateInt32x4(Register result,
+                                      Register scratch,
+                                      Label* gc_required) {
+  // Allocate heap number in new space.
+  Allocate(Int32x4::kSize, result, scratch, no_reg, gc_required, TAG_OBJECT);
+
+  // Set the map.
+  LoadRoot(kScratchRegister, Heap::kInt32x4MapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 

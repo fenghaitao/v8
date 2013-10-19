@@ -754,6 +754,14 @@ class MacroAssembler: public Assembler {
 
 
   // ---------------------------------------------------------------------------
+  // SIMD macros.
+  void absps(XMMRegister dst);
+  void negateps(XMMRegister dst);
+  void notps(XMMRegister dst);
+  void pnegd(XMMRegister dst);
+
+
+  // ---------------------------------------------------------------------------
   // String macros.
 
   // Generate code to do a lookup in the number string cache. If the number in
@@ -1146,6 +1154,20 @@ class MacroAssembler: public Assembler {
   void AllocateHeapNumber(Register result,
                           Register scratch,
                           Label* gc_required);
+
+  // Allocate a float32x4 object in new space with undefined value. Returns
+  // tagged pointer in result register, or jumps to gc_required if new
+  // space is full.
+  void AllocateFloat32x4(Register result,
+                         Register scratch,
+                         Label* gc_required);
+
+  // Allocate a int32x4 object in new space with undefined value. Returns
+  // tagged pointer in result register, or jumps to gc_required if new
+  // space is full.
+  void AllocateInt32x4(Register result,
+                         Register scratch,
+                         Label* gc_required);
 
   // Allocate a sequential string. All the header fields of the string object
   // are initialized.

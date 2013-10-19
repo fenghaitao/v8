@@ -1,0 +1,496 @@
+% !TEX TS-program = pdflatex
+% !TEX encoding = UTF-8 Unicode
+
+% This is a simple template for a LaTeX document using the "article" class.
+% See "book", "report", "letter" for other types of document.
+
+\documentclass[12pt]{article} % use larger type; default would be 10pt
+
+\usepackage[utf8]{inputenc} % set input encoding (not needed with XeLaTeX)
+
+%%% Examples of Article customizations
+% These packages are optional, depending whether you want the features they provide.
+% See the LaTeX Companion or other references for full information.
+
+%%% PAGE DIMENSIONS
+\usepackage{geometry} % to change the page dimensions
+\geometry{a4paper} % or letterpaper (US) or a5paper or....
+% \geometry{margins=2in} % for example, change the margins to 2 inches all round
+% \geometry{landscape} % set up the page for landscape
+%   read geometry.pdf for detailed page layout information
+
+\usepackage{graphicx} % support the \includegraphics command and options
+
+% \usepackage[parfill]{parskip} % Activate to begin paragraphs with an empty line rather than an indent
+
+%%% PACKAGES
+\usepackage{booktabs} % for much better looking tables
+\usepackage{array} % for better arrays (eg matrices) in maths
+\usepackage{paralist} % very flexible & customisable lists (eg. enumerate/itemize, etc.)
+\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
+\usepackage{subfig} % make it possible to include more than one captioned figure/table in a single float
+% These packages are all incorporated in the memoir class to one degree or another...
+
+%%% HEADERS & FOOTERS
+\usepackage{fancyhdr} % This should be set AFTER setting up the page geometry
+\pagestyle{fancy} % options: empty , plain , fancy
+\renewcommand{\headrulewidth}{0pt} % customise the layout...
+\lhead{}\chead{}\rhead{}
+\lfoot{}\cfoot{\thepage}\rfoot{}
+
+%%% SECTION TITLE APPEARANCE
+\usepackage{sectsty}
+\allsectionsfont{\sffamily\mdseries\upshape} % (See the fntguide.pdf for font help)
+% (This matches ConTeXt defaults)
+
+%%% ToC (table of contents) APPEARANCE
+\usepackage[nottoc,notlof,notlot]{tocbibind} % Put the bibliography in the ToC
+\usepackage[titles,subfigure]{tocloft} % Alter the style of the Table of Contents
+\renewcommand{\cftsecfont}{\rmfamily\mdseries\upshape}
+\renewcommand{\cftsecpagefont}{\rmfamily\mdseries\upshape} % No bold!
+
+\setcounter{secnumdepth}{5}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks,
+        linkcolor=blue,
+        filecolor=black,
+        urlcolor=blue,
+        citecolor=black}
+
+\usepackage{color}
+
+% draw graph
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows, positioning}
+
+% list code
+\usepackage{listings}
+
+%%% END Article customizations
+
+%%% The "real" document content comes below...
+
+\title{Prototyping SIMD128 in V8}
+\author{Haitao Feng \\
+\texttt{haitao.feng@intel.com}}
+\date{Sep 2013} % Activate to display a given date or no date (if empty),
+         % otherwise the current date is printed
+
+\begin{document}
+\maketitle
+
+%\begin{abstract}
+%\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+In this document, we would discuss prototyping SIMD128 in V8.
+
+\subsection{The straw man proposal}
+
+The 128-bit SIMD numeric value\_type ECMAScript straw man proposal from John
+Mccutchan is at \href{https://github.com/johnmccutchan/ecmascript\_simd}{https://github.com/johnmccutchan/ecmascript\_simd}.
+
+\section{Implementation}
+
+\subsection{V8 Execution Flow}
+The following diagram describes how V8 engine executes a JavaScript function.
+\begin{figure}[h]
+\centering
+% Define block styles
+\tikzstyle{block} = [rectangle, draw, fill=blue!20,
+    text width=5.2em, text centered, rounded corners, minimum height=3em]
+\tikzstyle{inter} = [rectangle, draw, fill=orange!20, text width=5.2em, text centered, rounded corners, minimum height=3em]
+\tikzstyle{line} = [draw, -triangle 45]
+
+\begin{tikzpicture}[node distance = 3.2cm, auto]
+    % Place nodes
+    \node [block] (full) {Full Code Generator};
+    \node [inter, left of=full] (ast1) {AST};
+    \node [inter, right of=full] (unopt) {Un-opt Code};
+    \node [block, below of=ast1] (parser) {Parser};
+    \node [inter, left of=parser] (js) {JavaScript Function};
+    \node [block, right of=parser] (runtime) {Runtime (Opt?)};
+    \node [block, right of=runtime] (deoptimizer) {Deoptimizer};
+    \node [inter, below of=parser] (ast2) {AST};
+    \node [block, right of=ast2] (compiler) {Crankshaft};
+    \node [inter, right of=compiler] (opt) {Opt Code};
+    % Draw edges
+
+    \path [line] (js) -- node[font=\footnotesize]{1} (parser);
+    \path [line] (parser) -- node[font=\footnotesize]{2} (ast1);
+    \path [line] (ast1) -- node[font=\footnotesize]{3} (full);
+    \path [line] (full) -- node[font=\footnotesize]{4} (unopt);
+    \draw (unopt) edge [loop above, ,->, >=triangle 45] node[font=\footnotesize]{5 Inline Cache Patching} (unopt);
+    \path [line] (unopt) -- node[font=\footnotesize]{6 Hot} (runtime.north east);
+    \path [line, green] (runtime) -- node[font=\footnotesize, black]{yes} (parser);
+    \path [line, red] (runtime.north) -- node[font=\footnotesize, black]{no} (unopt.south west);
+    \path [line, green] (parser) -- node[font=\footnotesize, swap, black]{7} (ast2);
+    \path [line, green] (ast2) -- node[font=\footnotesize, black]{8} (compiler);
+    \path [line, green] (compiler) -- node[font=\footnotesize, black]{9} (opt);
+    \path [line, red] (opt) -- node[font=\footnotesize, swap, black]{Assumption Failure} (deoptimizer);
+    \path [line, red] (deoptimizer) -- (unopt);
+    \path [line, green] (runtime) -- node[font=\footnotesize, black]{Type Feedback} (compiler);
+\end{tikzpicture}
+\caption{V8 Execution Flow}
+\label{fig:flow}
+\end{figure}
+
+\mbox{}
+
+There are two compilers inside V8: the FullCodeGenerator and the Crankshaft.
+In the Crankshaft, there is a high-level IR called Hydrogen and a low-level IR
+called Lithium. Basically we need to implement SIMD128 for both compilers. If
+you are not familiar with V8 implementation, please read Andy Wingo's blogs
+first.
+
+\begin{itemize}
+  \item \href{http://wingolog.org/archives/2011/07/05/v8-a-tale-of-two-compilers}{v8: a tale of two compilers}
+  \item \href{http://wingolog.org/archives/2013/04/18/inside-full-codegen-v8s-baseline-compiler}{inside full-codegen, v8's baseline compiler}
+  \item \href{http://wingolog.org/archives/2011/05/18/value-representation-in-javascript-implementations}{value representation in javascript implementations}
+  \item \href{http://wingolog.org/archives/2011/08/02/a-closer-look-at-crankshaft-v8s-optimizing-compiler}{a closer look at crankshaft, v8's optimizing compiler}
+  \item \href{http://wingolog.org/archives/2011/09/05/from-ssa-to-native-code-v8s-lithium-language}{from ssa to native code: v8's lithium language}
+  \item \href{http://wingolog.org/archives/2011/06/20/on-stack-replacement-in-v8}{on-stack replacement in v8}
+\end{itemize}
+
+\subsection{Implementing SIMD128 in the FullCodeGenerator}
+
+To implement SIMD128 proposal in the FullCodeGenerator, we need to introduce
+the float32x4 and uint32x4 primitive type and float32x4 and uint32x4 objects
+first and then introduce the float32x4 and uint32x4 constructors, next we need
+to introduce SIMD object into JavaScript global object and finally implement
+the SIMD operations.
+
+\subsubsection{Introducing float32x4 and uint32x4 primitive type and objects}
+From reading the straw man proposal and its JavaScript implementation, it seems
+that the float32x4 and uint32x4 are quite like the existing JavaScript Number
+concept. The Number primitive type is defined at
+\href{http://www.ecma-international.org/ecma-262/5.1/\#sec-8.5}{ECMA262 8.5}
+and the Number Objects is at
+\href{http://www.ecma-international.org/ecma-262/5.1/#sec-15.7}{ECMA262 15.7}. Number objects have the Object type defined at \href{http://www.ecma-international.org/ecma-262/5.1/\#sec-8.6}{ECMA262 8.6}.
+
+In the FullCodeGenerator, a value from Number primitive type could be
+represented as SMI (SMall Integer) or HeapNumber. Both of them are tagged
+value, please read
+\href{http://wingolog.org/archives/2011/05/18/value-representation-in-javascript-implementations}{"value
+representation in javascript implementations"} for more information on tagging.
+The HeapNumber's object layout and Number object layout are like this:
+
+\mbox{}
+
+\begin{figure}[h!]
+\centering
+\tikzset{
+  outernode/.style={draw, ultra thick, inner sep=0},
+  innernode/.style={inner sep=1em, draw, rectangle split, rectangle split parts=#1,  text width=5.8cm}
+}
+\begin{tikzpicture}
+  \node [] (desc1) {HeapNumber};
+  \node [below = 0.5em of desc1, outernode] (heapnumber) [innernode=2] {
+    map $\rightarrow$ heap\_number\_map
+    \nodepart{two} value: double
+  };
+
+  \node [right = 4cm of desc1] (desc2) {Number Object};
+  \node [below = 0.5em of desc2, right = 0.5cm of heapnumber, outernode] (numberobject) [innernode=2] {
+    map $\rightarrow$ JS\_VALUE\_TYPE
+    \nodepart{two} value $\rightarrow$ SMI or HeapNumber
+  };
+\end{tikzpicture}
+\caption{HeapNumber Layout and Number Object Layout}
+\label{fig:layout}
+\end{figure}
+
+\mbox{}
+
+We will introduce float32x4 and uint32x4 primitive type and float32x4 and
+uint32x4 objects. When developers use the float32x4 and uint32x4 constructor in
+a \textcolor{blue}{new} expression, we will create a float32x4 and uint32x4
+object and this object wraps a float32x4 and uint32x4 value of the primitive
+type, like the Number object does. This is quite consistent with the current
+ECMA262 standard.
+
+In the remaining document, we use the float32x4 object and uint32x4 object to
+mean a value of the float32x4 and uint32x4 primitive type, instead of the
+float32x4 and uint32x4 Object type.
+
+\subsubsection{Introducing float32x4 and uint32x4 constructors}
+We will introduce the float32x4 and uint32x4 JavaScript constructor in the JavaScript global object so that developers could write:
+\lstset{
+    breaklines=true,
+    keywordstyle=\color{blue},
+    language=C++,
+    tabsize=2
+}
+
+\begin{lstlisting}
+var f4 = float32x4(1.0, 2.0, 3.0, 4.0);
+var u4 = uint32x4(1, 2, 3, 4);
+var new_f4 = new float32x4(1.0, 2.0, 3.0, 4.0);
+var new_u4 = new uint32x4(1, 2, 3, 4);
+...
+\end{lstlisting}
+
+In the FullCodeGenerator, we will introduce Float32x4Object and Uint32x4Object
+classes for the float32x4 and uint32x4 objects and the object layouts in the
+heap are like this:
+
+\mbox{}
+
+\begin{figure}[h!]
+\centering
+\tikzset{
+  outernode/.style={draw, ultra thick, inner sep=0},
+  innernode/.style={inner sep=1em, draw, rectangle split, rectangle split parts=#1,  text width=4.8cm}
+}
+\begin{tikzpicture}
+  \node [] (desc1) {float32x4 heap object};
+  \node [below = 0.5em of desc1, outernode] (float32x4) [innernode=2] {
+    map $\rightarrow$ float32x4\_map
+    \nodepart{two} value: float32x4\_value\_t
+  };
+
+  \node [right = 2cm of desc1] (desc2) {uint32x4 heap object};
+  \node [below = 0.5em of desc2, outernode] (uint32x4) [innernode=2] {
+    map $\rightarrow$ uint32x4\_map
+    \nodepart{two} value: uint32x4\_value\_t
+  };
+\end{tikzpicture}
+\caption{float32x4 and uint32x4 Object Layout}
+\label{fig:layout2}
+\end{figure}
+
+\mbox{}
+
+Each heap object has a map field with a pointer size (4 bytes on 32-bit system and 8 bytes on 64-bit system) pointing to its map (the hidden class). We will create maps for float32x4 and uint32x4. The float32x4\_value\_t and uint32x4\_value\_t are defined as:
+\lstset{
+    breaklines=true,
+    keywordstyle=\color{blue},
+    language=C++,
+    tabsize=2
+}
+
+\begin{lstlisting}
+struct float32x4_value_t { float storage[4]; };
+struct uint32x4_value_t { uint32 t storage[4]; };
+\end{lstlisting}
+
+The float32x4 and uint32xt values are represented in this way as we hope most
+of the time we could use SIMD instruction on them. For float32x4, the
+instructions might include movaps, movups, addps, subps, mulps, divpsi, sqrtps,
+rcpps, shufps and rsqrtps. For uint32x4, the instructions might include movaps,
+movups, paddd, psubd, andps, orps, notps and xorps. In the Float32x4Object and
+Uint32x4Object classes, we provide methods to access each lane of the float32x4
+and uint32x4 objects.
+
+We might avoid using movaps (address aligned at 16 byte boundary) instruction
+first as it might need extra padding in the heap. We could implement the
+extra padding feature later to see the performance improvement.  Currently for
+the IA32 architecture the HeapNumber (12 bytes) containing a double value in
+the heap is aligned by padding.
+
+\subsubsection{Introducing SIMD object}
+We will introduce the SIMD object into the JavaScript global object so that de- velopers could write:
+
+\lstset{
+    breaklines=true,
+    keywordstyle=\color{blue},
+    language=C++,
+    tabsize=2
+}
+
+\begin{lstlisting}
+var neg_f4 = SIMD.neg(f4);
+var abs_f4 = SIMD.abs(f4);
+var lessthan_u4 = SIMD.lessThanOrEqual(neg_f4, abs_f4);
+...
+\end{lstlisting}
+
+The SIMD object is quite like the Math object defined in
+\href{http://www.ecma-international.org/ecma-262/5.1/\#sec-15.8}{ECMA262 15.8}.
+We have two ways to implement the SIMD128 operations in the FullCodeGenerator:
+\begin{enumerate}
+  \item Invoking C++ runtime by using the \%SIMD\_operation syntax in the JavaScript library
+  \item Generating machine codes by using the \%\_SIMD\_operation syntax in the JavaScript library
+\end{enumerate}
+
+In this step, we will use C++ runtime functions to implement the SIMD128
+operations so that both FullCodeGenerator and Crankshaft works. Using the
+\%\_SIMD\_operation could avoid the runtime call overhead but it requires the
+Crankshaft implementation also. We will revisit this after we implement SIMD128
+in the Crankshaft.
+
+An important implementation issue is whether we need to check operation
+overflow for SIMD operations on float32x4 and uint32x4 objects. In this
+prototype, we omit the overflow handling as we do not know what we need to do
+when it happens. It seems that Dart does not do this from reading the
+source codes.
+
+\subsubsection{Introducing Float32x4Array and Uint32x4Array (optional)}
+It might make sense to introduce Float32x4Array and Uint32x4Array typed array
+in the JavaScript. If we use the current float32x4 constructor for a
+Float32Array object, we have to construct a float32x4 object by
+float32x4(float32Array[4*i], float32Array[4*i+1], float32Array[4*i+2],
+float32Array[4*i+3]) and there are un-necessary float to double (from
+Float32Array element to HeapNumber or XMM double register) and double to float
+(from HeapNumber or XMM double register to float32x4 heap object or XMM
+register) conversion in the generated code. As they are not in the proposal, we
+might or might not implement them in this prototype.
+
+They are quite like the existing Float32Array and Uint32Array, to implement
+them, we need to add Float32x4Array and Uint32x4Array into typedarray.js and
+implement the related functions.
+
+\subsection{Implementing SIMD128 in the Crankshaft}
+In the Crankshaft, we will un-box the float32x4 and uint32x4 heap object and
+represent them into an XMM register most of the time (they might be on stack
+when spilling) for efficiency. In order to do that, we need to introduce the
+Float32x4 and Uint32x4 representation, introduce instructions for
+representation inference and change, allocate xmm register for float32x4 and
+uint32x4 value and handle the deoptimization and OSR translation between
+optimized code generated from Crankshaft and un-optimized code generated from
+FullCodeGenerator.
+
+\subsubsection{Introducing SIMD instructions}
+Currently SIMD instructions are not in the V8 assembler and disassembler. We
+need to introduce them first. For this SIMD128 prototyping, the instructions
+might include movaps, movups, addps, subps, mulps, divpsi, sqrtps, rcpps,
+shufps, rsqrtps, paddd, psubd, andps, orps, notps and xorps.
+
+\subsubsection{Introducing Float32x4 and Uint32x4 type and representation}
+In the Crankshaft, each value has its type and representation which indicates
+what kind of register will be allocated for the value. For example, a SMI or
+Integer32 value will be allocated into a fixed register and a Double value will
+be allocated into a XMM register.
+
+We will introduce a Float32x4 and Uint32x4 type and representation to represent
+the float32x4 and uint32x4 value.
+
+\subsubsection{Float32x4 and Uint32x4 representation inference and change}
+Once we have Float32x4 and Uint32x4 representation, we need to add instructions
+to unbox the float32x4 and uint32x4 heap object from FullCodeGenerator to
+Crankshaft and box the float32x4 and uint32x4 value from Crankshaft to
+FullCodeGenerator. The float32x4 and uint32x4 objects' representation is
+Tagged.
+
+Crankshaft has a phase to infer the value representations for each Hydrogen
+instruction from the type feedback from machine code generated from
+FullCodeGenerator (the type feedback is mined from the inline caches) and the
+JavaScript source code. After the inference, it has a phase to insert the
+HChange Hydrogen instruction at the places where a value's representation
+changes.
+
+For the representation inference phase, we need to specify the exact
+representation for the involved Hydrogen instructions. For example, after we
+inlined the SIMD.mul operation, we might use HMul Hydrogen instruction for the
+operation and specify the HMul instruction has a Float32x4 representation. For
+the representation change phase, we need to add Lithium instructions
+(LTaggedToFloat32x4, LTaggedToUint32x4 and LFloat32x4ToTagged and
+LUint32x4ToTagged) to lower the HChange instruction in the IA32 and X64
+architectures.
+
+\subsubsection{Inlining SIMD operations}
+We need to inline the SIMD operations so that they could be optimized in the
+Crankshaft.
+
+For the add, sub, mul, div operation, we might use the existing HAdd, HSub,
+HMul and HDiv Hydrogen instructions or introduce new Hydrogen instructions for
+the inlining.
+
+For the other operations, such as shuffle, sqrt and reciprocalSqrt, we will
+introduce new Hydrogen instructions for the inlining.
+
+The operands in the inlined Hydrogen instructions has the Float32x4 or Uint32x4
+representation.
+
+An important implementation issue is whether we need to check operation
+overflow for SIMD operations on float32x4 and uint32x4. In this prototype, we
+omit the overflow handling as we do not know what we need to do when it
+happens. It seems that Dart does not do this from reading the source codes.
+
+\subsubsection{Allocating registers for Float32x4 and Uint32x4 values}
+We need to specify that a value with Float32x4 or Uint32x4 representation needs
+to be allocated into a XMM register. When there is a spilling, we need to
+allocate 16-bytes on the stack. We might avoid using movaps instruction first
+as it might need extra padding in the stack. We could align the spilling
+location later to see the performance improvement. Currently the spilled double
+location is aligned for the IA32 architecture.
+
+\subsubsection{Handling deoptimization for Float32x4 and Uint32x4 values}
+Crankshaft inserts type check instructions before using the type feedback
+information from the executed program behaviour. When the type assumption
+fails, the Crankshaft generated code will deoptimize to the FullCodeGenerator
+generated codes. This means there is a state (registers and stack)
+synchronization between the two worlds. For example, the FullCodeGenerator uses
+a stack slot for a HeapNumber and Crankshaft uses a XMM register, and the
+deoptimizer will serialize the XMM value, create a HeapNumber to contain the
+value and write the HeapNumber address into the corresponding stack slot.
+
+For the Float32x4 and Uint32x4 values, if they are parts of the state
+synchronization, we need to write them into the translation, and box them into
+a heap object and write the heap object address into the corresponding stack
+slot.
+
+\subsubsection{Handling OSR for Float32x4 and Uint32x4 values}
+When a hot loop in the function executes enough iterations and makes the
+function hot, V8 might optimize the function by translating the program state
+from FullCodeGenerator generated code to Crankshaft generated code first and
+then executing Crankshaft generated codes from that state. This is called
+online stack replacement.
+
+For the Float32x4 and Uint32x4 heap objects, if they are parts of the state
+synchronization, we need to unbox them first, put them into the right stack
+slots and make sure they will be loaded into the corresponding XMM register.
+
+\subsubsection{Introducing Float32x4Array and Uint32x4Array (optional)}
+In the Crankshaft, we need to implement loading and storing Float32x4Array and
+Uint32x4Array elements into the process of lowering HLoadKeyed and HStoreKeyed
+hydrogen instructions into machine instructions for X64 and IA32. We also need
+to make sure HLoadExternalArrayPointer works for Float32x4Array and
+Uint32x4Array.
+
+\subsection{Garbage Collection Impact}
+The float32x4 and uint32x4 object are allocated in the heap in the
+FullCodeGenerator, and stayed in the XMM registers in the Crankshaft. Implementing them should have little impact for the garbage collection:
+\begin{itemize}
+  \item They are allocated in the NEW space first.
+  \item They will be migrated to the OLD DATA space if they survive enough scavenging in the NEW space.
+\end{itemize}
+V8 supports allocating objects in the OLD DATA space directly, we might optimize
+the initial object location (in NEW space or OLD DATA space) in the future.
+
+\subsection{Testing and benchmarking}
+V8 has a unit testing framework and we will add SIMD128 test cases for the
+regression test. Peter's benchmark application is at
+\url{https://github.com/PeterJensen/mandelbrot}.
+
+Beside the SIMD128 test cases and benchmarks written by ourselves, we could
+utilize the existing Dart SIMD128 test case and benchmarks.
+\begin{itemize}
+  \item dart2js works for Dart SIMD programs. It creates a Float32x4 and Uint32x4 JavaScript objects and uses the JavaScript Float32Array to translate the Dart Float32x4List.
+  \item We could modify dart2js to detect whether the underlying engine
+supports the float32x4 and uint32x4 constructors, if yes, generate JavaScript
+codes to use them; if no, fall back to create the Float32x4 and Uint32x4
+objects. After this, we could use the SIMD test cases from Dart.
+  \item The matrix\_bench from \url{https://github.com/johnmccutchan/vector\_math} could be used to benchmark our SIMD128 prototyping in V8.
+  \item The Google IO 2013 Dart SIMD demo application (\url{https://github.com/johnmccutchan/spectre/tree/master/web/skeletal\_bench}) could be used to benchmark our SIMD128 prototyping in V8. Currently there are some issues to run this application and we have discussed with John at \url{https://github.com/johnmccutchan/spectre/issues/118}.
+\end{itemize}
+
+\section{Reference}
+\begin{enumerate}
+  \item \href{https://github.com/johnmccutchan/ecmascript\_simd}{https://github.com/johnmccutchan/ecmascript\_simd}
+  \item \href{https://www.dartlang.org/articles/simd/}{https://www.dartlang.org/articles/simd/}
+  \item \href{https://bugzilla.mozilla.org/show\_bug.cgi?id=904913}{https://bugzilla.mozilla.org/show\_bug.cgi?id=904913}
+  \item \href{http://www.ecma-international.org/ecma-262/5.1/}{http://www.ecma-international.org/ecma-262/5.1/}
+  \item \href{http://wiki.ecmascript.org/doku.php?id=strawman:value\_objects}{http://wiki.ecmascript.org/doku.php?id=strawman:value\_objects}
+  \item \href{https://github.com/PeterJensen/mandelbrot}{https://github.com/PeterJensen/mandelbrot}
+  \item \href{https://github.com/johnmccutchan/ecmascript\_simd/issues/10}{https://github.com/johnmccutchan/ecmascript\_simd/issues/10}
+  \item \href{https://github.com/johnmccutchan/spectre/issues/118}{https://github.com/johnmccutchan/spectre/issues/118}
+  \item Peter Jensen’s SIMD prototype
+\end{enumerate}
+
+\end{document}

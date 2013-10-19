@@ -51,6 +51,8 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case EXTERNAL_FLOAT32x4_ELEMENTS:
+    case EXTERNAL_INT32x4_ELEMENTS:
       return 3;
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:

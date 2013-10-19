@@ -92,6 +92,12 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberPrint(out);
       break;
+    case FLOAT32x4_TYPE:
+      Float32x4::cast(this)->Float32x4Print(out);
+      break;
+    case INT32x4_TYPE:
+      Int32x4::cast(this)->Int32x4Print(out);
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(out);
       break;
@@ -132,6 +138,12 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       break;
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       ExternalFloatArray::cast(this)->ExternalFloatArrayPrint(out);
+      break;
+    case EXTERNAL_FLOAT32x4_ARRAY_TYPE:
+      ExternalFloat32x4Array::cast(this)->ExternalFloat32x4ArrayPrint(out);
+      break;
+    case EXTERNAL_INT32x4_ARRAY_TYPE:
+      ExternalInt32x4Array::cast(this)->ExternalInt32x4ArrayPrint(out);
       break;
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
       ExternalDoubleArray::cast(this)->ExternalDoubleArrayPrint(out);
@@ -281,6 +293,16 @@ void ExternalFloatArray::ExternalFloatArrayPrint(FILE* out) {
 }
 
 
+void ExternalFloat32x4Array::ExternalFloat32x4ArrayPrint(FILE* out) {
+  PrintF(out, "external float32x4 array");
+}
+
+
+void ExternalInt32x4Array::ExternalInt32x4ArrayPrint(FILE* out) {
+  PrintF(out, "external int32x4 array");
+}
+
+
 void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
   PrintF(out, "external double array");
 }
@@ -413,6 +435,26 @@ void JSObject::PrintElements(FILE* out) {
       ExternalFloatArray* p = ExternalFloatArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
         PrintF(out, "   %d: %f\n", i, p->get_scalar(i));
+      }
+      break;
+    }
+    case EXTERNAL_FLOAT32x4_ELEMENTS: {
+      ExternalFloat32x4Array* p = ExternalFloat32x4Array::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        float32x4_value_t value =  p->get_scalar(i);
+        PrintF(out, "   %d: (%f, %f, %f, %f)\n",
+               i, value.storage[0], value.storage[1],
+               value.storage[2], value.storage[3]);
+      }
+      break;
+    }
+    case EXTERNAL_INT32x4_ELEMENTS: {
+      ExternalInt32x4Array* p = ExternalInt32x4Array::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        int32x4_value_t value =  p->get_scalar(i);
+        PrintF(out, "   %d: (%d, %d, %d, %d)\n",
+               i, value.storage[0], value.storage[1],
+               value.storage[2], value.storage[3]);
       }
       break;
     }

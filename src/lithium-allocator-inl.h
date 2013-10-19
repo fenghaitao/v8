@@ -146,7 +146,9 @@ void UseIterator::Advance() {
 
 
 void LAllocator::SetLiveRangeAssignedRegister(LiveRange* range, int reg) {
-  if (range->Kind() == DOUBLE_REGISTERS) {
+  if (range->Kind() == DOUBLE_REGISTERS ||
+      range->Kind() == FLOAT32x4_REGISTERS ||
+      range->Kind() == INT32x4_REGISTERS) {
     assigned_double_registers_->Add(reg);
   } else {
     ASSERT(range->Kind() == GENERAL_REGISTERS);

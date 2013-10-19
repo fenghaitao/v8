@@ -188,6 +188,59 @@ namespace internal {
   F(RoundNumber, 1, 1) \
   F(Math_sqrt, 1, 1) \
   \
+  /* Float32x4 and Int32x4 */ \
+  F(AllocateFloat32x4, 0, 1) \
+  F(AllocateInt32x4, 0, 1) \
+  \
+  /* SIMD */ \
+  F(SIMDAbs, 1, 1) \
+  F(SIMDNeg, 1, 1) \
+  F(SIMDAdd, 2, 1) \
+  F(SIMDSub, 2, 1) \
+  F(SIMDMul, 2, 1) \
+  F(SIMDDiv, 2, 1) \
+  F(SIMDClamp, 3, 1) \
+  F(SIMDMin, 2, 1) \
+  F(SIMDMax, 2, 1) \
+  F(SIMDReciprocal, 1, 1) \
+  F(SIMDReciprocalSqrt, 1, 1) \
+  F(SIMDScale, 2, 1) \
+  F(SIMDSqrt, 1, 1) \
+  F(SIMDShuffle, 2, 1) \
+  F(SIMDShuffleMix, 3, 1) \
+  F(SIMDWithX, 2, 1) \
+  F(SIMDWithY, 2, 1) \
+  F(SIMDWithZ, 2, 1) \
+  F(SIMDWithW, 2, 1) \
+  F(SIMDToFloat32x4, 1, 1) \
+  F(SIMDBitsToFloat32x4, 1, 1) \
+  F(SIMDToInt32x4, 1, 1) \
+  F(SIMDBitsToInt32x4, 1, 1) \
+  F(SIMDLessThan, 2, 1) \
+  F(SIMDLessThanOrEqual, 2, 1) \
+  F(SIMDEqual, 2, 1) \
+  F(SIMDNotEqual, 2, 1) \
+  F(SIMDGreaterThanOrEqual, 2, 1) \
+  F(SIMDGreaterThan, 2, 1) \
+  F(SIMDAnd, 2, 1) \
+  F(SIMDOr, 2, 1) \
+  F(SIMDXor, 2, 1) \
+  F(SIMDNot, 1, 1) \
+  F(SIMDNegu32, 1, 1) \
+  F(SIMDAddu32, 2, 1) \
+  F(SIMDSubu32, 2, 1) \
+  F(SIMDMulu32, 2, 1) \
+  F(SIMDSelect, 3, 1) \
+  F(SIMDShuffleu32, 2, 1) \
+  F(SIMDWithXu32, 2, 1) \
+  F(SIMDWithYu32, 2, 1) \
+  F(SIMDWithZu32, 2, 1) \
+  F(SIMDWithWu32, 2, 1) \
+  F(SIMDWithFlagX, 2, 1) \
+  F(SIMDWithFlagY, 2, 1) \
+  F(SIMDWithFlagZ, 2, 1) \
+  F(SIMDWithFlagW, 2, 1) \
+  \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
   F(RegExpExec, 4, 1) \
@@ -268,6 +321,24 @@ namespace internal {
   F(DateSetValue, 3, 1) \
   \
   /* Numbers */ \
+  \
+  /* Float32x4 and Int32x4 */ \
+  F(CreateFloat32x4, 4, 1) \
+  F(Float32x4GetX, 1, 1) \
+  F(Float32x4GetY, 1, 1) \
+  F(Float32x4GetZ, 1, 1) \
+  F(Float32x4GetW, 1, 1) \
+  F(Float32x4GetSignMask, 1, 1) \
+  F(CreateInt32x4, 4, 1) \
+  F(Int32x4GetX, 1, 1) \
+  F(Int32x4GetY, 1, 1) \
+  F(Int32x4GetZ, 1, 1) \
+  F(Int32x4GetW, 1, 1) \
+  F(Int32x4GetFlagX, 1, 1) \
+  F(Int32x4GetFlagY, 1, 1) \
+  F(Int32x4GetFlagZ, 1, 1) \
+  F(Int32x4GetFlagW, 1, 1) \
+  F(Int32x4GetSignMask, 1, 1) \
   \
   /* Globals */ \
   F(CompileString, 2, 1) \
@@ -471,6 +542,8 @@ namespace internal {
   F(HasExternalIntElements, 1, 1) \
   F(HasExternalUnsignedIntElements, 1, 1) \
   F(HasExternalFloatElements, 1, 1) \
+  F(HasExternalFloat32x4Elements, 1, 1) \
+  F(HasExternalInt32x4Elements, 1, 1) \
   F(HasExternalDoubleElements, 1, 1) \
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
@@ -840,7 +913,9 @@ class Runtime : public AllStatic {
     ARRAY_ID_INT32 = 6,
     ARRAY_ID_FLOAT32 = 7,
     ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8C = 9
+    ARRAY_ID_UINT8C = 9,
+    ARRAY_ID_FLOAT32x4 = 10,
+    ARRAY_ID_INT32x4 = 11
   };
 
   static void ArrayIdToTypeAndSize(int array_id,

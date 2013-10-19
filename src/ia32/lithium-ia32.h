@@ -141,12 +141,21 @@ class LCodeGen;
   V(MathPowHalf)                                \
   V(MathRound)                                  \
   V(MathSqrt)                                   \
+  V(NullarySIMDOperation)                       \
+  V(UnarySIMDOperation)                         \
+  V(BinarySIMDOperation)                        \
+  V(TernarySIMDOperation)                       \
+  V(QuarternarySIMDOperation)                   \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberTagU)                                 \
   V(NumberUntagD)                               \
+  V(Float32x4ToTagged)                          \
+  V(Int32x4ToTagged)                           \
+  V(TaggedToFloat32x4)                          \
+  V(TaggedToInt32x4)                           \
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
@@ -831,6 +840,154 @@ class LMathPowHalf V8_FINAL : public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathPowHalf, "math-pow-half")
+};
+
+
+class LNullarySIMDOperation V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+ public:
+  explicit LNullarySIMDOperation(BuiltinFunctionId op)
+    : op_(op) {
+  }
+
+  BuiltinFunctionId op() const { return op_; }
+
+  virtual Opcode opcode() const V8_OVERRIDE {
+    return LInstruction::kNullarySIMDOperation;
+  }
+  virtual void CompileToNative(LCodeGen* generator) V8_OVERRIDE;
+  virtual const char* Mnemonic() const V8_OVERRIDE;
+  static LNullarySIMDOperation* cast(LInstruction* instr) {
+    ASSERT(instr->IsNullarySIMDOperation());
+    return reinterpret_cast<LNullarySIMDOperation*>(instr);
+  }
+
+  DECLARE_HYDROGEN_ACCESSOR(NullarySIMDOperation)
+
+ private:
+  BuiltinFunctionId op_;
+};
+
+
+class LUnarySIMDOperation V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LUnarySIMDOperation(LOperand* value, BuiltinFunctionId op)
+    : op_(op) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  BuiltinFunctionId op() const { return op_; }
+
+  virtual Opcode opcode() const V8_OVERRIDE {
+    return LInstruction::kUnarySIMDOperation;
+  }
+  virtual void CompileToNative(LCodeGen* generator) V8_OVERRIDE;
+  virtual const char* Mnemonic() const V8_OVERRIDE;
+  static LUnarySIMDOperation* cast(LInstruction* instr) {
+    ASSERT(instr->IsUnarySIMDOperation());
+    return reinterpret_cast<LUnarySIMDOperation*>(instr);
+  }
+
+  DECLARE_HYDROGEN_ACCESSOR(UnarySIMDOperation)
+
+ private:
+  BuiltinFunctionId op_;
+};
+
+
+class LBinarySIMDOperation V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LBinarySIMDOperation(LOperand* left, LOperand* right, BuiltinFunctionId op)
+    : op_(op) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+  BuiltinFunctionId op() const { return op_; }
+
+  virtual Opcode opcode() const V8_OVERRIDE {
+    return LInstruction::kBinarySIMDOperation;
+  }
+  virtual void CompileToNative(LCodeGen* generator) V8_OVERRIDE;
+  virtual const char* Mnemonic() const V8_OVERRIDE;
+  static LBinarySIMDOperation* cast(LInstruction* instr) {
+    ASSERT(instr->IsBinarySIMDOperation());
+    return reinterpret_cast<LBinarySIMDOperation*>(instr);
+  }
+
+  DECLARE_HYDROGEN_ACCESSOR(BinarySIMDOperation)
+
+ private:
+  BuiltinFunctionId op_;
+};
+
+
+class LTernarySIMDOperation V8_FINAL : public LTemplateInstruction<1, 3, 0> {
+ public:
+  LTernarySIMDOperation(LOperand* first, LOperand* second, LOperand* third,
+                        BuiltinFunctionId op)
+    : op_(op) {
+    inputs_[0] = first;
+    inputs_[1] = second;
+    inputs_[2] = third;
+  }
+
+  LOperand* first() { return inputs_[0]; }
+  LOperand* second() { return inputs_[1]; }
+  LOperand* third() { return inputs_[2]; }
+  BuiltinFunctionId op() const { return op_; }
+
+  virtual Opcode opcode() const V8_OVERRIDE {
+    return LInstruction::kTernarySIMDOperation;
+  }
+  virtual void CompileToNative(LCodeGen* generator) V8_OVERRIDE;
+  virtual const char* Mnemonic() const V8_OVERRIDE;
+  static LTernarySIMDOperation* cast(LInstruction* instr) {
+    ASSERT(instr->IsTernarySIMDOperation());
+    return reinterpret_cast<LTernarySIMDOperation*>(instr);
+  }
+
+  DECLARE_HYDROGEN_ACCESSOR(TernarySIMDOperation)
+
+ private:
+  BuiltinFunctionId op_;
+};
+
+
+class LQuarternarySIMDOperation V8_FINAL
+  : public LTemplateInstruction<1, 4, 0> {
+ public:
+  LQuarternarySIMDOperation(LOperand* x, LOperand* y, LOperand* z,
+                            LOperand* w, BuiltinFunctionId op)
+    : op_(op) {
+    inputs_[0] = x;
+    inputs_[1] = y;
+    inputs_[2] = z;
+    inputs_[3] = w;
+  }
+
+  LOperand* x() { return inputs_[0]; }
+  LOperand* y() { return inputs_[1]; }
+  LOperand* z() { return inputs_[2]; }
+  LOperand* w() { return inputs_[3]; }
+  BuiltinFunctionId op() const { return op_; }
+
+  virtual Opcode opcode() const V8_OVERRIDE {
+    return LInstruction::kQuarternarySIMDOperation;
+  }
+  virtual void CompileToNative(LCodeGen* generator) V8_OVERRIDE;
+  virtual const char* Mnemonic() const V8_OVERRIDE;
+  static LQuarternarySIMDOperation* cast(LInstruction* instr) {
+    ASSERT(instr->IsQuarternarySIMDOperation());
+    return reinterpret_cast<LQuarternarySIMDOperation*>(instr);
+  }
+
+  DECLARE_HYDROGEN_ACCESSOR(QuarternarySIMDOperation)
+
+ private:
+  BuiltinFunctionId op_;
 };
 
 
@@ -1567,14 +1724,16 @@ class LLoadExternalArrayPointer V8_FINAL
 };
 
 
-class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  LLoadKeyed(LOperand* elements, LOperand* key) {
+  LLoadKeyed(LOperand* elements, LOperand* key, LOperand* temp) {
     inputs_[0] = elements;
     inputs_[1] = key;
+    temps_[0] = temp;
   }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
@@ -1593,16 +1752,26 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
+inline static bool ExternalArrayOpRequiresSpecialHandling(
+    ElementsKind elements_kind) {
+  return  !CpuFeatures::IsSupported(SSE2) &&
+       (elements_kind == EXTERNAL_FLOAT32x4_ELEMENTS ||
+        elements_kind == EXTERNAL_INT32x4_ELEMENTS);
+}
+
+
 inline static bool ExternalArrayOpRequiresTemp(
     Representation key_representation,
     ElementsKind elements_kind) {
   // Operations that require the key to be divided by two to be converted into
   // an index cannot fold the scale operation into a load and need an extra
   // temp register to do the work.
-  return key_representation.IsSmi() &&
+  return (key_representation.IsSmi() &&
       (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
-       elements_kind == EXTERNAL_PIXEL_ELEMENTS);
+       elements_kind == EXTERNAL_PIXEL_ELEMENTS)) ||
+      (elements_kind == EXTERNAL_FLOAT32x4_ELEMENTS ||
+       elements_kind == EXTERNAL_INT32x4_ELEMENTS);
 }
 
 
@@ -2251,18 +2420,20 @@ class LStoreNamedGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, 0> {
+class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, 1> {
  public:
-  LStoreKeyed(LOperand* obj, LOperand* key, LOperand* val) {
+  LStoreKeyed(LOperand* obj, LOperand* key, LOperand* val, LOperand* temp) {
     inputs_[0] = obj;
     inputs_[1] = key;
     inputs_[2] = val;
+    temps_[0] = temp;
   }
 
   bool is_external() const { return hydrogen()->is_external(); }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+  LOperand* temp() { return temps_[0]; }
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
@@ -2713,6 +2884,70 @@ class LPlatformChunk V8_FINAL : public LChunk {
 
  private:
   int num_double_slots_;
+};
+
+
+
+class LFloat32x4ToTagged V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LFloat32x4ToTagged(LOperand* value,
+                              LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Float32x4ToTagged, "float32x4-tag")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
+};
+
+
+class LTaggedToFloat32x4 V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LTaggedToFloat32x4(LOperand* value,
+                              LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(TaggedToFloat32x4, "float32x4-untag")
+  DECLARE_HYDROGEN_ACCESSOR(Change);
+};
+
+
+
+class LInt32x4ToTagged V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LInt32x4ToTagged(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Int32x4ToTagged, "int32x4-tag")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
+};
+
+
+class LTaggedToInt32x4 V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LTaggedToInt32x4(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(TaggedToInt32x4, "int32x4-untag")
+  DECLARE_HYDROGEN_ACCESSOR(Change);
 };
 
 

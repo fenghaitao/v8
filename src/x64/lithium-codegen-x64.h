@@ -85,6 +85,8 @@ class LCodeGen: public LCodeGenBase {
   // Support for converting LOperands to assembler types.
   Register ToRegister(LOperand* op) const;
   XMMRegister ToDoubleRegister(LOperand* op) const;
+  XMMRegister ToFloat32x4Register(LOperand* op) const;
+  XMMRegister ToInt32x4Register(LOperand* op) const;
   bool IsInteger32Constant(LConstantOperand* op) const;
   bool IsSmiConstant(LConstantOperand* op) const;
   int32_t ToInteger32(LConstantOperand* op) const;
@@ -106,6 +108,8 @@ class LCodeGen: public LCodeGenBase {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
+  void DoDeferredFloat32x4ToTagged(LFloat32x4ToTagged* instr);
+  void DoDeferredInt32x4ToTagged(LInt32x4ToTagged* instr);
   void DoDeferredNumberTagU(LNumberTagU* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
@@ -245,6 +249,8 @@ class LCodeGen: public LCodeGenBase {
 
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
+  XMMRegister ToFloat32x4Register(int index) const;
+  XMMRegister ToInt32x4Register(int index) const;
   Operand BuildFastArrayOperand(
       LOperand* elements_pointer,
       LOperand* key,

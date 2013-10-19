@@ -894,6 +894,14 @@ void Runtime::ArrayIdToTypeAndSize(
       *array_type = kExternalFloatArray;
       *element_size = 4;
       break;
+    case ARRAY_ID_FLOAT32x4:
+      *array_type = kExternalFloat32x4Array;
+      *element_size = 16;
+      break;
+    case ARRAY_ID_INT32x4:
+      *array_type = kExternalInt32x4Array;
+      *element_size = 16;
+      break;
     case ARRAY_ID_FLOAT64:
       *array_type = kExternalDoubleArray;
       *element_size = 8;
@@ -5226,7 +5234,10 @@ Handle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 
     js_object->ValidateElements();
     if (js_object->HasExternalArrayElements()) {
-      if (!value->IsNumber() && !value->IsUndefined()) {
+      // TODO(ningxin): Throw an error if setting a Float32x4Array element
+      // while the value is not Float32x4Object.
+      if (!value->IsNumber() && !value->IsFloat32x4() &&
+          !value->IsInt32x4() && !value->IsUndefined()) {
         bool has_exception;
         Handle<Object> number =
             Execution::ToNumber(isolate, value, &has_exception);
@@ -5246,7 +5257,10 @@ Handle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
       if (js_object->HasExternalArrayElements()) {
-        if (!value->IsNumber() && !value->IsUndefined()) {
+        // TODO(ningxin): Throw an error if setting a Float32x4Array element
+        // while the value is not Float32x4Object.
+        if (!value->IsNumber() && !value->IsFloat32x4() &&
+            !value->IsInt32x4() && !value->IsUndefined()) {
           bool has_exception;
           Handle<Object> number =
               Execution::ToNumber(isolate, value, &has_exception);
@@ -6030,6 +6044,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
 
   Object* obj = args[0];
   if (obj->IsNumber()) return isolate->heap()->number_string();
+  if (obj->IsFloat32x4()) return isolate->heap()->float32x4_string();
+  if (obj->IsInt32x4()) return isolate->heap()->int32x4_string();
   HeapObject* heap_obj = HeapObject::cast(obj);
 
   // typeof an undetectable object is 'undefined'
@@ -6894,6 +6910,32 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateHeapNumber) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
   return isolate->heap()->AllocateHeapNumber(0);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateFloat32x4) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
+
+  float32x4_value_t zero;
+  zero.storage[0] = 0;
+  zero.storage[1] = 0;
+  zero.storage[2] = 0;
+  zero.storage[3] = 0;
+  return isolate->heap()->AllocateFloat32x4(zero);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInt32x4) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
+
+  int32x4_value_t zero;
+  zero.storage[0] = 0;
+  zero.storage[1] = 0;
+  zero.storage[2] = 0;
+  zero.storage[3] = 0;
+  return isolate->heap()->AllocateInt32x4(zero);
 }
 
 
@@ -7831,6 +7873,1013 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PopulateTrigonometricTable) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sin_table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, cos_table, 1);
+  CONVERT_SMI_ARG_CHECKED(samples, 2);
+  RUNTIME_ASSERT(sin_table->type() == kExternalDoubleArray);
+  RUNTIME_ASSERT(cos_table->type() == kExternalDoubleArray);
+  double* sin_buffer = reinterpret_cast<double*>(
+      JSArrayBuffer::cast(sin_table->buffer())->backing_store());
+  double* cos_buffer = reinterpret_cast<double*>(
+      JSArrayBuffer::cast(cos_table->buffer())->backing_store());
+
+  static const double pi_half = 3.1415926535897932 / 2;
+  double interval = pi_half / samples;
+  for (int i = 0; i < samples + 1; i++) {
+    double sample = sin(i * interval);
+    sin_buffer[i] = sample;
+    cos_buffer[samples - i] = sample * interval;
+  }
+
+  // Fill this to catch out of bound accesses when calculating Math.sin(pi/2).
+  sin_buffer[samples + 1] = sin(pi_half + interval);
+  cos_buffer[samples + 1] = cos(pi_half + interval) * interval;
+
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDAbs) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+
+  float32x4_value_t result;
+  result.storage[0] = fabsf(a->x());
+  result.storage[1] = fabsf(a->y());
+  result.storage[2] = fabsf(a->z());
+  result.storage[3] = fabsf(a->w());
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDNeg) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+
+  float32x4_value_t result;
+  result.storage[0] = -a->x();
+  result.storage[1] = -a->y();
+  result.storage[2] = -a->z();
+  result.storage[3] = -a->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDAdd) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  float32x4_value_t result;
+  result.storage[0] = a->x() + b->x();
+  result.storage[1] = a->y() + b->y();
+  result.storage[2] = a->z() + b->z();
+  result.storage[3] = a->w() + b->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDSub) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  float32x4_value_t result;
+  result.storage[0] = a->x() - b->x();
+  result.storage[1] = a->y() - b->y();
+  result.storage[2] = a->z() - b->z();
+  result.storage[3] = a->w() - b->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDMul) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  float32x4_value_t result;
+  result.storage[0] = a->x() * b->x();
+  result.storage[1] = a->y() * b->y();
+  result.storage[2] = a->z() * b->z();
+  result.storage[3] = a->w() * b->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDDiv) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  float32x4_value_t result;
+  result.storage[0] = a->x() / b->x();
+  result.storage[1] = a->y() / b->y();
+  result.storage[2] = a->z() / b->z();
+  result.storage[3] = a->w() / b->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDClamp) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  CONVERT_ARG_CHECKED(Float32x4, lo, 1);
+  CONVERT_ARG_CHECKED(Float32x4, hi, 2);
+
+  float32x4_value_t result;
+  float _x = self->x() > lo->x() ? self->x() : lo->x();
+  float _y = self->y() > lo->y() ? self->y() : lo->y();
+  float _z = self->z() > lo->z() ? self->z() : lo->z();
+  float _w = self->w() > lo->w() ? self->w() : lo->w();
+  result.storage[0] = _x > hi->x() ? hi->x() : _x;
+  result.storage[1] = _y > hi->y() ? hi->y() : _y;
+  result.storage[2] = _z > hi->z() ? hi->z() : _z;
+  result.storage[3] = _w > hi->w() ? hi->w() : _w;
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDMin) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  CONVERT_ARG_CHECKED(Float32x4, other, 1);
+
+  float32x4_value_t result;
+  result.storage[0] = self->x() < other->x() ? self->x() : other->x();
+  result.storage[1] = self->y() < other->y() ? self->y() : other->y();
+  result.storage[2] = self->z() < other->z() ? self->z() : other->z();
+  result.storage[3] = self->w() < other->w() ? self->w() : other->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDMax) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  CONVERT_ARG_CHECKED(Float32x4, other, 1);
+
+  float32x4_value_t result;
+  result.storage[0] = self->x() > other->x() ? self->x() : other->x();
+  result.storage[1] = self->y() > other->y() ? self->y() : other->y();
+  result.storage[2] = self->z() > other->z() ? self->z() : other->z();
+  result.storage[3] = self->w() > other->w() ? self->w() : other->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDReciprocal) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+
+  float32x4_value_t result;
+  result.storage[0] = 1.0f / self->x();
+  result.storage[1] = 1.0f / self->y();
+  result.storage[2] = 1.0f / self->z();
+  result.storage[3] = 1.0f / self->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDReciprocalSqrt) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+
+  float32x4_value_t result;
+  result.storage[0] = sqrtf(1.0f / self->x());
+  result.storage[1] = sqrtf(1.0f / self->y());
+  result.storage[2] = sqrtf(1.0f / self->z());
+  result.storage[3] = sqrtf(1.0f / self->w());
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDScale) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  float _s = static_cast<float>(args.number_at(1));
+  float32x4_value_t result;
+  result.storage[0] = self->x() * _s;
+  result.storage[1] = self->y() * _s;
+  result.storage[2] = self->z() * _s;
+  result.storage[3] = self->w() * _s;
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDSqrt) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+
+  float32x4_value_t result;
+  result.storage[0] = sqrtf(self->x());
+  result.storage[1] = sqrtf(self->y());
+  result.storage[2] = sqrtf(self->z());
+  result.storage[3] = sqrtf(self->w());
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDShuffle) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  uint32_t m = NumberToUint32(args[1]);
+  float32x4_value_t result;
+  float data[4] = { self->x(), self->y(), self->z(), self->w() };
+  result.storage[0] = data[m & 0x3];
+  result.storage[1] = data[(m >> 2) & 0x3];
+  result.storage[2] = data[(m >> 4) & 0x3];
+  result.storage[3] = data[(m >> 6) & 0x3];
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDShuffleu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  uint32_t m = NumberToUint32(args[1]);
+  int32x4_value_t result;
+  int32_t data[4] = { self->x(), self->y(), self->z(), self->w() };
+  result.storage[0] = data[m & 0x3];
+  result.storage[1] = data[(m >> 2) & 0x3];
+  result.storage[2] = data[(m >> 4) & 0x3];
+  result.storage[3] = data[(m >> 6) & 0x3];
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDShuffleMix) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_CHECKED(Float32x4, first, 0);
+  CONVERT_ARG_CHECKED(Float32x4, second, 1);
+  RUNTIME_ASSERT(args[2]->IsNumber());
+
+  uint32_t m = NumberToUint32(args[2]);
+  float32x4_value_t result;
+  float data1[4] = { first->x(), first->y(), first->z(), first->w() };
+  float data2[4] = { second->x(), second->y(), second->z(), second->w() };
+  result.storage[0] = data1[m & 0x3];
+  result.storage[1] = data1[(m >> 2) & 0x3];
+  result.storage[2] = data2[(m >> 4) & 0x3];
+  result.storage[3] = data2[(m >> 6) & 0x3];
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithX) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  float32x4_value_t result;
+  result.storage[0] = static_cast<float>(args.number_at(1));
+  result.storage[1] = self->y();
+  result.storage[2] = self->z();
+  result.storage[3] = self->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithY) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  float32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = static_cast<float>(args.number_at(1));
+  result.storage[2] = self->z();
+  result.storage[3] = self->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithZ) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  float32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = self->y();
+  result.storage[2] = static_cast<float>(args.number_at(1));
+  result.storage[3] = self->w();
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithW) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  float32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = self->y();
+  result.storage[2] = self->z();
+  result.storage[3] = static_cast<float>(args.number_at(1));
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDToFloat32x4) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+
+  float32x4_value_t result;
+  result.storage[0] = static_cast<float>(self->x());
+  result.storage[1] = static_cast<float>(self->y());
+  result.storage[2] = static_cast<float>(self->z());
+  result.storage[3] = static_cast<float>(self->w());
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDBitsToFloat32x4) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+
+  float32x4_value_t result;
+  int32x4_value_t source = self->value();
+  memcpy(&result.storage[0], &source.storage[0], kFloatSize);
+  memcpy(&result.storage[1], &source.storage[1], kFloatSize);
+  memcpy(&result.storage[2], &source.storage[2], kFloatSize);
+  memcpy(&result.storage[3], &source.storage[3], kFloatSize);
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDToInt32x4) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+
+  int32x4_value_t result;
+  result.storage[0] = DoubleToInt32(static_cast<double>(self->x()));
+  result.storage[1] = DoubleToInt32(static_cast<double>(self->y()));
+  result.storage[2] = DoubleToInt32(static_cast<double>(self->z()));
+  result.storage[3] = DoubleToInt32(static_cast<double>(self->w()));
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDBitsToInt32x4) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+
+  int32x4_value_t result;
+  float32x4_value_t source = self->value();
+  memcpy(&result.storage[0], &source.storage[0], kInt32Size);
+  memcpy(&result.storage[1], &source.storage[1], kInt32Size);
+  memcpy(&result.storage[2], &source.storage[2], kInt32Size);
+  memcpy(&result.storage[3], &source.storage[3], kInt32Size);
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDLessThan) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() < b->x() ? 0xFFFFFFFF : 0x0;
+  result.storage[1] = a->y() < b->y() ? 0xFFFFFFFF : 0x0;
+  result.storage[2] = a->z() < b->z() ? 0xFFFFFFFF : 0x0;
+  result.storage[3] = a->w() < b->w() ? 0xFFFFFFFF : 0x0;
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDLessThanOrEqual) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() <= b->x() ? 0xFFFFFFFF : 0x0;
+  result.storage[1] = a->y() <= b->y() ? 0xFFFFFFFF : 0x0;
+  result.storage[2] = a->z() <= b->z() ? 0xFFFFFFFF : 0x0;
+  result.storage[3] = a->w() <= b->w() ? 0xFFFFFFFF : 0x0;
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDEqual) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() == b->x() ? 0xFFFFFFFF : 0x0;
+  result.storage[1] = a->y() == b->y() ? 0xFFFFFFFF : 0x0;
+  result.storage[2] = a->z() == b->z() ? 0xFFFFFFFF : 0x0;
+  result.storage[3] = a->w() == b->w() ? 0xFFFFFFFF : 0x0;
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDNotEqual) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() != b->x() ? 0xFFFFFFFF : 0x0;
+  result.storage[1] = a->y() != b->y() ? 0xFFFFFFFF : 0x0;
+  result.storage[2] = a->z() != b->z() ? 0xFFFFFFFF : 0x0;
+  result.storage[3] = a->w() != b->w() ? 0xFFFFFFFF : 0x0;
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDGreaterThan) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() > b->x() ? 0xFFFFFFFF : 0x0;
+  result.storage[1] = a->y() > b->y() ? 0xFFFFFFFF : 0x0;
+  result.storage[2] = a->z() > b->z() ? 0xFFFFFFFF : 0x0;
+  result.storage[3] = a->w() > b->w() ? 0xFFFFFFFF : 0x0;
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDGreaterThanOrEqual) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Float32x4, a, 0);
+  CONVERT_ARG_CHECKED(Float32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() >= b->x() ? 0xFFFFFFFF : 0x0;
+  result.storage[1] = a->y() >= b->y() ? 0xFFFFFFFF : 0x0;
+  result.storage[2] = a->z() >= b->z() ? 0xFFFFFFFF : 0x0;
+  result.storage[3] = a->w() >= b->w() ? 0xFFFFFFFF : 0x0;
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDAnd) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, a, 0);
+  CONVERT_ARG_CHECKED(Int32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() & b->x();
+  result.storage[1] = a->y() & b->y();
+  result.storage[2] = a->z() & b->z();
+  result.storage[3] = a->w() & b->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDOr) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, a, 0);
+  CONVERT_ARG_CHECKED(Int32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() | b->x();
+  result.storage[1] = a->y() | b->y();
+  result.storage[2] = a->z() | b->z();
+  result.storage[3] = a->w() | b->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDXor) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, a, 0);
+  CONVERT_ARG_CHECKED(Int32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() ^ b->x();
+  result.storage[1] = a->y() ^ b->y();
+  result.storage[2] = a->z() ^ b->z();
+  result.storage[3] = a->w() ^ b->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDNot) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+
+  int32x4_value_t result;
+  result.storage[0] = ~self->x();
+  result.storage[1] = ~self->y();
+  result.storage[2] = ~self->z();
+  result.storage[3] = ~self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDNegu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+
+  int32x4_value_t result;
+  result.storage[0] = -self->x();
+  result.storage[1] = -self->y();
+  result.storage[2] = -self->z();
+  result.storage[3] = -self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDAddu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, a, 0);
+  CONVERT_ARG_CHECKED(Int32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() + b->x();
+  result.storage[1] = a->y() + b->y();
+  result.storage[2] = a->z() + b->z();
+  result.storage[3] = a->w() + b->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDSubu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, a, 0);
+  CONVERT_ARG_CHECKED(Int32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() - b->x();
+  result.storage[1] = a->y() - b->y();
+  result.storage[2] = a->z() - b->z();
+  result.storage[3] = a->w() - b->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDMulu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, a, 0);
+  CONVERT_ARG_CHECKED(Int32x4, b, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = a->x() * b->x();
+  result.storage[1] = a->y() * b->y();
+  result.storage[2] = a->z() * b->z();
+  result.storage[3] = a->w() * b->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+// Used to convert between uint32_t and float32 without breaking strict
+// aliasing rules.
+union float32_uint32 {
+  float f;
+  uint32_t u;
+  float32_uint32(float v) {
+    f = v;
+  }
+  float32_uint32(uint32_t v) {
+    u = v;
+  }
+};
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDSelect) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  CONVERT_ARG_CHECKED(Float32x4, tv, 1);
+  CONVERT_ARG_CHECKED(Float32x4, fv, 2);
+
+  uint32_t _maskX = self->x();
+  uint32_t _maskY = self->y();
+  uint32_t _maskZ = self->z();
+  uint32_t _maskW = self->w();
+  // Extract floats and interpret them as masks.
+  float32_uint32 tvx(tv->x());
+  float32_uint32 tvy(tv->y());
+  float32_uint32 tvz(tv->z());
+  float32_uint32 tvw(tv->w());
+  float32_uint32 fvx(fv->x());
+  float32_uint32 fvy(fv->y());
+  float32_uint32 fvz(fv->z());
+  float32_uint32 fvw(fv->w());
+  // Perform select.
+  float32_uint32 tempX((_maskX & tvx.u) | (~_maskX & fvx.u));
+  float32_uint32 tempY((_maskY & tvy.u) | (~_maskY & fvy.u));
+  float32_uint32 tempZ((_maskZ & tvz.u) | (~_maskZ & fvz.u));
+  float32_uint32 tempW((_maskW & tvw.u) | (~_maskW & fvw.u));
+
+  float32x4_value_t result;
+  result.storage[0] = tempX.f;
+  result.storage[1] = tempY.f;
+  result.storage[2] = tempZ.f;
+  result.storage[3] = tempW.f;
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(result);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithXu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  int32x4_value_t result;
+  result.storage[0] = NumberToUint32(args[1]);
+  result.storage[1] = self->y();
+  result.storage[2] = self->z();
+  result.storage[3] = self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithYu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  int32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = NumberToUint32(args[1]);
+  result.storage[2] = self->z();
+  result.storage[3] = self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithZu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  int32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = self->y();
+  result.storage[2] = NumberToUint32(args[1]);
+  result.storage[3] = self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithWu32) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  RUNTIME_ASSERT(args[1]->IsNumber());
+
+  int32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = self->y();
+  result.storage[2] = self->z();
+  result.storage[3] = NumberToUint32(args[1]);
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithFlagX) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(flagX, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = flagX ? 0xFFFFFFFF : 0x0;
+  result.storage[1] = self->y();
+  result.storage[2] = self->z();
+  result.storage[3] = self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithFlagY) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(flagY, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = flagY ? 0xFFFFFFFF : 0x0;
+  result.storage[2] = self->z();
+  result.storage[3] = self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithFlagZ) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(flagZ, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = self->y();
+  result.storage[2] = flagZ ? 0xFFFFFFFF : 0x0;
+  result.storage[3] = self->w();
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SIMDWithFlagW) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(flagW, 1);
+
+  int32x4_value_t result;
+  result.storage[0] = self->x();
+  result.storage[1] = self->y();
+  result.storage[2] = self->z();
+  result.storage[3] = flagW ? 0xFFFFFFFF : 0x0;
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(result);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
@@ -7876,6 +8925,174 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
   }
   date->SetValue(value, is_value_nan);
   return value;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateFloat32x4) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  RUNTIME_ASSERT(args[0]->IsNumber());
+  RUNTIME_ASSERT(args[1]->IsNumber());
+  RUNTIME_ASSERT(args[2]->IsNumber());
+  RUNTIME_ASSERT(args[3]->IsNumber());
+
+  float32x4_value_t value;
+  value.storage[0] = static_cast<float>(args.number_at(0));
+  value.storage[1] = static_cast<float>(args.number_at(1));
+  value.storage[2] = static_cast<float>(args.number_at(2));
+  value.storage[3] = static_cast<float>(args.number_at(3));
+
+  Float32x4* float32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateFloat32x4(value);
+  if (!maybe->To(&float32x4)) return maybe;
+  return float32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Float32x4GetX) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Float32x4, float32x4, 0);
+  return isolate->heap()->AllocateHeapNumber(float32x4->x());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Float32x4GetY) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Float32x4, float32x4, 0);
+  return isolate->heap()->AllocateHeapNumber(float32x4->y());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Float32x4GetZ) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Float32x4, float32x4, 0);
+  return isolate->heap()->AllocateHeapNumber(float32x4->z());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Float32x4GetW) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Float32x4, float32x4, 0);
+  return isolate->heap()->AllocateHeapNumber(float32x4->w());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Float32x4GetSignMask) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Float32x4, self, 0);
+  float32_uint32 x(self->x());
+  float32_uint32 y(self->y());
+  float32_uint32 z(self->z());
+  float32_uint32 w(self->w());
+  uint32_t mx = (x.u & 0x80000000) >> 31;
+  uint32_t my = (y.u & 0x80000000) >> 31;
+  uint32_t mz = (z.u & 0x80000000) >> 31;
+  uint32_t mw = (w.u & 0x80000000) >> 31;
+  uint32_t value = mx | (my << 1) | (mz << 2) | (mw << 3);
+  return isolate->heap()->NumberFromUint32(value);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateInt32x4) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  RUNTIME_ASSERT(args[0]->IsNumber());
+  RUNTIME_ASSERT(args[1]->IsNumber());
+  RUNTIME_ASSERT(args[2]->IsNumber());
+  RUNTIME_ASSERT(args[3]->IsNumber());
+
+  int32x4_value_t value;
+  value.storage[0] = NumberToInt32(args[0]);
+  value.storage[1] = NumberToInt32(args[1]);
+  value.storage[2] = NumberToInt32(args[2]);
+  value.storage[3] = NumberToInt32(args[3]);
+
+  Int32x4* int32x4;
+  MaybeObject* maybe = isolate->heap()->AllocateInt32x4(value);
+  if (!maybe->To(&int32x4)) return maybe;
+  return int32x4;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetX) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->NumberFromInt32(int32x4->x());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetY) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->NumberFromInt32(int32x4->y());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetZ) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->NumberFromInt32(int32x4->z());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetW) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->NumberFromInt32(int32x4->w());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetFlagX) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->ToBoolean(int32x4->x() != 0);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetFlagY) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->ToBoolean(int32x4->y() != 0);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetFlagZ) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->ToBoolean(int32x4->z() != 0);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetFlagW) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, int32x4, 0);
+  return isolate->heap()->ToBoolean(int32x4->w() != 0);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Int32x4GetSignMask) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Int32x4, self, 0);
+  uint32_t mx = (self->x() & 0x80000000) >> 31;
+  uint32_t my = (self->y() & 0x80000000) >> 31;
+  uint32_t mz = (self->z() & 0x80000000) >> 31;
+  uint32_t mw = (self->w() & 0x80000000) >> 31;
+  uint32_t value = mx | (my << 1) | (mz << 2) | (mw << 3);
+  return isolate->heap()->NumberFromUint32(value);
 }
 
 
@@ -10013,6 +11230,8 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_FLOAT32x4_ELEMENTS:
+    case EXTERNAL_INT32x4_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
       // External arrays are always dense.
@@ -10022,7 +11241,6 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
   // inherited elements.
   return element_count;
 }
-
 
 
 template<class ExternalArrayClass, class ElementType>
@@ -10064,6 +11282,38 @@ static void IterateExternalArrayElements(Isolate* isolate,
       Handle<Object> e = isolate->factory()->NewNumber(array->get_scalar(j));
       visitor->visit(j, e);
     }
+  }
+}
+
+
+static void IterateExternalFloat32x4ArrayElements(Isolate* isolate,
+                                                Handle<JSObject> receiver,
+                                                ArrayConcatVisitor* visitor) {
+  Handle<ExternalFloat32x4Array> array(
+      ExternalFloat32x4Array::cast(receiver->elements()));
+  uint32_t len = static_cast<uint32_t>(array->length());
+
+  ASSERT(visitor != NULL);
+  for (uint32_t j = 0; j < len; j++) {
+    HandleScope loop_scope(isolate);
+    Handle<Object> e = isolate->factory()->NewFloat32x4(array->get_scalar(j));
+    visitor->visit(j, e);
+  }
+}
+
+
+static void IterateExternalInt32x4ArrayElements(Isolate* isolate,
+                                                 Handle<JSObject> receiver,
+                                                 ArrayConcatVisitor* visitor) {
+  Handle<ExternalInt32x4Array> array(
+      ExternalInt32x4Array::cast(receiver->elements()));
+  uint32_t len = static_cast<uint32_t>(array->length());
+
+  ASSERT(visitor != NULL);
+  for (uint32_t j = 0; j < len; j++) {
+    HandleScope loop_scope(isolate);
+    Handle<Object> e = isolate->factory()->NewInt32x4(array->get_scalar(j));
+    visitor->visit(j, e);
   }
 }
 
@@ -10160,6 +11410,16 @@ static void CollectElementIndices(Handle<JSObject> object,
         case EXTERNAL_FLOAT_ELEMENTS: {
           dense_elements_length =
               ExternalFloatArray::cast(object->elements())->length();
+          break;
+        }
+        case EXTERNAL_FLOAT32x4_ELEMENTS: {
+          dense_elements_length =
+              ExternalFloat32x4Array::cast(object->elements())->length();
+          break;
+        }
+        case EXTERNAL_INT32x4_ELEMENTS: {
+          dense_elements_length =
+              ExternalInt32x4Array::cast(object->elements())->length();
           break;
         }
         case EXTERNAL_DOUBLE_ELEMENTS: {
@@ -10325,6 +11585,14 @@ static bool IterateElements(Isolate* isolate,
     case EXTERNAL_FLOAT_ELEMENTS: {
       IterateExternalArrayElements<ExternalFloatArray, float>(
           isolate, receiver, false, false, visitor);
+      break;
+    }
+    case EXTERNAL_FLOAT32x4_ELEMENTS: {
+      IterateExternalFloat32x4ArrayElements(isolate, receiver, visitor);
+      break;
+    }
+    case EXTERNAL_INT32x4_ELEMENTS: {
+      IterateExternalInt32x4ArrayElements(isolate, receiver, visitor);
       break;
     }
     case EXTERNAL_DOUBLE_ELEMENTS: {
@@ -14552,6 +15820,8 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedShortElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalIntElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedIntElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalFloatElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalFloat32x4Elements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalInt32x4Elements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalDoubleElements)
 // Properties test sitting with elements tests - not fooling anyone.
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)

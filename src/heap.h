@@ -65,6 +65,8 @@ namespace internal {
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, heap_number_map, HeapNumberMap)                                       \
+  V(Map, float32x4_map, Float32x4Map)                                          \
+  V(Map, int32x4_map, Int32x4Map)                                              \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, code_map, CodeMap)                                                    \
@@ -139,6 +141,8 @@ namespace internal {
   V(Map, external_int_array_map, ExternalIntArrayMap)                          \
   V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
   V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
+  V(Map, external_float32x4_array_map, ExternalFloat32x4ArrayMap)              \
+  V(Map, external_int32x4_array_map, ExternalInt32x4ArrayMap)                  \
   V(Map, external_double_array_map, ExternalDoubleArrayMap)                    \
   V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
   V(ExternalArray, empty_external_byte_array,                                  \
@@ -152,6 +156,8 @@ namespace internal {
   V(ExternalArray, empty_external_unsigned_int_array,                          \
       EmptyExternalUnsignedIntArray)                                           \
   V(ExternalArray, empty_external_float_array, EmptyExternalFloatArray)        \
+  V(ExternalArray, empty_external_float32x4_array, EmptyExternalFloat32x4Array)\
+  V(ExternalArray, empty_external_int32x4_array, EmptyExternalInt32x4Array)    \
   V(ExternalArray, empty_external_double_array, EmptyExternalDoubleArray)      \
   V(ExternalArray, empty_external_pixel_array,                                 \
       EmptyExternalPixelArray)                                                 \
@@ -223,6 +229,8 @@ namespace internal {
   V(null_string, "null")                                                 \
   V(number_string, "number")                                             \
   V(Number_string, "Number")                                             \
+  V(float32x4_string, "float32x4")                                       \
+  V(int32x4_string, "int32x4")                                           \
   V(nan_string, "NaN")                                                   \
   V(RegExp_string, "RegExp")                                             \
   V(source_string, "source")                                             \
@@ -295,6 +303,16 @@ namespace internal {
   V(throw_string, "throw")                                               \
   V(done_string, "done")                                                 \
   V(value_string, "value")                                               \
+  V(signMask, "signMask")                                                \
+  V(x, "x")                                                              \
+  V(y, "y")                                                              \
+  V(z, "z")                                                              \
+  V(w, "w")                                                              \
+  V(flagX, "flagX")                                                      \
+  V(flagY, "flagY")                                                      \
+  V(flagZ, "flagZ")                                                      \
+  V(flagW, "flagW")                                                      \
+  V(simd, "SIMD")                                                        \
   V(next_string, "next")                                                 \
   V(byte_length_string, "byteLength")                                    \
   V(byte_offset_string, "byteOffset")                                    \
@@ -1030,6 +1048,16 @@ class Heap {
   // Allocated a HeapNumber from value.
   MUST_USE_RESULT MaybeObject* AllocateHeapNumber(
       double value, PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocated a Float32x4 from value.
+  MUST_USE_RESULT MaybeObject* AllocateFloat32x4(
+      float32x4_value_t value,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocated a Int32x4 from value.
+  MUST_USE_RESULT MaybeObject* AllocateInt32x4(
+      int32x4_value_t value,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

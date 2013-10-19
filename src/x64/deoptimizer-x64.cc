@@ -91,8 +91,9 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
   input_->SetRegister(rsp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(rbp.code(), reinterpret_cast<intptr_t>(frame->fp()));
+  xmm_value_t zero = {{0.0, 0.0}};
   for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
-    input_->SetDoubleRegister(i, 0.0);
+    input_->SetXMMRegister(i, zero);
   }
 
   // Fill the frame content from the actual data on the frame.
@@ -114,8 +115,8 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
-    double double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
+    xmm_value_t xmm_value = input_->GetXMMRegister(i);
+    output_frame->SetXMMRegister(i, xmm_value);
   }
 }
 
@@ -139,14 +140,14 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
-  const int kDoubleRegsSize = kDoubleSize *
+  const int kXMMRegsSize = kFloat32x4Size *
       XMMRegister::NumAllocatableRegisters();
-  __ subq(rsp, Immediate(kDoubleRegsSize));
+  __ subq(rsp, Immediate(kXMMRegsSize));
 
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
     XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-    int offset = i * kDoubleSize;
-    __ movsd(Operand(rsp, offset), xmm_reg);
+    int offset = i * kFloat32x4Size;
+    __ movups(Operand(rsp, offset), xmm_reg);
   }
 
   // We push all registers onto the stack, even though we do not need
@@ -157,7 +158,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
-                                      kDoubleRegsSize;
+                                      kXMMRegsSize;
 
   // We use this to keep the value of the fifth argument temporarily.
   // Unfortunately we can't store it directly in r8 (used for passing
@@ -208,10 +209,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Fill in the double input registers.
-  int double_regs_offset = FrameDescription::double_registers_offset();
+  int xmm_regs_offset = FrameDescription::xmm_registers_offset();
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int dst_offset = i * kFloat32x4Size + xmm_regs_offset;
     __ pop(Operand(rbx, dst_offset));
+    __ pop(Operand(rbx, dst_offset + kDoubleSize));
   }
 
   // Remove the bailout id and return address from the stack.
@@ -275,8 +277,8 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
     XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-    int src_offset = i * kDoubleSize + double_regs_offset;
-    __ movsd(xmm_reg, Operand(rbx, src_offset));
+    int src_offset = i * kFloat32x4Size + xmm_regs_offset;
+    __ movups(xmm_reg, Operand(rbx, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.

@@ -76,6 +76,14 @@ class Memory {
     return *reinterpret_cast<double*>(addr);
   }
 
+  static float32x4_value_t& float32x4_at(Address addr)  {
+    return *reinterpret_cast<float32x4_value_t*>(addr);
+  }
+
+  static int32x4_value_t& int32x4_at(Address addr)  {
+    return *reinterpret_cast<int32x4_value_t*>(addr);
+  }
+
   static Address& Address_at(Address addr)  {
     return *reinterpret_cast<Address*>(addr);
   }

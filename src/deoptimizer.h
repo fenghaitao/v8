@@ -55,6 +55,13 @@ static inline double read_double_value(Address p) {
 #endif  // V8_HOST_CAN_READ_UNALIGNED
 }
 
+static inline float32x4_value_t read_float32x4_value(Address p) {
+  return Memory::float32x4_at(p);
+}
+
+static inline int32x4_value_t read_int32x4_value(Address p) {
+  return Memory::int32x4_at(p);
+}
 
 class FrameDescription;
 class TranslationIterator;
@@ -72,6 +79,36 @@ class HeapNumberMaterializationDescriptor BASE_EMBEDDED {
  private:
   T destination_;
   double value_;
+};
+
+
+template<typename T>
+class Float32x4MaterializationDescriptor BASE_EMBEDDED {
+ public:
+  Float32x4MaterializationDescriptor(T destination, float32x4_value_t value)
+      : destination_(destination), value_(value) { }
+
+  T destination() const { return destination_; }
+  float32x4_value_t value() const { return value_; }
+
+ private:
+  T destination_;
+  float32x4_value_t value_;
+};
+
+
+template<typename T>
+class Int32x4MaterializationDescriptor BASE_EMBEDDED {
+ public:
+  Int32x4MaterializationDescriptor(T destination, int32x4_value_t value)
+      : destination_(destination), value_(value) { }
+
+  T destination() const { return destination_; }
+  int32x4_value_t value() const { return value_; }
+
+ private:
+  T destination_;
+  int32x4_value_t value_;
 };
 
 
@@ -349,7 +386,11 @@ class Deoptimizer : public Malloced {
   void AddObjectDuplication(intptr_t slot, int object_index);
   void AddObjectTaggedValue(intptr_t value);
   void AddObjectDoubleValue(double value);
+  void AddObjectFloat32x4Value(float32x4_value_t value);
+  void AddObjectInt32x4Value(int32x4_value_t value);
   void AddDoubleValue(intptr_t slot_address, double value);
+  void AddFloat32x4Value(intptr_t slot_address, float32x4_value_t value);
+  void AddInt32x4Value(intptr_t slot_address, int32x4_value_t value);
 
   bool ArgumentsObjectIsAdapted(int object_index) {
     ObjectMaterializationDescriptor desc = deferred_objects_.at(object_index);
@@ -432,8 +473,14 @@ class Deoptimizer : public Malloced {
   List<Object*> deferred_objects_tagged_values_;
   List<HeapNumberMaterializationDescriptor<int> >
       deferred_objects_double_values_;
+  List<Float32x4MaterializationDescriptor<int> >
+      deferred_objects_float32x4_values_;
+  List<Int32x4MaterializationDescriptor<int> >
+      deferred_objects_int32x4_values_;
   List<ObjectMaterializationDescriptor> deferred_objects_;
   List<HeapNumberMaterializationDescriptor<Address> > deferred_heap_numbers_;
+  List<Float32x4MaterializationDescriptor<Address> > deferred_float32x4s_;
+  List<Int32x4MaterializationDescriptor<Address> > deferred_int32x4s_;
 
   // Output frame information. Only used during heap object materialization.
   List<Handle<JSFunction> > jsframe_functions_;
@@ -495,6 +542,16 @@ class FrameDescription {
     return read_double_value(reinterpret_cast<Address>(ptr));
   }
 
+  float32x4_value_t GetFloat32x4FrameSlot(unsigned offset) {
+    intptr_t* ptr = GetFrameSlotPointer(offset);
+    return read_float32x4_value(reinterpret_cast<Address>(ptr));
+  }
+
+  int32x4_value_t GetInt32x4FrameSlot(unsigned offset) {
+    intptr_t* ptr = GetFrameSlotPointer(offset);
+    return read_int32x4_value(reinterpret_cast<Address>(ptr));
+  }
+
   void SetFrameSlot(unsigned offset, intptr_t value) {
     *GetFrameSlotPointer(offset) = value;
   }
@@ -517,8 +574,23 @@ class FrameDescription {
   }
 
   double GetDoubleRegister(unsigned n) const {
-    ASSERT(n < ARRAY_SIZE(double_registers_));
-    return double_registers_[n];
+    ASSERT(n < ARRAY_SIZE(xmm_registers_));
+    return xmm_registers_[n].d[0];
+  }
+
+  float32x4_value_t GetFloat32x4Register(unsigned n) const {
+    ASSERT(n < ARRAY_SIZE(xmm_registers_));
+    return xmm_registers_[n].f;
+  }
+
+  int32x4_value_t GetInt32x4Register(unsigned n) const {
+    ASSERT(n < ARRAY_SIZE(xmm_registers_));
+    return xmm_registers_[n].u;
+  }
+
+  xmm_value_t GetXMMRegister(unsigned n) const {
+    ASSERT(n < ARRAY_SIZE(xmm_registers_));
+    return xmm_registers_[n];
   }
 
   void SetRegister(unsigned n, intptr_t value) {
@@ -527,8 +599,13 @@ class FrameDescription {
   }
 
   void SetDoubleRegister(unsigned n, double value) {
-    ASSERT(n < ARRAY_SIZE(double_registers_));
-    double_registers_[n] = value;
+    ASSERT(n < ARRAY_SIZE(xmm_registers_));
+    xmm_registers_[n].d[0] = value;
+  }
+
+  void SetXMMRegister(unsigned n, xmm_value_t value) {
+    ASSERT(n < ARRAY_SIZE(xmm_registers_));
+    xmm_registers_[n] = value;
   }
 
   intptr_t GetTop() const { return top_; }
@@ -567,8 +644,8 @@ class FrameDescription {
     return OFFSET_OF(FrameDescription, registers_);
   }
 
-  static int double_registers_offset() {
-    return OFFSET_OF(FrameDescription, double_registers_);
+  static int xmm_registers_offset() {
+    return OFFSET_OF(FrameDescription, xmm_registers_);
   }
 
   static int frame_size_offset() {
@@ -600,7 +677,7 @@ class FrameDescription {
   uintptr_t frame_size_;  // Number of bytes.
   JSFunction* function_;
   intptr_t registers_[Register::kNumRegisters];
-  double double_registers_[DoubleRegister::kMaxNumRegisters];
+  xmm_value_t xmm_registers_[XMMRegister::kMaxNumRegisters];
   intptr_t top_;
   intptr_t pc_;
   intptr_t fp_;
@@ -702,10 +779,14 @@ class TranslationIterator BASE_EMBEDDED {
   V(INT32_REGISTER)                                                            \
   V(UINT32_REGISTER)                                                           \
   V(DOUBLE_REGISTER)                                                           \
+  V(FLOAT32x4_REGISTER)                                                        \
+  V(INT32x4_REGISTER)                                                          \
   V(STACK_SLOT)                                                                \
   V(INT32_STACK_SLOT)                                                          \
   V(UINT32_STACK_SLOT)                                                         \
   V(DOUBLE_STACK_SLOT)                                                         \
+  V(FLOAT32x4_STACK_SLOT)                                                      \
+  V(INT32x4_STACK_SLOT)                                                        \
   V(LITERAL)
 
 
@@ -744,10 +825,14 @@ class Translation BASE_EMBEDDED {
   void StoreInt32Register(Register reg);
   void StoreUint32Register(Register reg);
   void StoreDoubleRegister(DoubleRegister reg);
+  void StoreFloat32x4Register(Float32x4Register reg);
+  void StoreInt32x4Register(Float32x4Register reg);
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreUint32StackSlot(int index);
   void StoreDoubleStackSlot(int index);
+  void StoreFloat32x4StackSlot(int index);
+  void StoreInt32x4StackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreArgumentsObject(bool args_known, int args_index, int args_length);
 
@@ -777,6 +862,8 @@ class SlotRef BASE_EMBEDDED {
     INT32,
     UINT32,
     DOUBLE,
+    FLOAT32x4,
+    INT32x4,
     LITERAL
   };
 
@@ -815,6 +902,16 @@ class SlotRef BASE_EMBEDDED {
       case DOUBLE: {
         double value = read_double_value(addr_);
         return isolate->factory()->NewNumber(value);
+      }
+
+      case FLOAT32x4: {
+        float32x4_value_t value = read_float32x4_value(addr_);
+        return isolate->factory()->NewFloat32x4(value);
+      }
+
+      case INT32x4: {
+        int32x4_value_t value = read_int32x4_value(addr_);
+        return isolate->factory()->NewInt32x4(value);
       }
 
       case LITERAL:

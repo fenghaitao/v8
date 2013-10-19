@@ -148,7 +148,9 @@ class LifetimePosition {
 enum RegisterKind {
   UNALLOCATED_REGISTERS,
   GENERAL_REGISTERS,
-  DOUBLE_REGISTERS
+  DOUBLE_REGISTERS,
+  FLOAT32x4_REGISTERS,
+  INT32x4_REGISTERS
 };
 
 
@@ -616,11 +618,15 @@ class LAllocator BASE_EMBEDDED {
   ZoneList<LiveRange*> active_live_ranges_;
   ZoneList<LiveRange*> inactive_live_ranges_;
   ZoneList<LiveRange*> reusable_slots_;
+  // Slots reusable for both float32x4 and int32x4 register spilling.
+  ZoneList<LiveRange*> reusable_xmm_slots_;
 
   // Next virtual register number to be assigned to temporaries.
   int next_virtual_register_;
   int first_artificial_register_;
   GrowableBitVector double_artificial_registers_;
+  GrowableBitVector float32x4_artificial_registers_;
+  GrowableBitVector int32x4_artificial_registers_;
 
   RegisterKind mode_;
   int num_registers_;

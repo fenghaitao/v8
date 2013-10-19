@@ -187,8 +187,9 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
   input_->SetRegister(esp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(ebp.code(), reinterpret_cast<intptr_t>(frame->fp()));
+  xmm_value_t zero = {{0.0, 0.0}};
   for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
-    input_->SetDoubleRegister(i, 0.0);
+    input_->SetXMMRegister(i, zero);
   }
 
   // Fill the frame content from the actual data on the frame.
@@ -211,8 +212,8 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   if (!CpuFeatures::IsSupported(SSE2)) return;
   for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
-    double double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
+    xmm_value_t xmm_value = input_->GetXMMRegister(i);
+    output_frame->SetXMMRegister(i, xmm_value);
   }
 }
 
@@ -246,22 +247,22 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
-  const int kDoubleRegsSize = kDoubleSize *
+  const int kXMMRegsSize = kFloat32x4Size *
                               XMMRegister::kNumAllocatableRegisters;
-  __ sub(esp, Immediate(kDoubleRegsSize));
+  __ sub(esp, Immediate(kXMMRegsSize));
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-      int offset = i * kDoubleSize;
-      __ movsd(Operand(esp, offset), xmm_reg);
+      int offset = i * kFloat32x4Size;
+      __ movups(Operand(esp, offset), xmm_reg);
     }
   }
 
   __ pushad();
 
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
-                                      kDoubleRegsSize;
+                                      kXMMRegsSize;
 
   // Get the bailout id from the stack.
   __ mov(ebx, Operand(esp, kSavedRegistersAreaSize));
@@ -299,15 +300,15 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ pop(Operand(ebx, offset));
   }
 
-  int double_regs_offset = FrameDescription::double_registers_offset();
+  int xmm_regs_offset = FrameDescription::xmm_registers_offset();
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
     // Fill in the double input registers.
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
-      int dst_offset = i * kDoubleSize + double_regs_offset;
-      int src_offset = i * kDoubleSize;
-      __ movsd(xmm0, Operand(esp, src_offset));
-      __ movsd(Operand(ebx, dst_offset), xmm0);
+      int dst_offset = i * kFloat32x4Size + xmm_regs_offset;
+      int src_offset = i * kFloat32x4Size;
+      __ movups(xmm0, Operand(esp, src_offset));
+      __ movups(Operand(ebx, dst_offset), xmm0);
     }
   }
 
@@ -317,7 +318,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ fnclex();
 
   // Remove the bailout id, return address and the double registers.
-  __ add(esp, Immediate(kDoubleRegsSize + 2 * kPointerSize));
+  __ add(esp, Immediate(kXMMRegsSize + 2 * kPointerSize));
 
   // Compute a pointer to the unwinding limit in register ecx; that is
   // the first stack slot not part of the input frame.
@@ -391,8 +392,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     CpuFeatureScope scope(masm(), SSE2);
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-      int src_offset = i * kDoubleSize + double_regs_offset;
-      __ movsd(xmm_reg, Operand(ebx, src_offset));
+      int src_offset = i * kFloat32x4Size+ xmm_regs_offset;
+      __ movups(xmm_reg, Operand(ebx, src_offset));
     }
   }
 

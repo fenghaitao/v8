@@ -35,12 +35,16 @@
 namespace v8 {
 namespace internal {
 
-#define LITHIUM_OPERAND_LIST(V)         \
-  V(ConstantOperand, CONSTANT_OPERAND)  \
-  V(StackSlot,       STACK_SLOT)        \
-  V(DoubleStackSlot, DOUBLE_STACK_SLOT) \
-  V(Register,        REGISTER)          \
-  V(DoubleRegister,  DOUBLE_REGISTER)
+#define LITHIUM_OPERAND_LIST(V)               \
+  V(ConstantOperand,    CONSTANT_OPERAND)     \
+  V(StackSlot,          STACK_SLOT)           \
+  V(DoubleStackSlot,    DOUBLE_STACK_SLOT)    \
+  V(Float32x4StackSlot, FLOAT32x4_STACK_SLOT) \
+  V(Int32x4StackSlot,  INT32x4_STACK_SLOT)  \
+  V(Register,           REGISTER)             \
+  V(DoubleRegister,     DOUBLE_REGISTER)      \
+  V(Float32x4Register,  FLOAT32x4_REGISTER)   \
+  V(Int32x4Register,   INT32x4_REGISTER)
 
 
 class LOperand : public ZoneObject {
@@ -51,8 +55,12 @@ class LOperand : public ZoneObject {
     CONSTANT_OPERAND,
     STACK_SLOT,
     DOUBLE_STACK_SLOT,
+    FLOAT32x4_STACK_SLOT,
+    INT32x4_STACK_SLOT,
     REGISTER,
     DOUBLE_REGISTER,
+    FLOAT32x4_REGISTER,
+    INT32x4_REGISTER,
     ARGUMENT
   };
 
@@ -67,7 +75,17 @@ class LOperand : public ZoneObject {
   LITHIUM_OPERAND_PREDICATE(Unallocated, UNALLOCATED)
   LITHIUM_OPERAND_PREDICATE(Ignored, INVALID)
 #undef LITHIUM_OPERAND_PREDICATE
-  bool Equals(LOperand* other) const { return value_ == other->value_; }
+  bool IsXMMRegister() const {
+    return kind() == FLOAT32x4_REGISTER || kind() == INT32x4_REGISTER;
+  }
+  bool IsXMMStackSlot() const {
+    return kind() == FLOAT32x4_STACK_SLOT || kind() == INT32x4_STACK_SLOT;
+  }
+  bool Equals(LOperand* other) const {
+    return value_ == other->value_ || (index() == other->index() &&
+        ((IsXMMRegister() && other->IsXMMRegister()) ||
+         (IsXMMStackSlot() && other->IsXMMStackSlot())));
+  }
 
   void PrintTo(StringStream* stream);
   void ConvertTo(Kind kind, int index) {
@@ -81,7 +99,7 @@ class LOperand : public ZoneObject {
   static void TearDownCaches();
 
  protected:
-  static const int kKindFieldWidth = 3;
+  static const int kKindFieldWidth = 4;
   class KindField : public BitField<Kind, 0, kKindFieldWidth> { };
 
   LOperand(Kind kind, int index) { ConvertTo(kind, index); }
@@ -165,32 +183,32 @@ class LUnallocated : public LOperand {
   // because it accommodates a larger pay-load.
   //
   // For FIXED_SLOT policy:
-  //     +------------------------------------------+
-  //     |       slot_index      |  vreg  | 0 | 001 |
-  //     +------------------------------------------+
+  //     +-------------------------------------------+
+  //     |       slot_index      |  vreg  | 0 | 0001 |
+  //     +-------------------------------------------+
   //
   // For all other (extended) policies:
-  //     +------------------------------------------+
-  //     |  reg_index  | L | PPP |  vreg  | 1 | 001 |    L ... Lifetime
-  //     +------------------------------------------+    P ... Policy
+  //     +-------------------------------------------+
+  //     |  reg_index  | L | PPP |  vreg  | 1 | 0001 |    L ... Lifetime
+  //     +-------------------------------------------+    P ... Policy
   //
   // The slot index is a signed value which requires us to decode it manually
   // instead of using the BitField utility class.
 
   // The superclass has a KindField.
-  STATIC_ASSERT(kKindFieldWidth == 3);
+  STATIC_ASSERT(kKindFieldWidth == 4);
 
   // BitFields for all unallocated operands.
-  class BasicPolicyField     : public BitField<BasicPolicy,     3,  1> {};
-  class VirtualRegisterField : public BitField<unsigned,        4, 18> {};
+  class BasicPolicyField     : public BitField<BasicPolicy,     4,  1> {};
+  class VirtualRegisterField : public BitField<unsigned,        5, 18> {};
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
-  class FixedSlotIndexField  : public BitField<int,            22, 10> {};
+  class FixedSlotIndexField  : public BitField<int,            23,  9> {};
 
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  class ExtendedPolicyField  : public BitField<ExtendedPolicy, 22,  3> {};
-  class LifetimeField        : public BitField<Lifetime,       25,  1> {};
-  class FixedRegisterField   : public BitField<int,            26,  6> {};
+  class ExtendedPolicyField  : public BitField<ExtendedPolicy, 23,  3> {};
+  class LifetimeField        : public BitField<Lifetime,       26,  1> {};
+  class FixedRegisterField   : public BitField<int,            27,  5> {};
 
   static const int kMaxVirtualRegisters = VirtualRegisterField::kMax + 1;
   static const int kFixedSlotIndexWidth = FixedSlotIndexField::kSize;
@@ -403,6 +421,58 @@ class LDoubleStackSlot V8_FINAL : public LOperand {
 };
 
 
+class LFloat32x4StackSlot V8_FINAL : public LOperand {
+ public:
+  static LFloat32x4StackSlot* Create(int index, Zone* zone) {
+    ASSERT(index >= 0);
+    if (index < kNumCachedOperands) return &cache[index];
+    return new(zone) LFloat32x4StackSlot(index);
+  }
+
+  static LFloat32x4StackSlot* cast(LOperand* op) {
+    ASSERT(op->IsStackSlot());
+    return reinterpret_cast<LFloat32x4StackSlot*>(op);
+  }
+
+  static void SetUpCache();
+  static void TearDownCache();
+
+ private:
+  static const int kNumCachedOperands = 128;
+  static LFloat32x4StackSlot* cache;
+
+  LFloat32x4StackSlot() : LOperand() { }
+  explicit LFloat32x4StackSlot(int index)
+      : LOperand(FLOAT32x4_STACK_SLOT, index) { }
+};
+
+
+class LInt32x4StackSlot V8_FINAL : public LOperand {
+ public:
+  static LInt32x4StackSlot* Create(int index, Zone* zone) {
+    ASSERT(index >= 0);
+    if (index < kNumCachedOperands) return &cache[index];
+    return new(zone) LInt32x4StackSlot(index);
+  }
+
+  static LInt32x4StackSlot* cast(LOperand* op) {
+    ASSERT(op->IsStackSlot());
+    return reinterpret_cast<LInt32x4StackSlot*>(op);
+  }
+
+  static void SetUpCache();
+  static void TearDownCache();
+
+ private:
+  static const int kNumCachedOperands = 128;
+  static LInt32x4StackSlot* cache;
+
+  LInt32x4StackSlot() : LOperand() { }
+  explicit LInt32x4StackSlot(int index)
+      : LOperand(INT32x4_STACK_SLOT, index) { }
+};
+
+
 class LRegister V8_FINAL : public LOperand {
  public:
   static LRegister* Create(int index, Zone* zone) {
@@ -450,6 +520,58 @@ class LDoubleRegister V8_FINAL : public LOperand {
 
   LDoubleRegister() : LOperand() { }
   explicit LDoubleRegister(int index) : LOperand(DOUBLE_REGISTER, index) { }
+};
+
+
+class LFloat32x4Register V8_FINAL : public LOperand {
+ public:
+  static LFloat32x4Register* Create(int index, Zone* zone) {
+    ASSERT(index >= 0);
+    if (index < kNumCachedOperands) return &cache[index];
+    return new(zone) LFloat32x4Register(index);
+  }
+
+  static LFloat32x4Register* cast(LOperand* op) {
+    ASSERT(op->IsFloat32x4Register());
+    return reinterpret_cast<LFloat32x4Register*>(op);
+  }
+
+  static void SetUpCache();
+  static void TearDownCache();
+
+ private:
+  static const int kNumCachedOperands = 16;
+  static LFloat32x4Register* cache;
+
+  LFloat32x4Register() : LOperand() { }
+  explicit LFloat32x4Register(int index)
+      : LOperand(FLOAT32x4_REGISTER, index) { }
+};
+
+
+class LInt32x4Register V8_FINAL : public LOperand {
+ public:
+  static LInt32x4Register* Create(int index, Zone* zone) {
+    ASSERT(index >= 0);
+    if (index < kNumCachedOperands) return &cache[index];
+    return new(zone) LInt32x4Register(index);
+  }
+
+  static LInt32x4Register* cast(LOperand* op) {
+    ASSERT(op->IsInt32x4Register());
+    return reinterpret_cast<LInt32x4Register*>(op);
+  }
+
+  static void SetUpCache();
+  static void TearDownCache();
+
+ private:
+  static const int kNumCachedOperands = 16;
+  static LInt32x4Register* cache;
+
+  LInt32x4Register() : LOperand() { }
+  explicit LInt32x4Register(int index)
+      : LOperand(INT32x4_REGISTER, index) { }
 };
 
 

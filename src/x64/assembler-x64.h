@@ -300,6 +300,8 @@ const XMMRegister xmm15 = { 15 };
 
 
 typedef XMMRegister DoubleRegister;
+typedef XMMRegister Float32x4Register;
+typedef XMMRegister Int32x4Register;
 
 
 enum Condition {
@@ -1351,7 +1353,6 @@ class Assembler : public AssemblerBase {
   void movaps(XMMRegister dst, XMMRegister src);
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
-  void shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   void cvttss2si(Register dst, const Operand& src);
   void cvttss2si(Register dst, XMMRegister src);
@@ -1373,7 +1374,9 @@ class Assembler : public AssemblerBase {
   void divps(XMMRegister dst, XMMRegister src);
   void divps(XMMRegister dst, const Operand& src);
 
-  void movmskps(Register dst, XMMRegister src);
+  // SSE4_1 instructions
+  void insertps(XMMRegister dst, XMMRegister src, byte imm8);
+  void pinsrd(XMMRegister dst, Register src, byte imm8);
 
   // SSE2 instructions
   void movd(XMMRegister dst, Register src);
@@ -1381,6 +1384,7 @@ class Assembler : public AssemblerBase {
   void movq(XMMRegister dst, Register src);
   void movq(Register dst, XMMRegister src);
   void movq(XMMRegister dst, XMMRegister src);
+  void shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   // Don't use this unless it's important to keep the
   // top half of the destination register unchanged.
@@ -1433,9 +1437,40 @@ class Assembler : public AssemblerBase {
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void movmskpd(Register dst, XMMRegister src);
+  void movmskps(Register dst, XMMRegister src);
 
   // SSE 4.1 instruction
   void extractps(Register dst, XMMRegister src, byte imm8);
+
+  void minps(XMMRegister dst, XMMRegister src);
+  void minps(XMMRegister dst, const Operand& src);
+  void maxps(XMMRegister dst, XMMRegister src);
+  void maxps(XMMRegister dst, const Operand& src);
+  void rcpps(XMMRegister dst, XMMRegister src);
+  void rcpps(XMMRegister dst, const Operand& src);
+  void rsqrtps(XMMRegister dst, XMMRegister src);
+  void rsqrtps(XMMRegister dst, const Operand& src);
+  void sqrtps(XMMRegister dst, XMMRegister src);
+  void sqrtps(XMMRegister dst, const Operand& src);
+  void movups(XMMRegister dst, XMMRegister src);
+  void movups(XMMRegister dst, const Operand& src);
+  void movups(const Operand& dst, XMMRegister src);
+  void paddd(XMMRegister dst, XMMRegister src);
+  void paddd(XMMRegister dst, const Operand& src);
+  void psubd(XMMRegister dst, XMMRegister src);
+  void psubd(XMMRegister dst, const Operand& src);
+  void pmulld(XMMRegister dst, XMMRegister src);
+  void pmulld(XMMRegister dst, const Operand& src);
+  void pmuludq(XMMRegister dst, XMMRegister src);
+  void pmuludq(XMMRegister dst, const Operand& src);
+  void punpackldq(XMMRegister dst, XMMRegister src);
+  void punpackldq(XMMRegister dst, const Operand& src);
+  void psrldq(XMMRegister dst, uint8_t shift);
+  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void cvtps2dq(XMMRegister dst, XMMRegister src);
+  void cvtps2dq(XMMRegister dst, const Operand& src);
+  void cvtdq2ps(XMMRegister dst, XMMRegister src);
+  void cvtdq2ps(XMMRegister dst, const Operand& src);
 
   enum RoundingMode {
     kRoundToNearest = 0x0,
@@ -1445,6 +1480,14 @@ class Assembler : public AssemblerBase {
   };
 
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+
+  void cmpps(XMMRegister dst, XMMRegister src, int8_t cmp);
+  void cmpeqps(XMMRegister dst, XMMRegister src);
+  void cmpltps(XMMRegister dst, XMMRegister src);
+  void cmpleps(XMMRegister dst, XMMRegister src);
+  void cmpneqps(XMMRegister dst, XMMRegister src);
+  void cmpnltps(XMMRegister dst, XMMRegister src);
+  void cmpnleps(XMMRegister dst, XMMRegister src);
 
   // Debugging
   void Print();
@@ -1593,6 +1636,10 @@ class Assembler : public AssemblerBase {
   // the high bit set.
   inline void emit_optional_rex_32(Register rm_reg);
 
+  // As for emit_optional_rex_32(Register), except that the register is
+  // an XMM register.
+  inline void emit_optional_rex_32(XMMRegister rm_reg);
+
   // Optionally do as emit_rex_32(const Operand&) if the operand register
   // numbers have a high bit set.
   inline void emit_optional_rex_32(const Operand& op);
@@ -1650,6 +1697,7 @@ class Assembler : public AssemblerBase {
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, Register src);
   void emit_sse_operand(Register dst, XMMRegister src);
+  void emit_sse_operand(XMMRegister dst);
 
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all

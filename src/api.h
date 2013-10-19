@@ -180,6 +180,8 @@ class RegisteredExtension {
   V(Uint32Array, JSTypedArray)                 \
   V(Int32Array, JSTypedArray)                  \
   V(Float32Array, JSTypedArray)                \
+  V(Float32x4Array, JSTypedArray)              \
+  V(Int32x4Array, JSTypedArray)                \
   V(Float64Array, JSTypedArray)                \
   V(DataView, JSDataView)                      \
   V(String, String)                            \
@@ -241,6 +243,10 @@ class Utils {
   static inline Local<Int32Array> ToLocalInt32Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Float32Array> ToLocalFloat32Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Float32x4Array> ToLocalFloat32x4Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Int32x4Array> ToLocalInt32x4Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Float64Array> ToLocalFloat64Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
@@ -366,6 +372,8 @@ MAKE_TO_LOCAL_TYPED_ARRAY(Int16Array, kExternalShortArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Uint32Array, kExternalUnsignedIntArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Int32Array, kExternalIntArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Float32Array, kExternalFloatArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Float32x4Array, kExternalFloat32x4Array)
+MAKE_TO_LOCAL_TYPED_ARRAY(Int32x4Array, kExternalInt32x4Array)
 MAKE_TO_LOCAL_TYPED_ARRAY(Float64Array, kExternalDoubleArray)
 
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)

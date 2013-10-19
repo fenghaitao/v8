@@ -797,6 +797,22 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
 }
 
 
+Handle<Float32x4> Factory::NewFloat32x4(float32x4_value_t value,
+                                        PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateFloat32x4(value, pretenure), Float32x4);
+}
+
+
+Handle<Int32x4> Factory::NewInt32x4(int32x4_value_t value,
+                                      PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateInt32x4(value, pretenure), Int32x4);
+}
+
+
 Handle<JSObject> Factory::NewNeanderObject() {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -1293,6 +1309,12 @@ static JSFunction* GetTypedArrayFun(ExternalArrayType type,
 
     case kExternalFloatArray:
       return native_context->float_array_fun();
+
+    case kExternalFloat32x4Array:
+      return native_context->float32x4_array_fun();
+
+    case kExternalInt32x4Array:
+      return native_context->int32x4_array_fun();
 
     case kExternalDoubleArray:
       return native_context->double_array_fun();

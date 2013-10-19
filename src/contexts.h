@@ -101,6 +101,12 @@ enum BindingFlags {
   V(SECURITY_TOKEN_INDEX, Object, security_token) \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function) \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function) \
+  V(FLOAT32x4_FUNCTION_INDEX, JSFunction, float32x4_function) \
+  V(FLOAT32x4_FUNCTION_PROTOTYPE_MAP_INDEX, Map, \
+    float32x4_function_prototype_map) \
+  V(INT32x4_FUNCTION_INDEX, JSFunction, int32x4_function) \
+  V(INT32x4_FUNCTION_PROTOTYPE_MAP_INDEX, Map, \
+    int32x4_function_prototype_map) \
   V(STRING_FUNCTION_INDEX, JSFunction, string_function) \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map) \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function) \
@@ -132,6 +138,8 @@ enum BindingFlags {
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun) \
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun) \
   V(FLOAT_ARRAY_FUN_INDEX, JSFunction, float_array_fun) \
+  V(FLOAT32x4_ARRAY_FUN_INDEX, JSFunction, float32x4_array_fun) \
+  V(INT32x4_ARRAY_FUN_INDEX, JSFunction, int32x4_array_fun) \
   V(DOUBLE_ARRAY_FUN_INDEX, JSFunction, double_array_fun) \
   V(UINT8C_ARRAY_FUN_INDEX, JSFunction, uint8c_array_fun) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
@@ -267,6 +275,10 @@ class Context: public FixedArray {
     INITIAL_ARRAY_PROTOTYPE_INDEX,
     BOOLEAN_FUNCTION_INDEX,
     NUMBER_FUNCTION_INDEX,
+    FLOAT32x4_FUNCTION_INDEX,
+    FLOAT32x4_FUNCTION_PROTOTYPE_MAP_INDEX,
+    INT32x4_FUNCTION_INDEX,
+    INT32x4_FUNCTION_PROTOTYPE_MAP_INDEX,
     STRING_FUNCTION_INDEX,
     STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
     SYMBOL_FUNCTION_INDEX,
@@ -297,6 +309,8 @@ class Context: public FixedArray {
     UINT32_ARRAY_FUN_INDEX,
     INT32_ARRAY_FUN_INDEX,
     FLOAT_ARRAY_FUN_INDEX,
+    FLOAT32x4_ARRAY_FUN_INDEX,
+    INT32x4_ARRAY_FUN_INDEX,
     DOUBLE_ARRAY_FUN_INDEX,
     UINT8C_ARRAY_FUN_INDEX,
     DATA_VIEW_FUN_INDEX,

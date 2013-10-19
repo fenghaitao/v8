@@ -60,6 +60,8 @@ enum ElementsKind {
   EXTERNAL_INT_ELEMENTS,
   EXTERNAL_UNSIGNED_INT_ELEMENTS,
   EXTERNAL_FLOAT_ELEMENTS,
+  EXTERNAL_FLOAT32x4_ELEMENTS,
+  EXTERNAL_INT32x4_ELEMENTS,
   EXTERNAL_DOUBLE_ELEMENTS,
   EXTERNAL_PIXEL_ELEMENTS,
 
@@ -118,6 +120,16 @@ inline bool IsFastDoubleElementsKind(ElementsKind kind) {
 inline bool IsExternalFloatOrDoubleElementsKind(ElementsKind kind) {
   return kind == EXTERNAL_DOUBLE_ELEMENTS ||
       kind == EXTERNAL_FLOAT_ELEMENTS;
+}
+
+
+inline bool IsExternalFloat32x4ElementsKind(ElementsKind kind) {
+  return kind == EXTERNAL_FLOAT32x4_ELEMENTS;
+}
+
+
+inline bool IsExternalInt32x4ElementsKind(ElementsKind kind) {
+  return kind == EXTERNAL_INT32x4_ELEMENTS;
 }
 
 

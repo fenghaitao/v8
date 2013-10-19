@@ -1,0 +1,10 @@
+1. Implement int32x4.mul without SSE4_1
+2. Handle NaN and Infinity for the float32x4
+3. The AObench benchmark speedup are quite different between release version and debug version, need investigation
+4. IA32 port
+5. Register allocator optimization: hinting the result and first operand use the
+same register when their representations are different
+6. Chromium or Crosswalk or Node-webkit integration for visual benchmark
+7. DataView for Float32x4 and Int32x4
+8. Alignment, use movaps for heap (allocation), stack (spilling) and external array
+9. Add Float32x4 and Int32x4 object into JsonStrignifier (construct a float32x4 object from JSON string)

@@ -2565,6 +2565,8 @@ F(Int16Array, kExternalShortArray) \
 F(Uint32Array, kExternalUnsignedIntArray) \
 F(Int32Array, kExternalIntArray) \
 F(Float32Array, kExternalFloatArray) \
+F(Float32x4Array, kExternalFloat32x4Array) \
+F(Int32x4Array, kExternalInt32x4Array) \
 F(Float64Array, kExternalDoubleArray) \
 F(Uint8ClampedArray, kExternalPixelArray)
 
@@ -3875,6 +3877,12 @@ static i::ElementsKind GetElementsKindFromExternalArrayType(
     case kExternalFloatArray:
       return i::EXTERNAL_FLOAT_ELEMENTS;
       break;
+    case kExternalFloat32x4Array:
+      return i::EXTERNAL_FLOAT32x4_ELEMENTS;
+      break;
+    case kExternalInt32x4Array:
+      return i::EXTERNAL_INT32x4_ELEMENTS;
+      break;
     case kExternalDoubleArray:
       return i::EXTERNAL_DOUBLE_ELEMENTS;
       break;
@@ -4025,6 +4033,10 @@ ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
       return kExternalUnsignedIntArray;
     case i::EXTERNAL_FLOAT_ARRAY_TYPE:
       return kExternalFloatArray;
+    case i::EXTERNAL_FLOAT32x4_ARRAY_TYPE:
+      return kExternalFloat32x4Array;
+    case i::EXTERNAL_INT32x4_ARRAY_TYPE:
+      return kExternalInt32x4Array;
     case i::EXTERNAL_DOUBLE_ARRAY_TYPE:
       return kExternalDoubleArray;
     case i::EXTERNAL_PIXEL_ARRAY_TYPE:
@@ -6294,6 +6306,10 @@ TYPED_ARRAY_NEW(Int32Array, int32_t, kExternalIntArray,
                 i::EXTERNAL_INT_ELEMENTS)
 TYPED_ARRAY_NEW(Float32Array, float, kExternalFloatArray,
                 i::EXTERNAL_FLOAT_ELEMENTS)
+TYPED_ARRAY_NEW(Float32x4Array, i::float32x4_value_t, kExternalFloat32x4Array,
+                i::EXTERNAL_FLOAT32x4_ELEMENTS)
+TYPED_ARRAY_NEW(Int32x4Array, i::int32x4_value_t, kExternalInt32x4Array,
+                i::EXTERNAL_INT32x4_ELEMENTS)
 TYPED_ARRAY_NEW(Float64Array, double, kExternalDoubleArray,
                 i::EXTERNAL_DOUBLE_ELEMENTS)
 

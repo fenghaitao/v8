@@ -344,6 +344,8 @@ const char* HType::ToString() {
     case kTaggedNumber: return "number";
     case kSmi: return "smi";
     case kHeapNumber: return "heap-number";
+    case kFloat32x4: return "float32x4";
+    case kInt32x4: return "int32x4";
     case kString: return "string";
     case kBoolean: return "boolean";
     case kNonPrimitive: return "non-primitive";
@@ -361,6 +363,10 @@ HType HType::TypeFromValue(Handle<Object> value) {
     result = HType::Smi();
   } else if (value->IsHeapNumber()) {
     result = HType::HeapNumber();
+  } else if (value->IsFloat32x4()) {
+    result = HType::Float32x4();
+  } else if (value->IsInt32x4()) {
+    result = HType::Int32x4();
   } else if (value->IsString()) {
     result = HType::String();
   } else if (value->IsBoolean()) {
@@ -369,6 +375,21 @@ HType HType::TypeFromValue(Handle<Object> value) {
     result = HType::JSObject();
   } else if (value->IsJSArray()) {
     result = HType::JSArray();
+  }
+  return result;
+}
+
+
+HType HType::TypeFromRepresentation(Representation representation) {
+  HType result = HType::Tagged();
+  if (representation.IsSmi()) {
+    result = HType::Smi();
+  } else if (representation.IsDouble()) {
+    result = HType::HeapNumber();
+  } else if (representation.IsFloat32x4()) {
+    result = HType::Float32x4();
+  } else if (representation.IsInt32x4()) {
+    result = HType::Int32x4();
   }
   return result;
 }
@@ -1160,6 +1181,190 @@ void HUnaryMathOperation::PrintDataTo(StringStream* stream) {
 }
 
 
+const char* HNullarySIMDOperation::OpName() const {
+  switch (op()) {
+    case kFloat32x4Zero: return "float32x4.zero";
+    case kInt32x4Zero: return "int32x4.zero";
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
+Range* HNullarySIMDOperation::InferRange(Zone* zone) {
+  return HValue::InferRange(zone);
+}
+
+
+void HNullarySIMDOperation::PrintDataTo(StringStream* stream) {
+  const char* name = OpName();
+  stream->Add("%s", name);
+}
+
+
+const char* HUnarySIMDOperation::OpName() const {
+  switch (op()) {
+    case kSIMDAbs: return "SIMD.abs";
+    case kSIMDNeg: return "SIMD.neg";
+    case kSIMDNegU32: return "SIMD.negu32";
+    case kSIMDReciprocal: return "SIMD.reciprocal";
+    case kSIMDReciprocalSqrt: return "SIMD.reciprocalSqrt";
+    case kSIMDSqrt: return "SIMD.sqrt";
+    case kFloat32x4OrInt32x4Change: return "float32x4_int32x4.change";
+    case kSIMDBitsToFloat32x4: return "SIMD.bitsToFloat32x4";
+    case kSIMDToFloat32x4: return "SIMD.toFloat32x4";
+    case kSIMDBitsToInt32x4: return "SIMD.bitsToInt32x4";
+    case kSIMDToInt32x4: return "SIMD.toInt32x4";
+    case kFloat32x4Splat: return "float32x4.splat";
+    case kInt32x4Splat: return "int32x4.splat";
+    case kFloat32x4SignMask: return "float32x4.signMask";
+    case kFloat32x4X: return "float32x4.x";
+    case kFloat32x4Y: return "float32x4.y";
+    case kFloat32x4Z: return "float32x4.z";
+    case kFloat32x4W: return "float32x4.w";
+    case kInt32x4SignMask: return "int32x4.signMask";
+    case kInt32x4X: return "int32x4.x";
+    case kInt32x4Y: return "int32x4.y";
+    case kInt32x4Z: return "int32x4.z";
+    case kInt32x4W: return "int32x4.w";
+    case kInt32x4FlagX: return "int32x4.flagX";
+    case kInt32x4FlagY: return "int32x4.flagY";
+    case kInt32x4FlagZ: return "int32x4.flagZ";
+    case kInt32x4FlagW: return "int32x4.flagW";
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
+Range* HUnarySIMDOperation::InferRange(Zone* zone) {
+  return HValue::InferRange(zone);
+}
+
+
+void HUnarySIMDOperation::PrintDataTo(StringStream* stream) {
+  const char* name = OpName();
+  stream->Add("%s ", name);
+  value()->PrintNameTo(stream);
+}
+
+
+const char* HBinarySIMDOperation::OpName() const {
+  switch (op()) {
+    case kSIMDAdd: return "SIMD.add";
+    case kSIMDSub: return "SIMD.sub";
+    case kSIMDMul: return "SIMD.mul";
+    case kSIMDDiv: return "SIMD.div";
+    case kSIMDMin: return "SIMD.min";
+    case kSIMDMax: return "SIMD.max";
+    case kSIMDScale: return "SIMD.scale";
+    case kSIMDAnd: return "SIMD.and";
+    case kSIMDOr: return "SIMD.or";
+    case kSIMDXor: return "SIMD.xor";
+    case kSIMDAddU32: return "SIMD.addu32";
+    case kSIMDSubU32: return "SIMD.subu32";
+    case kSIMDMulU32: return "SIMD.mulu32";
+    case kSIMDShuffle: return "SIMD.shuffle";
+    case kSIMDShuffleU32: return "SIMD.shuffleu32";
+    case kSIMDLessThan: return "SIMD.lessThan";
+    case kSIMDLessThanOrEqual: return "SIMD.lessThanOrEqual";
+    case kSIMDEqual: return "SIMD.equal";
+    case kSIMDNotEqual: return "SIMD.notEqual";
+    case kSIMDGreaterThanOrEqual: return "SIMD.greaterThanOrEqual";
+    case kSIMDGreaterThan: return "SIMD.greaterThan";
+    case kSIMDWithX: return "SIMD.withX";
+    case kSIMDWithY: return "SIMD.withY";
+    case kSIMDWithZ: return "SIMD.withZ";
+    case kSIMDWithW: return "SIMD.withW";
+    case kSIMDWithXu32: return "SIMD.withXu32";
+    case kSIMDWithYu32: return "SIMD.withYu32";
+    case kSIMDWithZu32: return "SIMD.withZu32";
+    case kSIMDWithWu32: return "SIMD.withWu32";
+    case kSIMDWithFlagX: return "SIMD.withFlagX";
+    case kSIMDWithFlagY: return "SIMD.withFlagY";
+    case kSIMDWithFlagZ: return "SIMD.withFlagZ";
+    case kSIMDWithFlagW: return "SIMD.withFlagW";
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
+Range* HBinarySIMDOperation::InferRange(Zone* zone) {
+  return HValue::InferRange(zone);
+}
+
+
+void HBinarySIMDOperation::PrintDataTo(StringStream* stream) {
+  const char* name = OpName();
+  stream->Add("%s ", name);
+  left()->PrintNameTo(stream);
+  stream->Add(" ");
+  right()->PrintNameTo(stream);
+}
+
+
+const char* HTernarySIMDOperation::OpName() const {
+  switch (op()) {
+    case kSIMDSelect: return "SIMD.select";
+    case kSIMDShuffleMix: return "SIMD.shuffleMix";
+    case kSIMDClamp: return "SIMD.clamp";
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
+Range* HTernarySIMDOperation::InferRange(Zone* zone) {
+  return HValue::InferRange(zone);
+}
+
+
+void HTernarySIMDOperation::PrintDataTo(StringStream* stream) {
+  const char* name = OpName();
+  stream->Add("%s ", name);
+  first()->PrintNameTo(stream);
+  stream->Add(" ");
+  second()->PrintNameTo(stream);
+  stream->Add(" ");
+  third()->PrintNameTo(stream);
+}
+
+
+const char* HQuarternarySIMDOperation::OpName() const {
+  switch (op()) {
+    case kFloat32x4Constructor: return "float32x4Constructor";
+    case kInt32x4Constructor: return "int32x4Constructor";
+    case kInt32x4Bool: return "int32x4.bool";
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
+Range* HQuarternarySIMDOperation::InferRange(Zone* zone) {
+  return HValue::InferRange(zone);
+}
+
+
+void HQuarternarySIMDOperation::PrintDataTo(StringStream* stream) {
+  const char* name = OpName();
+  stream->Add("%s ", name);
+  x()->PrintNameTo(stream);
+  stream->Add(" ");
+  y()->PrintNameTo(stream);
+  stream->Add(" ");
+  z()->PrintNameTo(stream);
+  stream->Add(" ");
+  w()->PrintNameTo(stream);
+}
+
+
 void HUnaryOperation::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
@@ -1201,7 +1406,22 @@ bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
       *block = SecondSuccessor();
     }
     return true;
+  } else if (value()->representation().IsFloat32x4()) {
+    if (compares_float32x4_type()) {
+      *block = FirstSuccessor();
+    } else {
+      *block = SecondSuccessor();
+    }
+    return true;
+  } else if (value()->representation().IsInt32x4()) {
+    if (compares_int32x4_type()) {
+      *block = FirstSuccessor();
+    } else {
+      *block = SecondSuccessor();
+    }
+    return true;
   }
+
   *block = NULL;
   return false;
 }
@@ -1490,6 +1710,31 @@ HValue* HUnaryMathOperation::Canonicalize() {
       return NULL;
     }
   }
+  return this;
+}
+
+
+HValue* HNullarySIMDOperation::Canonicalize() {
+  return this;
+}
+
+
+HValue* HUnarySIMDOperation::Canonicalize() {
+  return this;
+}
+
+
+HValue* HBinarySIMDOperation::Canonicalize() {
+  return this;
+}
+
+
+HValue* HTernarySIMDOperation::Canonicalize() {
+  return this;
+}
+
+
+HValue* HQuarternarySIMDOperation::Canonicalize() {
   return this;
 }
 
@@ -3404,6 +3649,54 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 }
 
 
+Representation HUnarySIMDOperation::RepresentationFromInputs() {
+  Representation rep = representation();
+  // If any of the actual input representation is more general than what we
+  // have so far but not Tagged, use that representation instead.
+  Representation input_rep = value()->representation();
+  if (!input_rep.IsTagged()) {
+    rep = rep.generalize(input_rep);
+  }
+  return rep;
+}
+
+
+Representation HBinarySIMDOperation::RepresentationFromInputs() {
+  Representation rep = representation();
+  // If any of the actual input representation is more general than what we
+  // have so far but not Tagged, use that representation instead.
+  Representation input_rep = left()->representation();
+  if (!input_rep.IsTagged()) {
+    rep = rep.generalize(input_rep);
+  }
+  return rep;
+}
+
+
+Representation HTernarySIMDOperation::RepresentationFromInputs() {
+  Representation rep = representation();
+  // If any of the actual input representation is more general than what we
+  // have so far but not Tagged, use that representation instead.
+  Representation input_rep = second()->representation();
+  if (!input_rep.IsTagged()) {
+    rep = rep.generalize(input_rep);
+  }
+  return rep;
+}
+
+
+Representation HQuarternarySIMDOperation::RepresentationFromInputs() {
+  Representation rep = representation();
+  // If any of the actual input representation is more general than what we
+  // have so far but not Tagged, use that representation instead.
+  Representation input_rep = x()->representation();
+  if (!input_rep.IsTagged()) {
+    rep = rep.generalize(input_rep);
+  }
+  return rep;
+}
+
+
 void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);
@@ -3898,6 +4191,40 @@ HInstruction* HUnaryMathOperation::New(
     }
   } while (false);
   return new(zone) HUnaryMathOperation(context, value, op);
+}
+
+
+HInstruction* HNullarySIMDOperation::New(
+    Zone* zone, HValue* context, BuiltinFunctionId op) {
+  return new(zone) HNullarySIMDOperation(context, op);
+}
+
+
+HInstruction* HUnarySIMDOperation::New(
+    Zone* zone, HValue* context, HValue* value, BuiltinFunctionId op,
+    Representation to) {
+  return new(zone) HUnarySIMDOperation(context, value, op, to);
+}
+
+
+HInstruction* HBinarySIMDOperation::New(
+    Zone* zone, HValue* context, HValue* left, HValue* right,
+    BuiltinFunctionId op) {
+  return new(zone) HBinarySIMDOperation(context, left, right, op);
+}
+
+
+HInstruction* HTernarySIMDOperation::New(
+    Zone* zone, HValue* context, HValue* mask, HValue* left, HValue* right,
+    BuiltinFunctionId op) {
+  return new(zone) HTernarySIMDOperation(context, mask, left, right, op);
+}
+
+
+HInstruction* HQuarternarySIMDOperation::New(
+    Zone* zone, HValue* context, HValue* x, HValue* y, HValue* z, HValue* w,
+    BuiltinFunctionId op) {
+  return new(zone) HQuarternarySIMDOperation(context, x, y, z, w, op);
 }
 
 

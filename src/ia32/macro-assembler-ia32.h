@@ -669,6 +669,12 @@ class MacroAssembler: public Assembler {
                           Register scratch1,
                           Register scratch2,
                           Label* gc_required);
+  void AllocateFloat32x4(Register result,
+                         Register scratch,
+                         Label* gc_required);
+  void AllocateInt32x4(Register result,
+                        Register scratch,
+                        Label* gc_required);
 
   // Allocate a sequential string. All the header fields of the string object
   // are initialized.
@@ -915,6 +921,13 @@ class MacroAssembler: public Assembler {
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
+
+  // ---------------------------------------------------------------------------
+  // SIMD macros.
+  void absps(XMMRegister dst);
+  void negateps(XMMRegister dst);
+  void notps(XMMRegister dst);
+  void pnegd(XMMRegister dst);
 
   // ---------------------------------------------------------------------------
   // String utilities.

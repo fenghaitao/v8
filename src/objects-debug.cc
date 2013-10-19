@@ -89,6 +89,12 @@ void HeapObject::HeapObjectVerify() {
     case HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
+    case FLOAT32x4_TYPE:
+      Float32x4::cast(this)->Float32x4Verify();
+      break;
+    case INT32x4_TYPE:
+      Int32x4::cast(this)->Int32x4Verify();
+      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
@@ -128,6 +134,12 @@ void HeapObject::HeapObjectVerify() {
       break;
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       ExternalFloatArray::cast(this)->ExternalFloatArrayVerify();
+      break;
+    case EXTERNAL_FLOAT32x4_ARRAY_TYPE:
+      ExternalFloat32x4Array::cast(this)->ExternalFloat32x4ArrayVerify();
+      break;
+    case EXTERNAL_INT32x4_ARRAY_TYPE:
+      ExternalInt32x4Array::cast(this)->ExternalInt32x4ArrayVerify();
       break;
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
       ExternalDoubleArray::cast(this)->ExternalDoubleArrayVerify();
@@ -252,6 +264,16 @@ void HeapNumber::HeapNumberVerify() {
 }
 
 
+void Float32x4::Float32x4Verify() {
+  CHECK(IsFloat32x4());
+}
+
+
+void Int32x4::Int32x4Verify() {
+  CHECK(IsInt32x4());
+}
+
+
 void ByteArray::ByteArrayVerify() {
   CHECK(IsByteArray());
 }
@@ -299,6 +321,16 @@ void ExternalUnsignedIntArray::ExternalUnsignedIntArrayVerify() {
 
 void ExternalFloatArray::ExternalFloatArrayVerify() {
   CHECK(IsExternalFloatArray());
+}
+
+
+void ExternalFloat32x4Array::ExternalFloat32x4ArrayVerify() {
+  CHECK(IsExternalFloat32x4Array());
+}
+
+
+void ExternalInt32x4Array::ExternalInt32x4ArrayVerify() {
+  CHECK(IsExternalInt32x4Array());
 }
 
 
@@ -1086,6 +1118,8 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_FLOAT32x4_ELEMENTS:
+    case EXTERNAL_INT32x4_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;

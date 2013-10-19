@@ -56,6 +56,7 @@
 //     - ExternalIntElementsAccessor
 //     - ExternalUnsignedIntElementsAccessor
 //     - ExternalFloatElementsAccessor
+//     - ExternalFloat32x4ElementsAccessor
 //     - ExternalDoubleElementsAccessor
 //     - PixelElementsAccessor
 //   - DictionaryElementsAccessor
@@ -102,6 +103,10 @@ static const int kPackedSizeNotKnown = -1;
     EXTERNAL_UNSIGNED_INT_ELEMENTS, ExternalUnsignedIntArray)           \
   V(ExternalFloatElementsAccessor,                                      \
     EXTERNAL_FLOAT_ELEMENTS, ExternalFloatArray)                        \
+  V(ExternalFloat32x4ElementsAccessor,                                  \
+    EXTERNAL_FLOAT32x4_ELEMENTS, ExternalFloat32x4Array)                \
+  V(ExternalInt32x4ElementsAccessor,                                    \
+    EXTERNAL_INT32x4_ELEMENTS, ExternalInt32x4Array)                    \
   V(ExternalDoubleElementsAccessor,                                     \
     EXTERNAL_DOUBLE_ELEMENTS, ExternalDoubleArray)                      \
   V(PixelElementsAccessor, EXTERNAL_PIXEL_ELEMENTS, ExternalPixelArray)
@@ -1092,6 +1097,10 @@ static inline ElementsKind ElementsKindForArray(FixedArrayBase* array) {
       return EXTERNAL_UNSIGNED_INT_ELEMENTS;
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       return EXTERNAL_FLOAT_ELEMENTS;
+    case EXTERNAL_FLOAT32x4_ARRAY_TYPE:
+      return EXTERNAL_FLOAT32x4_ELEMENTS;
+    case EXTERNAL_INT32x4_ARRAY_TYPE:
+      return EXTERNAL_INT32x4_ELEMENTS;
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
       return EXTERNAL_DOUBLE_ELEMENTS;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
@@ -1156,6 +1165,8 @@ class FastSmiOrObjectElementsAccessor
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_FLOAT32x4_ELEMENTS:
+      case EXTERNAL_INT32x4_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case EXTERNAL_PIXEL_ELEMENTS:
         UNREACHABLE();
@@ -1281,6 +1292,8 @@ class FastDoubleElementsAccessor
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_FLOAT32x4_ELEMENTS:
+      case EXTERNAL_INT32x4_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case EXTERNAL_PIXEL_ELEMENTS:
         UNREACHABLE();
@@ -1460,6 +1473,25 @@ class ExternalFloatElementsAccessor
   explicit ExternalFloatElementsAccessor(const char* name)
       : ExternalElementsAccessor<ExternalFloatElementsAccessor,
                                  EXTERNAL_FLOAT_ELEMENTS>(name) {}
+};
+
+class ExternalFloat32x4ElementsAccessor
+    : public ExternalElementsAccessor<ExternalFloat32x4ElementsAccessor,
+                                      EXTERNAL_FLOAT32x4_ELEMENTS> {
+ public:
+  explicit ExternalFloat32x4ElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalFloat32x4ElementsAccessor,
+                                 EXTERNAL_FLOAT32x4_ELEMENTS>(name) {}
+};
+
+
+class ExternalInt32x4ElementsAccessor
+    : public ExternalElementsAccessor<ExternalInt32x4ElementsAccessor,
+                                      EXTERNAL_INT32x4_ELEMENTS> {
+ public:
+  explicit ExternalInt32x4ElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalInt32x4ElementsAccessor,
+                                 EXTERNAL_INT32x4_ELEMENTS>(name) {}
 };
 
 

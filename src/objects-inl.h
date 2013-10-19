@@ -167,6 +167,8 @@ bool Object::NonFailureIsHeapObject() {
 
 
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
+TYPE_CHECKER(Float32x4, FLOAT32x4_TYPE)
+TYPE_CHECKER(Int32x4, INT32x4_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 
 
@@ -481,6 +483,8 @@ TYPE_CHECKER(ExternalUnsignedShortArray, EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalIntArray, EXTERNAL_INT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalUnsignedIntArray, EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
 TYPE_CHECKER(ExternalFloatArray, EXTERNAL_FLOAT_ARRAY_TYPE)
+TYPE_CHECKER(ExternalFloat32x4Array, EXTERNAL_FLOAT32x4_ARRAY_TYPE)
+TYPE_CHECKER(ExternalInt32x4Array, EXTERNAL_INT32x4_ARRAY_TYPE)
 TYPE_CHECKER(ExternalDoubleArray, EXTERNAL_DOUBLE_ARRAY_TYPE)
 
 
@@ -990,6 +994,23 @@ MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
     write_double_field(p, offset, value)
 #endif  // V8_TARGET_ARCH_MIPS
 
+#define READ_FLOAT32x4_FIELD(p, offset) \
+  (*reinterpret_cast<float32x4_value_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_FLOAT32x4_FIELD(p, offset, value) \
+  (*reinterpret_cast<float32x4_value_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define READ_INT32x4_FIELD(p, offset) \
+  (*reinterpret_cast<int32x4_value_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_INT32x4_FIELD(p, offset, value) \
+  (*reinterpret_cast<int32x4_value_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define READ_FLOAT_FIELD(p, offset) \
+  (*reinterpret_cast<float*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_FLOAT_FIELD(p, offset, value) \
+  (*reinterpret_cast<float*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_INT_FIELD(p, offset) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)))
@@ -1259,6 +1280,106 @@ int HeapNumber::get_exponent() {
 
 int HeapNumber::get_sign() {
   return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
+}
+
+
+float32x4_value_t Float32x4::value() {
+  return READ_FLOAT32x4_FIELD(this, kValueOffset);
+}
+
+
+void Float32x4::set_value(float32x4_value_t value) {
+  WRITE_FLOAT32x4_FIELD(this, kValueOffset, value);
+}
+
+
+float Float32x4::x() {
+  return READ_FLOAT_FIELD(this, kValueOffset + 0 * kFloatSize);
+}
+
+
+float Float32x4::y() {
+  return READ_FLOAT_FIELD(this, kValueOffset + 1 * kFloatSize);
+}
+
+
+float Float32x4::z() {
+  return READ_FLOAT_FIELD(this, kValueOffset + 2 * kFloatSize);
+}
+
+
+float Float32x4::w() {
+  return READ_FLOAT_FIELD(this, kValueOffset + 3 * kFloatSize);
+}
+
+
+void Float32x4::set_x(float x) {
+  WRITE_FLOAT_FIELD(this, kValueOffset + 0 * kFloatSize, x);
+}
+
+
+void Float32x4::set_y(float y) {
+  WRITE_FLOAT_FIELD(this, kValueOffset + 1 * kFloatSize, y);
+}
+
+
+void Float32x4::set_z(float z) {
+  WRITE_FLOAT_FIELD(this, kValueOffset + 2 * kFloatSize, z);
+}
+
+
+void Float32x4::set_w(float w) {
+  WRITE_FLOAT_FIELD(this, kValueOffset + 3 * kFloatSize, w);
+}
+
+
+int32x4_value_t Int32x4::value() {
+  return READ_INT32x4_FIELD(this, kValueOffset);
+}
+
+
+void Int32x4::set_value(int32x4_value_t value) {
+  WRITE_INT32x4_FIELD(this, kValueOffset, value);
+}
+
+
+int32_t Int32x4::x() {
+  return READ_INT32_FIELD(this, kValueOffset + 0 * kInt32Size);
+}
+
+
+int32_t Int32x4::y() {
+  return READ_INT32_FIELD(this, kValueOffset + 1 * kInt32Size);
+}
+
+
+int32_t Int32x4::z() {
+  return READ_INT32_FIELD(this, kValueOffset + 2 * kInt32Size);
+}
+
+
+int32_t Int32x4::w() {
+  return READ_INT32_FIELD(this, kValueOffset + 3 * kInt32Size);
+}
+
+
+void Int32x4::set_x(int32_t x) {
+  WRITE_INT32_FIELD(this, kValueOffset + 0 * kInt32Size, x);
+}
+
+
+void Int32x4::set_y(int32_t y) {
+  WRITE_INT32_FIELD(this, kValueOffset + 1 * kInt32Size, y);
+}
+
+
+void Int32x4::set_z(int32_t z) {
+  WRITE_INT32_FIELD(this, kValueOffset + 2 * kInt32Size, z);
+}
+
+
+void Int32x4::set_w(int32_t w) {
+  WRITE_INT32_FIELD(this, kValueOffset + 3 * kInt32Size, w);
 }
 
 
@@ -2662,6 +2783,8 @@ CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
+CAST_ACCESSOR(Float32x4)
+CAST_ACCESSOR(Int32x4)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(PropertyCell)
@@ -2696,6 +2819,8 @@ CAST_ACCESSOR(ExternalUnsignedShortArray)
 CAST_ACCESSOR(ExternalIntArray)
 CAST_ACCESSOR(ExternalUnsignedIntArray)
 CAST_ACCESSOR(ExternalFloatArray)
+CAST_ACCESSOR(ExternalFloat32x4Array)
+CAST_ACCESSOR(ExternalInt32x4Array)
 CAST_ACCESSOR(ExternalDoubleArray)
 CAST_ACCESSOR(ExternalPixelArray)
 CAST_ACCESSOR(Struct)
@@ -3454,6 +3579,62 @@ void ExternalFloatArray::set(int index, float value) {
   ASSERT((index >= 0) && (index < this->length()));
   float* ptr = static_cast<float*>(external_pointer());
   ptr[index] = value;
+}
+
+
+float32x4_value_t ExternalFloat32x4Array::get_scalar(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  float* ptr = static_cast<float*>(external_pointer());
+  float32x4_value_t value;
+  value.storage[0] = ptr[index * 4 + 0];
+  value.storage[1] = ptr[index * 4 + 1];
+  value.storage[2] = ptr[index * 4 + 2];
+  value.storage[3] = ptr[index * 4 + 3];
+  return value;
+}
+
+
+MaybeObject* ExternalFloat32x4Array::get(int index) {
+  float32x4_value_t value = get_scalar(index);
+  return GetHeap()->AllocateFloat32x4(value);
+}
+
+
+void ExternalFloat32x4Array::set(int index, const float32x4_value_t& value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  float* ptr = static_cast<float*>(external_pointer());
+  ptr[index * 4 + 0] = value.storage[0];
+  ptr[index * 4 + 1] = value.storage[1];
+  ptr[index * 4 + 2] = value.storage[2];
+  ptr[index * 4 + 3] = value.storage[3];
+}
+
+
+int32x4_value_t ExternalInt32x4Array::get_scalar(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int32_t* ptr = static_cast<int32_t*>(external_pointer());
+  int32x4_value_t value;
+  value.storage[0] = ptr[index * 4 + 0];
+  value.storage[1] = ptr[index * 4 + 1];
+  value.storage[2] = ptr[index * 4 + 2];
+  value.storage[3] = ptr[index * 4 + 3];
+  return value;
+}
+
+
+MaybeObject* ExternalInt32x4Array::get(int index) {
+  int32x4_value_t value = get_scalar(index);
+  return GetHeap()->AllocateInt32x4(value);
+}
+
+
+void ExternalInt32x4Array::set(int index, const int32x4_value_t& value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int32_t* ptr = static_cast<int32_t*>(external_pointer());
+  ptr[index * 4 + 0] = value.storage[0];
+  ptr[index * 4 + 1] = value.storage[1];
+  ptr[index * 4 + 2] = value.storage[2];
+  ptr[index * 4 + 3] = value.storage[3];
 }
 
 
@@ -5671,6 +5852,10 @@ EXTERNAL_ELEMENTS_CHECK(UnsignedInt,
                         EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Float,
                         EXTERNAL_FLOAT_ARRAY_TYPE)
+EXTERNAL_ELEMENTS_CHECK(Float32x4,
+                        EXTERNAL_FLOAT32x4_ARRAY_TYPE)
+EXTERNAL_ELEMENTS_CHECK(Int32x4,
+                        EXTERNAL_INT32x4_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Double,
                         EXTERNAL_DOUBLE_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Pixel, EXTERNAL_PIXEL_ARRAY_TYPE)

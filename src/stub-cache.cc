@@ -269,6 +269,10 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
     check = SYMBOL_CHECK;
   } else if (object->IsNumber()) {
     check = NUMBER_CHECK;
+  } else if (object->IsFloat32x4()) {
+    check = FLOAT32x4_CHECK;
+  } else if (object->IsInt32x4()) {
+    check = INT32x4_CHECK;
   } else if (object->IsBoolean()) {
     check = BOOLEAN_CHECK;
   }
@@ -319,7 +323,8 @@ Handle<Code> StubCache::ComputeCallField(int argc,
   // because they may be represented as immediates without a
   // map. Instead, we check against the map in the holder.
   if (object->IsNumber() || object->IsSymbol() ||
-      object->IsBoolean() || object->IsString()) {
+      object->IsBoolean() || object->IsString() ||
+      object->IsFloat32x4() || object->IsInt32x4()) {
     object = holder;
   }
 
@@ -357,7 +362,8 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   // because they may be represented as immediates without a
   // map. Instead, we check against the map in the holder.
   if (object->IsNumber() || object->IsSymbol() ||
-      object->IsBoolean() || object->IsString()) {
+      object->IsBoolean() || object->IsString() ||
+      object->IsFloat32x4() || object->IsInt32x4()) {
     object = holder;
   }
 
@@ -1205,6 +1211,10 @@ Register LoadStubCompiler::HandlerFrontendHeader(
     function_index = Context::SYMBOL_FUNCTION_INDEX;
   } else if (type->Is(Type::Number())) {
     function_index = Context::NUMBER_FUNCTION_INDEX;
+  } else if (type->Is(Type::Float32x4())) {
+    function_index = Context::FLOAT32x4_FUNCTION_INDEX;
+  } else if (type->Is(Type::Int32x4())) {
+    function_index = Context::INT32x4_FUNCTION_INDEX;
   } else if (type->Is(Type::Boolean())) {
     // Booleans use the generic oddball map, so an additional check is needed to
     // ensure the receiver is really a boolean.
