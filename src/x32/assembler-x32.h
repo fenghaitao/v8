@@ -727,7 +727,6 @@ class Assembler : public AssemblerBase {
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
   void movl(Register dst, void* ptr, RelocInfo::Mode rmode);
-  void movl(Register dst, const char* s, RelocInfo::Mode rmode);
   void movl(Register dst, ExternalReference ext);
   void movl(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
@@ -759,7 +758,7 @@ class Assembler : public AssemblerBase {
   void cmovl(Condition cc, Register dst, const Operand& src);
 
   // Exchange two registers
-  void xchg(Register dst, Register src);
+  void xchgq(Register dst, Register src);
   void xchgl(Register dst, Register src);
 
   // Arithmetics
@@ -1156,8 +1155,8 @@ class Assembler : public AssemblerBase {
   void testb(const Operand& op, Register reg);
   void testl(Register dst, Register src);
   void testl(Register reg, Immediate mask);
-  void testl(const Operand& op, Immediate mask);
   void testl(const Operand& op, Register reg);
+  void testl(const Operand& op, Immediate mask);
   void testq(const Operand& op, Register reg);
   void testq(Register dst, Register src);
   void testq(Register dst, Immediate mask);
@@ -1494,7 +1493,7 @@ class Assembler : public AssemblerBase {
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
   inline void emitp(void* x, RelocInfo::Mode rmode);
-  inline void emitq(uint64_t x, RelocInfo::Mode rmode);
+  inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target,
                                RelocInfo::Mode rmode,

@@ -741,7 +741,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   bind(&profiler_disabled);
   // Call the api function!
-  movl(rax, reinterpret_cast<uint32_t>(function_address),
+  movl(rax, reinterpret_cast<Address>(function_address),
        RelocInfo::EXTERNAL_REFERENCE);
 
   bind(&end_profiler_check);

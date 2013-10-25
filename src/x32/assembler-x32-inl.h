@@ -62,9 +62,8 @@ void Assembler::emitp(void* x, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
+void Assembler::emitq(uint64_t x) {
   Memory::uint64_at(pc_) = x;
-  ASSERT(RelocInfo::IsNone(rmode));
   pc_ += sizeof(uint64_t);
 }
 
