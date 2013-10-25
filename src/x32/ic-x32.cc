@@ -43,6 +43,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+
 static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
                                             Register type,
                                             Label* global_object) {

@@ -674,8 +674,6 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 #undef __
 
 
-static const int kNoCodeAgeSequenceLength = 17;
-
 static byte* GetNoCodeAgeSequence(uint32_t* length) {
   static bool initialized = false;
   static byte sequence[kNoCodeAgeSequenceLength];
@@ -732,11 +730,8 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     Code* stub = GetCodeAgeStub(isolate, age, parity);
     CodePatcher patcher(sequence, young_length);
     patcher.masm()->call(stub->instruction_start());
-    for (int i = 0;
-         i < kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength;
-         i++) {
-      patcher.masm()->nop();
-    }
+    patcher.masm()->Nop(
+        kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
   }
 }
 

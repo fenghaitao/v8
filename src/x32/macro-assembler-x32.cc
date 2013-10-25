@@ -2499,8 +2499,7 @@ void MacroAssembler::Move(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movl(dst, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(dst, source);
   }
 }
 
@@ -2510,8 +2509,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movl(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     movl(dst, kScratchRegister);
   }
 }
@@ -2522,8 +2520,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movl(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     cmpl(dst, kScratchRegister);
   }
 }
@@ -2534,8 +2531,7 @@ void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movl(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     cmpl(dst, kScratchRegister);
   }
 }
@@ -2546,8 +2542,7 @@ void MacroAssembler::Push(Handle<Object> source) {
   if (source->IsSmi()) {
     Push(Smi::cast(*source));
   } else {
-    ASSERT(source->IsHeapObject());
-    movl(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    MoveHeapObject(kScratchRegister, source);
     Push(kScratchRegister);
   }
 }
@@ -2607,40 +2602,16 @@ void MacroAssembler::Pop(const Operand& dst) {
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
+void MacroAssembler::MoveHeapObject(Register result,
+                                    Handle<Object> object) {
   AllowDeferredHandleDereference using_raw_address;
+  ASSERT(object->IsHeapObject());
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
     movl(result, cell, RelocInfo::CELL);
     movl(result, Operand(result, 0));
   } else {
-    Move(result, object);
-  }
-}
-
-
-void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movl(kScratchRegister, cell, RelocInfo::CELL);
-    cmpl(reg, Operand(kScratchRegister, 0));
-  } else {
-    Cmp(reg, object);
-  }
-}
-
-
-void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movl(kScratchRegister, cell, RelocInfo::CELL);
-    movl(kScratchRegister, Operand(kScratchRegister, 0));
-    Push(kScratchRegister);
-  } else {
-    Push(object);
+    movl(result, object, RelocInfo::EMBEDDED_OBJECT);
   }
 }
 
@@ -2739,7 +2710,8 @@ void MacroAssembler::Call(Handle<Code> code_object,
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(code_object);
 #endif
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode) ||
+      rmode == RelocInfo::CODE_AGE_SEQUENCE);
   call(code_object, rmode, ast_id);
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
@@ -3667,7 +3639,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(rdi, function);
+  Move(rdi, function);
   movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -3750,6 +3722,30 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);
+  }
+}
+
+
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    push(rbp);  // Caller's frame pointer.
+    movl(rbp, rsp);
+    Push(rsi);  // Callee's context.
+    Push(Smi::FromInt(StackFrame::STUB));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(this,
+        kNoCodeAgeSequenceLength);
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+        // Pre-age the code.
+      Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
+           RelocInfo::CODE_AGE_SEQUENCE);
+      Nop(kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
+    } else {
+      push(rbp);  // Caller's frame pointer.
+      movl(rbp, rsp);
+      Push(rsi);  // Callee's context.
+      Push(rdi);  // Callee's JS function.
+    }
   }
 }
 
