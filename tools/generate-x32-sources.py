@@ -132,7 +132,8 @@ def HandlePushPop(line, key):
 def HandleMovQ(line, key):
   result = line
   if result.find("xmm") == -1 and result.find("double_scratch") == -1 and \
-     result.find("V8_UINT64_C") == -1 and result.find("V8_INT64_C") == -1:
+     result.find("V8_UINT64_C") == -1 and result.find("V8_INT64_C") == -1 and \
+     result.find("MoveDouble") == -1:
     result = Replace(result, key)
     if result.find("kZapValue") != -1 and result.find("NONE64") != -1:
       result = result.replace("int64_t", "int32_t")

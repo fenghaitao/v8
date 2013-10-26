@@ -835,6 +835,8 @@ class MacroAssembler: public Assembler {
   void Call(Label* target) { call(target); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
+  void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
+  void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);

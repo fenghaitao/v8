@@ -110,8 +110,8 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 #endif
 
   // Patch the code.
-  patcher.masm()->movl(r10, target, RelocInfo::NONE32);
-  patcher.masm()->call(r10);
+  patcher.masm()->movl(kScratchRegister, target, RelocInfo::NONE64);
+  patcher.masm()->call(kScratchRegister);
 
   // Check that the size of the code generated is as expected.
   ASSERT_EQ(Assembler::kCallSequenceLength,
