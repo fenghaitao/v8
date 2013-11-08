@@ -3397,7 +3397,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
-    __ andpd(input_reg, scratch);
+    __ andps(input_reg, scratch);
   } else if (r.IsSmiOrInteger32()) {
     EmitIntegerMathAbs(instr);
   } else {  // Tagged case.
@@ -4449,6 +4449,22 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   __ LoadUint32(ToDoubleRegister(output),
                 ToRegister(input),
                 ToDoubleRegister(temp));
+}
+
+
+void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsRegister());
+  LOperand* output = instr->result();
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange() ||
+      instr->hydrogen()->value()->range()->upper() == kMaxInt) {
+    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
+    // interval, so we treat kMaxInt as a sentinel for this entire interval.
+    __ testl(ToRegister(input), Immediate(0x80000000));
+    DeoptimizeIf(not_zero, instr->environment());
+  }
+  __ Integer32ToSmi(ToRegister(output), ToRegister(input));
 }
 
 
