@@ -82,7 +82,7 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
       return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
   }
-  movl(scratch, target);
+  Move(scratch, target);
   return Operand(scratch, 0);
 }
 
@@ -100,7 +100,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (destination.is(rax)) {
     load_rax(source);
   } else {
-    movl(kScratchRegister, source);
+    Move(kScratchRegister, source);
     movl(destination, Operand(kScratchRegister, 0));
   }
 }
@@ -119,7 +119,7 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (source.is(rax)) {
     store_rax(destination);
   } else {
-    movl(kScratchRegister, destination);
+    Move(kScratchRegister, destination);
     movl(Operand(kScratchRegister, 0), source);
   }
 }
@@ -136,7 +136,7 @@ void MacroAssembler::LoadAddress(Register destination,
     }
   }
   // Safe code.
-  movl(destination, source);
+  Move(destination, source);
 }
 
 
@@ -278,13 +278,13 @@ void MacroAssembler::InNewSpace(Register object,
     // case the size of the new space is different between the snapshot maker
     // and the running system.
     if (scratch.is(object)) {
-      movl(kScratchRegister, ExternalReference::new_space_mask(isolate()));
+      Move(kScratchRegister, ExternalReference::new_space_mask(isolate()));
       andl(scratch, kScratchRegister);
     } else {
-      movl(scratch, ExternalReference::new_space_mask(isolate()));
+      Move(scratch, ExternalReference::new_space_mask(isolate()));
       andl(scratch, object);
     }
-    movl(kScratchRegister, ExternalReference::new_space_start(isolate()));
+    Move(kScratchRegister, ExternalReference::new_space_start(isolate()));
     cmpl(scratch, kScratchRegister);
     j(cc, branch, distance);
   } else {
@@ -711,7 +711,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
   Register base_reg = r15;
-  movl(base_reg, next_address);
+  Move(base_reg, next_address);
   movl(prev_next_address_reg, Operand(base_reg, kNextOffset));
   movl(prev_limit_reg, Operand(base_reg, kLimitOffset));
   addl(Operand(base_reg, kLevelOffset), Immediate(1));
@@ -772,7 +772,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bind(&leave_exit_frame);
 
   // Check if the function scheduled an exception.
-  movl(rsi, scheduled_exception_address);
+  Move(rsi, scheduled_exception_address);
   Cmp(Operand(rsi, 0), factory->the_hole_value());
   j(not_equal, &promote_scheduled_exception);
   bind(&exception_handled);
@@ -5016,7 +5016,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
 
   leal(scratch_reg, Operand(receiver_reg,
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
-  movl(kScratchRegister, new_space_start);
+  Move(kScratchRegister, new_space_start);
   cmpl(scratch_reg, kScratchRegister);
   j(less, no_memento_found);
   cmpl(scratch_reg, ExternalOperand(new_space_allocation_top));
@@ -5055,6 +5055,32 @@ void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
   CallCFunction(
       ExternalReference::record_object_allocation_function(isolate), 3);
   PopSafepointRegisters();
+}
+
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!(scratch0.is(kScratchRegister) && scratch1.is(kScratchRegister)));
+  ASSERT(!scratch1.is(scratch0));
+  Register current = scratch0;
+  Label loop_again;
+
+  movl(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  movl(current, FieldOperand(current, HeapObject::kMapOffset));
+  movl(scratch1, FieldOperand(current, Map::kBitField2Offset));
+  andl(scratch1, Immediate(Map::kElementsKindMask));
+  shrl(scratch1, Immediate(Map::kElementsKindShift));
+  cmpl(scratch1, Immediate(DICTIONARY_ELEMENTS));
+  j(equal, found);
+  movl(current, FieldOperand(current, Map::kPrototypeOffset));
+  CompareRoot(current, Heap::kNullValueRootIndex);
+  j(not_equal, &loop_again);
 }
 
 

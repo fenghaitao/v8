@@ -262,7 +262,7 @@ bool LCodeGen::GenerateJumpTable() {
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     }
     if (jump_table_[i].needs_frame) {
-      __ movl(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
+      __ Move(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
       if (needs_frame.is_bound()) {
         __ jmp(&needs_frame);
       } else {
@@ -1651,32 +1651,60 @@ void LCodeGen::DoDateField(LDateField* instr) {
 }
 
 
+Operand LCodeGen::BuildSeqStringOperand(Register string,
+                                        LOperand* index,
+                                        String::Encoding encoding) {
+  if (index->IsConstantOperand()) {
+    int offset = ToInteger32(LConstantOperand::cast(index));
+    if (encoding == String::TWO_BYTE_ENCODING) {
+      offset *= kUC16Size;
+    }
+    STATIC_ASSERT(kCharSize == 1);
+    return FieldOperand(string, SeqString::kHeaderSize + offset);
+  }
+  return FieldOperand(
+      string, ToRegister(index),
+      encoding == String::ONE_BYTE_ENCODING ? times_1 : times_2,
+      SeqString::kHeaderSize);
+}
+
+
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
-  Register value = ToRegister(instr->value());
-  String::Encoding encoding = instr->encoding();
 
   if (FLAG_debug_code) {
-    __ Push(value);
-    __ movl(value, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzxbl(value, FieldOperand(value, Map::kInstanceTypeOffset));
+    __ Push(string);
+    __ movl(string, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzxbl(string, FieldOperand(string, Map::kInstanceTypeOffset));
 
-    __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    __ andb(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmpl(value, Immediate(encoding == String::ONE_BYTE_ENCODING
-                                 ? one_byte_seq_type : two_byte_seq_type));
+    __ cmpl(string, Immediate(encoding == String::ONE_BYTE_ENCODING
+                              ? one_byte_seq_type : two_byte_seq_type));
     __ Check(equal, kUnexpectedStringType);
-    __ Pop(value);
+    __ Pop(string);
   }
 
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ movb(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
-            value);
+  Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (instr->value()->IsConstantOperand()) {
+    int value = ToInteger32(LConstantOperand::cast(instr->value()));
+    ASSERT_LE(0, value);
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      ASSERT_LE(value, String::kMaxOneByteCharCode);
+      __ movb(operand, Immediate(value));
+    } else {
+      ASSERT_LE(value, String::kMaxUtf16CodeUnit);
+      __ movw(operand, Immediate(value));
+    }
   } else {
-    __ movw(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
-            value);
+    Register value = ToRegister(instr->value());
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ movb(operand, value);
+    } else {
+      __ movw(operand, value);
+    }
   }
 }
 
@@ -1792,7 +1820,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
     // At this point, both left and right are either 0 or -0.
     if (operation == HMathMinMax::kMathMin) {
-      __ orpd(left_reg, right_reg);
+      __ orps(left_reg, right_reg);
     } else {
       // Since we operate on +0 and/or -0, addsd and andsd have the same effect.
       __ addsd(left_reg, right_reg);
@@ -1803,7 +1831,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ ucomisd(left_reg, left_reg);  // NaN check.
     __ j(parity_even, &return_left, Label::kNear);
     __ bind(&return_right);
-    __ movsd(left_reg, right_reg);
+    __ movaps(left_reg, right_reg);
 
     __ bind(&return_left);
   }

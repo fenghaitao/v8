@@ -78,7 +78,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteral)->entry;
 }
 
 
@@ -631,7 +631,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // rcx = TranscendentalCache::hash(double value).
   ExternalReference cache_array =
       ExternalReference::transcendental_cache_array_address(masm->isolate());
-  __ movl(rax, cache_array);
+  __ Move(rax, cache_array);
   int cache_array_index =
       type_ * sizeof(masm->isolate()->transcendental_cache()->caches_[0]);
   __ movl(rax, Operand(rax, cache_array_index));
@@ -1873,9 +1873,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
           Immediate(1));
 
   // Argument 7: Start (high end) of backtracking stack memory area.
-  __ movl(kScratchRegister, address_of_regexp_stack_memory_address);
+  __ Move(kScratchRegister, address_of_regexp_stack_memory_address);
   __ movl(r9, Operand(kScratchRegister, 0));
-  __ movl(kScratchRegister, address_of_regexp_stack_memory_size);
+  __ Move(kScratchRegister, address_of_regexp_stack_memory_size);
   __ addl(r9, Operand(kScratchRegister, 0));
   __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kRegisterSize), r9);
 
@@ -2810,9 +2810,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
     // stack is known to be aligned. This function takes one argument which is
     // passed in register.
-    __ movl(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
     __ movl(arg_reg_1, rax);
-    __ movl(kScratchRegister,
+    __ Move(kScratchRegister,
             ExternalReference::perform_gc_function(masm->isolate()));
     __ call(kScratchRegister);
   }
@@ -2849,7 +2849,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movl(rdi, r14);  // argc.
   __ movl(rsi, r15);  // argv.
-  __ movl(rdx, ExternalReference::isolate_address(masm->isolate()));
+  __ Move(rdx, ExternalReference::isolate_address(masm->isolate()));
 #endif
   __ call(rbx);
   // Result is in rax - do not destroy this register!
@@ -3139,7 +3139,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Pop(rbx);
   __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
-  __ movl(kScratchRegister, js_entry_sp);
+  __ Move(kScratchRegister, js_entry_sp);
   __ movl(Operand(kScratchRegister, 0), Immediate(0));
   __ bind(&not_outermost_js_2);
 

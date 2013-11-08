@@ -619,7 +619,7 @@ bool RegExpMacroAssemblerX32::CheckSpecialCharacterClass(uc16 type,
       __ cmpl(current_character(), Immediate('z'));
       BranchOrBacktrack(above, on_no_match);
     }
-    __ movl(rbx, ExternalReference::re_word_character_map());
+    __ Move(rbx, ExternalReference::re_word_character_map());
     ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     __ testb(Operand(rbx, current_character(), times_1, 0),
              current_character());
@@ -633,7 +633,7 @@ bool RegExpMacroAssemblerX32::CheckSpecialCharacterClass(uc16 type,
       __ cmpl(current_character(), Immediate('z'));
       __ j(above, &done);
     }
-    __ movl(rbx, ExternalReference::re_word_character_map());
+    __ Move(rbx, ExternalReference::re_word_character_map());
     ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     __ testb(Operand(rbx, current_character(), times_1, 0),
              current_character());
@@ -719,7 +719,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
   __ movl(rcx, rsp);
-  __ movl(kScratchRegister, stack_limit);
+  __ Move(kScratchRegister, stack_limit);
   __ subl(rcx, Operand(kScratchRegister, 0));
   // Handle it if the stack pointer is already below the stack limit.
   __ j(below_equal, &stack_limit_hit);

@@ -697,10 +697,12 @@ class Assembler : public AssemblerBase {
   void movb(Register dst, const Operand& src);
   void movb(Register dst, Immediate imm);
   void movb(const Operand& dst, Register src);
+  void movb(const Operand& dst, Immediate imm);
 
   // Move the low 16 bits of a 64-bit register value to a 16-bit
   // memory location.
   void movw(const Operand& dst, Register src);
+  void movw(const Operand& dst, Immediate imm);
 
   void movl(Register dst, Register src);
   void movl(Register dst, const Operand& src);
@@ -727,7 +729,6 @@ class Assembler : public AssemblerBase {
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
   void movl(Register dst, void* ptr, RelocInfo::Mode rmode);
-  void movl(Register dst, ExternalReference ext);
   void movl(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
   void movsxbq(Register dst, const Operand& src);
@@ -1357,8 +1358,9 @@ class Assembler : public AssemblerBase {
   void cvttss2si(Register dst, XMMRegister src);
   void cvtlsi2ss(XMMRegister dst, Register src);
 
-  void xorps(XMMRegister dst, XMMRegister src);
   void andps(XMMRegister dst, XMMRegister src);
+  void orps(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
 
   void movmskps(Register dst, XMMRegister src);
 

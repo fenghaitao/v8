@@ -319,7 +319,7 @@ class MacroAssembler: public Assembler {
   void InitializeRootRegister() {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
-    movl(kRootRegister, roots_array_start);
+    Move(kRootRegister, roots_array_start);
     addl(kRootRegister, Immediate(kRootRegisterBias));
   }
 
@@ -837,6 +837,10 @@ class MacroAssembler: public Assembler {
   void PopReturnAddressTo(Register dst) { pop(dst); }
   void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
   void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
+  void Move(Register dst, ExternalReference ext) {
+    movl(dst, reinterpret_cast<Address>(ext.address()),
+         RelocInfo::EXTERNAL_REFERENCE);
+  }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
@@ -1419,6 +1423,10 @@ class MacroAssembler: public Assembler {
     j(equal, memento_found);
     bind(&no_memento_found);
   }
+
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
 
  private:
   // Order general registers are pushed by Pushad.

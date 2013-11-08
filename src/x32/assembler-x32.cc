@@ -1360,12 +1360,32 @@ void Assembler::movb(const Operand& dst, Register src) {
 }
 
 
+void Assembler::movb(const Operand& dst, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst);
+  emit(0xC6);
+  emit_operand(0x0, dst);
+  emit(static_cast<byte>(imm.value_));
+}
+
+
 void Assembler::movw(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(src, dst);
   emit(0x89);
   emit_operand(src, dst);
+}
+
+
+void Assembler::movw(const Operand& dst, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit_operand(0x0, dst);
+  emit(static_cast<byte>(imm.value_ & 0xff));
+  emit(static_cast<byte>(imm.value_ >> 8));
 }
 
 
@@ -1494,12 +1514,6 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
     emit(0xB8 | dst.low_bits());
     emitq(value);
   }
-}
-
-
-void Assembler::movl(Register dst, ExternalReference ref) {
-  int32_t value = reinterpret_cast<int32_t>(ref.address());
-  movl(dst, value, RelocInfo::EXTERNAL_REFERENCE);
 }
 
 
@@ -2504,6 +2518,24 @@ void Assembler::andps(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::orps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x56);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::xorps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
 // SSE 2 operations.
 
 void Assembler::movd(XMMRegister dst, Register src) {
@@ -2928,15 +2960,6 @@ void Assembler::orpd(XMMRegister dst, XMMRegister src) {
 void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x57);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::xorps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x57);
