@@ -2906,7 +2906,7 @@ void MacroAssembler::Pop(const Operand& dst) {
   if (needExtraScratch) {
     // Restore the value of kSmiConstantRegister.
     // Should use InitializeSmiConstantRegister();
-    movl(kSmiConstantRegister,
+    movp(kSmiConstantRegister,
          reinterpret_cast<Address>(Smi::FromInt(kSmiConstantRegisterValue)),
          RelocInfo::NONE32);
   }

@@ -1664,7 +1664,7 @@ void LCodeGen::DoDateField(LDateField* instr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
     __ movl(arg_reg_1, object);
-    __ movl(arg_reg_2, index, RelocInfo::NONE32);
+    __ Move(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ bind(&done);
   }
@@ -2577,7 +2577,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   __ movl(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
   Handle<Cell> cache_cell = factory()->NewCell(factory()->the_hole_value());
-  __ movl(kScratchRegister, cache_cell, RelocInfo::CELL);
+  __ Move(kScratchRegister, cache_cell, RelocInfo::CELL);
   __ cmpl(map, Operand(kScratchRegister, 0));
   __ j(not_equal, &cache_miss, Label::kNear);
   // Patched to load either true or false.
@@ -2745,14 +2745,14 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
     // We have a temp because CompareRoot might clobber kScratchRegister.
     Register cell = ToRegister(instr->temp());
     ASSERT(!value.is(cell));
-    __ movl(cell, cell_handle, RelocInfo::CELL);
+    __ Move(cell, cell_handle, RelocInfo::CELL);
     __ CompareRoot(Operand(cell, 0), Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
     // Store the value.
     __ movl(Operand(cell, 0), value);
   } else {
     // Store the value.
-    __ movl(kScratchRegister, cell_handle, RelocInfo::CELL);
+    __ Move(kScratchRegister, cell_handle, RelocInfo::CELL);
     __ movl(Operand(kScratchRegister, 0), value);
   }
   // Cells are always rescanned, so no write barrier here.
@@ -4354,7 +4354,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ j(not_equal, &not_applicable);
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     Register new_map_reg = ToRegister(instr->new_map_temp());
-    __ movl(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
+    __ Move(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movl(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
     // Write barrier.
     ASSERT_NE(instr->temp(), NULL);

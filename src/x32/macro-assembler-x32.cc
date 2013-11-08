@@ -165,7 +165,7 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   int64_t address = reinterpret_cast<int64_t>(source.address());
   if (is_int32(address) && !Serializer::enabled()) {
     if (emit_debug_code()) {
-      movl(kScratchRegister, kZapValue, RelocInfo::NONE32);
+      Move(kScratchRegister, kZapValue, RelocInfo::NONE64);
     }
     Push(Immediate(static_cast<int32_t>(address)));
     return;
@@ -289,7 +289,7 @@ void MacroAssembler::InNewSpace(Register object,
   } else {
     intptr_t new_space_start =
         reinterpret_cast<intptr_t>(isolate()->heap()->NewSpaceStart());
-    movl(kScratchRegister, reinterpret_cast<Address>(-new_space_start),
+    Move(kScratchRegister, reinterpret_cast<Address>(-new_space_start),
          RelocInfo::NONE64);
     if (scratch.is(object)) {
       addl(scratch, kScratchRegister);
@@ -341,8 +341,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movl(value, kZapValue, RelocInfo::NONE32);
-    movl(dst, kZapValue, RelocInfo::NONE32);
+    Move(value, kZapValue, RelocInfo::NONE64);
+    Move(dst, kZapValue, RelocInfo::NONE64);
   }
 }
 
@@ -375,8 +375,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movl(value, kZapValue, RelocInfo::NONE32);
-    movl(index, kZapValue, RelocInfo::NONE32);
+    Move(value, kZapValue, RelocInfo::NONE64);
+    Move(index, kZapValue, RelocInfo::NONE64);
   }
 }
 
@@ -440,8 +440,8 @@ void MacroAssembler::RecordWrite(Register object,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movl(address, kZapValue, RelocInfo::NONE32);
-    movl(value, kZapValue, RelocInfo::NONE32);
+    Move(address, kZapValue, RelocInfo::NONE64);
+    Move(value, kZapValue, RelocInfo::NONE64);
   }
 }
 
@@ -529,9 +529,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
 #endif
 
   Push(rax);
-  movl(kScratchRegister, reinterpret_cast<Smi*>(p0), RelocInfo::NONE64);
+  Move(kScratchRegister, reinterpret_cast<Smi*>(p0), RelocInfo::NONE64);
   Push(kScratchRegister);
-  movl(kScratchRegister, Smi::FromInt(static_cast<int>(p1 - p0)),
+  Move(kScratchRegister, Smi::FromInt(static_cast<int>(p1 - p0)),
        RelocInfo::NONE64);
   Push(kScratchRegister);
 
@@ -721,18 +721,18 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bool* is_profiling_flag =
       isolate()->cpu_profiler()->is_profiling_address();
   STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
-  movl(rax, is_profiling_flag, RelocInfo::EXTERNAL_REFERENCE);
+  Move(rax, is_profiling_flag, RelocInfo::EXTERNAL_REFERENCE);
   cmpb(Operand(rax, 0), Immediate(0));
   j(zero, &profiler_disabled);
 
   // Third parameter is the address of the actual getter function.
-  movl(thunk_last_arg, function_address, RelocInfo::EXTERNAL_REFERENCE);
-  movl(rax, thunk_address, RelocInfo::EXTERNAL_REFERENCE);
+  Move(thunk_last_arg, function_address, RelocInfo::EXTERNAL_REFERENCE);
+  Move(rax, thunk_address, RelocInfo::EXTERNAL_REFERENCE);
   jmp(&end_profiler_check);
 
   bind(&profiler_disabled);
   // Call the api function!
-  movl(rax, reinterpret_cast<Address>(function_address),
+  Move(rax, reinterpret_cast<Address>(function_address),
        RelocInfo::EXTERNAL_REFERENCE);
 
   bind(&end_profiler_check);
@@ -1077,7 +1077,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
       UNREACHABLE();
       return;
     default:
-      movl(dst, source, RelocInfo::NONE64);
+      Move(dst, source, RelocInfo::NONE64);
       return;
   }
   if (negative) {
@@ -2607,7 +2607,7 @@ void MacroAssembler::Pop(const Operand& dst) {
   if (needExtraScratch) {
     // Restore the value of kSmiConstantRegister.
     // Should use InitializeSmiConstantRegister();
-    movl(kSmiConstantRegister,
+    movp(kSmiConstantRegister,
          reinterpret_cast<Address>(Smi::FromInt(kSmiConstantRegisterValue)),
          RelocInfo::NONE32);
   }
@@ -2621,10 +2621,10 @@ void MacroAssembler::MoveHeapObject(Register result,
   ASSERT(object->IsHeapObject());
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    movl(result, cell, RelocInfo::CELL);
+    Move(result, cell, RelocInfo::CELL);
     movl(result, Operand(result, 0));
   } else {
-    movl(result, object, RelocInfo::EMBEDDED_OBJECT);
+    Move(result, object, RelocInfo::EMBEDDED_OBJECT);
   }
 }
 
@@ -2634,7 +2634,7 @@ void MacroAssembler::LoadGlobalCell(Register dst, Handle<Cell> cell) {
     AllowDeferredHandleDereference embedding_raw_address;
     load_rax(cell.location(), RelocInfo::CELL);
   } else {
-    movl(dst, cell, RelocInfo::CELL);
+    Move(dst, cell, RelocInfo::CELL);
     movl(dst, Operand(dst, 0));
   }
 }
@@ -2669,7 +2669,7 @@ void MacroAssembler::Jump(ExternalReference ext) {
 
 
 void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
-  movl(kScratchRegister, destination, rmode);
+  Move(kScratchRegister, destination, rmode);
   jmp(kScratchRegister);
 }
 
@@ -2709,7 +2709,7 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(destination, rmode);
 #endif
-  movl(kScratchRegister, destination, rmode);
+  Move(kScratchRegister, destination, rmode);
   call(kScratchRegister);
 #ifdef DEBUG
   CHECK_EQ(pc_offset(), end_position);
@@ -3752,7 +3752,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   if (!definitely_matches) {
     Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (!code_constant.is_null()) {
-      movl(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
+      Move(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
       addl(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
     } else if (!code_register.is(rdx)) {
       movl(rdx, code_register);
@@ -3804,10 +3804,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   movl(rbp, rsp);
   Push(rsi);  // Context.
   Push(Smi::FromInt(type));
-  movl(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
+  Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
   Push(kScratchRegister);
   if (emit_debug_code()) {
-    movl(kScratchRegister,
+    Move(kScratchRegister,
          isolate()->factory()->undefined_value(),
          RelocInfo::EMBEDDED_OBJECT);
     cmpl(Operand(rsp, 0), kScratchRegister);
@@ -3839,7 +3839,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
 
   // Reserve room for entry stack pointer and push the code object.
   ASSERT(ExitFrameConstants::kSPOffset == -1 * kPointerSize);
-  movl(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
+  Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
   push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 
   // Save the frame pointer and the context in top.

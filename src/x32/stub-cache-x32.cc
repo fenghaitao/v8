@@ -1307,7 +1307,7 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
     __ movl(scratch2(),
             Operand(dictionary, index, times_pointer_size,
                     kValueOffset - kHeapObjectTag));
-    __ movl(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
+    __ Move(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
     __ cmpl(scratch2(), scratch3());
     __ j(not_equal, &miss);
   }
@@ -2667,7 +2667,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     } else {
       Label next_map;
       __ j(not_equal, &next_map, Label::kNear);
-      __ movl(transition_map(),
+      __ Move(transition_map(),
               transitioned_maps->at(i),
               RelocInfo::EMBEDDED_OBJECT);
       __ jmp(handler_stubs->at(i), RelocInfo::CODE_TARGET);

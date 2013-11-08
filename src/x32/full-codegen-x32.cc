@@ -302,7 +302,7 @@ void FullCodeGenerator::ClearAccumulator() {
 
 
 void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
-  __ movl(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
+  __ Move(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
   __ SmiAddConstant(FieldOperand(rbx, Cell::kValueOffset),
                     Smi::FromInt(-delta));
 }
@@ -314,7 +314,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     // Self-optimization is a one-off thing; if it fails, don't try again.
     reset_value = Smi::kMaxValue;
   }
-  __ movl(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
+  __ Move(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
   __ Move(kScratchRegister, Smi::FromInt(reset_value));
   __ movl(FieldOperand(rbx, Cell::kValueOffset), kScratchRegister);
 }
@@ -3362,7 +3362,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
     __ movl(arg_reg_1, object);
-    __ movl(arg_reg_2, index, RelocInfo::NONE64);
+    __ Move(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movl(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ jmp(&done);

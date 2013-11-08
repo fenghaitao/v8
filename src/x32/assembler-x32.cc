@@ -110,7 +110,7 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 #endif
 
   // Patch the code.
-  patcher.masm()->movl(kScratchRegister, target, RelocInfo::NONE64);
+  patcher.masm()->movp(kScratchRegister, target, RelocInfo::NONE64);
   patcher.masm()->call(kScratchRegister);
 
   // Check that the size of the code generated is as expected.
@@ -1458,12 +1458,9 @@ void Assembler::emit_mov(const Operand& dst, Immediate value, int size) {
 }
 
 
-void Assembler::movl(Register dst, void* value, RelocInfo::Mode rmode) {
-  // This method must not be used with heap object references. The stored
-  // address is not GC safe. Use the handle version instead.
-  ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
+void Assembler::movp(Register dst, void* value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
+  emit_rex(dst, kPointerSize);
   emit(0xB8 | dst.low_bits());
   emitp(value, rmode);
 }
@@ -1503,18 +1500,6 @@ void Assembler::movl(const Operand& dst, Label* src) {
     src->link_to(current);
   }
 }
-
-
-void Assembler::movl(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
-  AllowDeferredHandleDereference using_raw_address;
-  EnsureSpace ensure_space(this);
-  ASSERT(value->IsHeapObject());
-  ASSERT(!isolate()->heap()->InNewSpace(*value));
-  emit_optional_rex_32(dst);
-  emit(0xB8 | dst.low_bits());
-  emitp(value.location(), mode);
-}
-
 
 
 void Assembler::movsxbq(Register dst, const Operand& src) {
