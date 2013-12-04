@@ -1199,34 +1199,33 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
 }
 
 
-void LoadStubCompiler::HandlerFrontendFooter(Handle<Name> name,
-                                             Label* success,
-                                             Label* miss) {
+void LoadStubCompiler::HandlerFrontendFooter(Handle<Name> name, Label* miss) {
   if (!miss->is_unused()) {
-    __ jmp(success);
+    Label success;
+    __ jmp(&success);
     __ bind(miss);
     TailCallBuiltin(masm(), MissBuiltin(kind()));
+    __ bind(&success);
   }
 }
 
 
-void StoreStubCompiler::HandlerFrontendFooter(Handle<Name> name,
-                                              Label* success,
-                                              Label* miss) {
+void StoreStubCompiler::HandlerFrontendFooter(Handle<Name> name, Label* miss) {
   if (!miss->is_unused()) {
-    __ jmp(success);
+    Label success;
+    __ jmp(&success);
     GenerateRestoreName(masm(), miss, name);
     TailCallBuiltin(masm(), MissBuiltin(kind()));
+    __ bind(&success);
   }
 }
 
 
 Register LoadStubCompiler::CallbackHandlerFrontend(
-    Handle<JSObject> object,
+    Handle<Object> object,
     Register object_reg,
     Handle<JSObject> holder,
     Handle<Name> name,
-    Label* success,
     Handle<Object> callback) {
   Label miss;
 
@@ -1267,7 +1266,7 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
     __ j(not_equal, &miss);
   }
 
-  HandlerFrontendFooter(name, success, &miss);
+  HandlerFrontendFooter(name, &miss);
   return reg;
 }
 
@@ -1388,7 +1387,7 @@ void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 void LoadStubCompiler::GenerateLoadInterceptor(
     Register holder_reg,
-    Handle<JSObject> object,
+    Handle<Object> object,
     Handle<JSObject> interceptor_holder,
     LookupResult* lookup,
     Handle<Name> name) {
@@ -1628,7 +1627,7 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
   }
 
   Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
-  site->set_transition_info(Smi::FromInt(GetInitialFastElementsKind()));
+  site->SetElementsKind(GetInitialFastElementsKind());
   Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
   __ movl(rax, Immediate(argc));
   __ Move(rbx, site_feedback_cell);
@@ -1660,8 +1659,12 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
-  // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || !cell.is_null()) return Handle<Code>::null();
+  // If object is not an array or is observed, bail out to regular call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed()) {
+    return Handle<Code>::null();
+  }
 
   Label miss;
   GenerateNameCheck(name, &miss);
@@ -1911,8 +1914,12 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   //  -- rsp[argc * 4 + 8]           : receiver
   // -----------------------------------
 
-  // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || !cell.is_null()) return Handle<Code>::null();
+  // If object is not an array or is observed, bail out to regular call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed()) {
+    return Handle<Code>::null();
+  }
 
   Label miss, return_undefined, call_builtin;
   GenerateNameCheck(name, &miss);
@@ -2506,11 +2513,21 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
 }
 
 
+void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
+  Label success;
+  // Check that the object is a boolean.
+  __ CompareRoot(object, Heap::kTrueValueRootIndex);
+  __ j(equal, &success);
+  __ CompareRoot(object, Heap::kFalseValueRootIndex);
+  __ j(not_equal, miss);
+  __ bind(&success);
+}
+
+
 void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
                                               Handle<JSObject> holder,
                                               Handle<Name> name,
-                                              CheckType check,
-                                              Label* success) {
+                                              CheckType check) {
   // ----------- S t a t e -------------
   // rcx                     : function name
   // rsp[0]                  : return address
@@ -2592,13 +2609,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       break;
     }
     case BOOLEAN_CHECK: {
-      Label fast;
-      // Check that the object is a boolean.
-      __ CompareRoot(rdx, Heap::kTrueValueRootIndex);
-      __ j(equal, &fast);
-      __ CompareRoot(rdx, Heap::kFalseValueRootIndex);
-      __ j(not_equal, &miss);
-      __ bind(&fast);
+      GenerateBooleanCheck(rdx, &miss);
       // Check that the maps starting from the prototype haven't changed.
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::BOOLEAN_FUNCTION_INDEX, rax, &miss);
@@ -2609,11 +2620,14 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
     }
   }
 
-  __ jmp(success);
+  Label success;
+  __ jmp(&success);
 
   // Handle call cache miss.
   __ bind(&miss);
   GenerateMissBranch();
+
+  __ bind(&success);
 }
 
 
@@ -2642,10 +2656,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
     if (!code.is_null()) return code;
   }
 
-  Label success;
-
-  CompileHandlerFrontend(object, holder, name, check, &success);
-  __ bind(&success);
+  CompileHandlerFrontend(object, holder, name, check);
   CompileHandlerBackend(function);
 
   // Return the generated code.
@@ -2781,9 +2792,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
-  Label success;
-  HandlerFrontend(object, receiver(), holder, name, &success);
-  __ bind(&success);
+  HandlerFrontend(object, receiver(), holder, name);
 
   __ PopReturnAddressTo(scratch1());
   __ Push(receiver());
@@ -2807,9 +2816,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> holder,
     Handle<Name> name,
     const CallOptimization& call_optimization) {
-  Label success;
-  HandlerFrontend(object, receiver(), holder, name, &success);
-  __ bind(&success);
+  HandlerFrontend(object, receiver(), holder, name);
 
   Register values[] = { value() };
   GenerateFastApiCall(
@@ -2923,15 +2930,12 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
-    Handle<JSObject> object,
+    Handle<Object> object,
     Handle<JSObject> last,
     Handle<Name> name,
     Handle<JSGlobalObject> global) {
-  Label success;
+  NonexistentHandlerFrontend(object, last, name, global);
 
-  NonexistentHandlerFrontend(object, last, name, &success, global);
-
-  __ bind(&success);
   // Return undefined if maps of the full prototype chain are still the
   // same and no global property with this name contains a value.
   __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
@@ -3026,12 +3030,12 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 
 
 Handle<Code> LoadStubCompiler::CompileLoadGlobal(
-    Handle<JSObject> object,
+    Handle<Object> object,
     Handle<GlobalObject> global,
     Handle<PropertyCell> cell,
     Handle<Name> name,
     bool is_dont_delete) {
-  Label success, miss;
+  Label miss;
   // TODO(verwaest): Directly store to rax. Currently we cannot do this, since
   // rax is used as receiver(), which we would otherwise clobber before a
   // potential miss.
@@ -3050,8 +3054,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     __ Check(not_equal, kDontDeleteCellsCannotContainTheHole);
   }
 
-  HandlerFrontendFooter(name, &success, &miss);
-  __ bind(&success);
+  HandlerFrontendFooter(name, &miss);
 
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1);
@@ -3075,17 +3078,25 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
     GenerateNameCheck(name, this->name(), &miss);
   }
 
-  __ JumpIfSmi(receiver(), &miss);
+  Label number_case;
+  Label* smi_target = HasHeapNumberMap(receiver_maps) ? &number_case : &miss;
+  __ JumpIfSmi(receiver(), smi_target);
+
   Register map_reg = scratch1();
   __ movl(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = receiver_maps->length();
   int number_of_handled_maps = 0;
+  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = receiver_maps->at(current);
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
       // Check map and tail call if there's a match
       __ Cmp(map_reg, receiver_maps->at(current));
+      if (map.is_identical_to(heap_number_map)) {
+        ASSERT(!number_case.is_unused());
+        __ bind(&number_case);
+      }
       __ j(equal, handlers->at(current), RelocInfo::CODE_TARGET);
     }
   }

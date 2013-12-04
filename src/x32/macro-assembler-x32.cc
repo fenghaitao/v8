@@ -3983,6 +3983,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+// Compute the hash code from the untagged key.  This must be kept in sync with
+// ComputeIntegerHash in utils.h and KeyedLoadGenericElementStub in
+// code-stub-hydrogen.cc
 void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   // First of all we assign the hash seed to scratch.
   LoadRoot(scratch, Heap::kHashSeedRootIndex);
@@ -4057,8 +4060,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   decl(r1);
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use r2 for index calculations and keep the hash intact in r0.
     movl(r2, r0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -4076,7 +4078,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                            r2,
                            times_pointer_size,
                            SeededNumberDictionary::kElementsStartOffset));
-    if (i != (kProbes - 1)) {
+    if (i != (kNumberDictionaryProbes - 1)) {
       j(equal, &done);
     } else {
       j(not_equal, miss);
@@ -4158,10 +4160,7 @@ void MacroAssembler::Allocate(int object_size,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
-  if (!FLAG_inline_new ||
-      // TODO(mstarzinger): Implement more efficiently by keeping then
-      // bump-pointer allocation area empty instead of recompiling code.
-      isolate()->heap_profiler()->is_tracking_allocations()) {
+  if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4248,10 +4247,7 @@ void MacroAssembler::Allocate(Register object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  if (!FLAG_inline_new ||
-      // TODO(mstarzinger): Implement more efficiently by keeping then
-      // bump-pointer allocation area empty instead of recompiling code.
-      isolate()->heap_profiler()->is_tracking_allocations()) {
+  if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4506,17 +4502,26 @@ void MacroAssembler::CopyBytes(Register destination,
     cmpl(length, Immediate(min_length));
     Assert(greater_equal, kInvalidMinLength);
   }
-  Label loop, done, short_string, short_loop;
+  Label short_loop, len8, len16, len24, done, short_string;
 
-  const int kLongStringLimit = 20;
+  const int kLongStringLimit = 4 * kPointerSize;
   if (min_length <= kLongStringLimit) {
-    cmpl(length, Immediate(kLongStringLimit));
-    j(less_equal, &short_string);
+    cmpl(length, Immediate(kPointerSize));
+    j(below, &short_string, Label::kNear);
   }
 
   ASSERT(source.is(rsi));
   ASSERT(destination.is(rdi));
   ASSERT(length.is(rcx));
+
+  if (min_length <= kLongStringLimit) {
+    cmpl(length, Immediate(2 * kPointerSize));
+    j(below_equal, &len8, Label::kNear);
+    cmpl(length, Immediate(3 * kPointerSize));
+    j(below_equal, &len16, Label::kNear);
+    cmpl(length, Immediate(4 * kPointerSize));
+    j(below_equal, &len24, Label::kNear);
+  }
 
   // Because source is 8-byte aligned in our uses of this function,
   // we keep source aligned for the rep movs operation by copying the odd bytes
@@ -4531,25 +4536,38 @@ void MacroAssembler::CopyBytes(Register destination,
   addl(destination, scratch);
 
   if (min_length <= kLongStringLimit) {
-    jmp(&done);
+    jmp(&done, Label::kNear);
+    bind(&len24);
+    movl(scratch, Operand(source, 2 * kPointerSize));
+    movl(Operand(destination, 2 * kPointerSize), scratch);
+    bind(&len16);
+    movl(scratch, Operand(source, kPointerSize));
+    movl(Operand(destination, kPointerSize), scratch);
+    bind(&len8);
+    movl(scratch, Operand(source, 0));
+    movl(Operand(destination, 0), scratch);
+    // Move remaining bytes of length.
+    movl(scratch, Operand(source, length, times_1, -kPointerSize));
+    movl(Operand(destination, length, times_1, -kPointerSize), scratch);
+    addl(destination, length);
+    jmp(&done, Label::kNear);
 
     bind(&short_string);
     if (min_length == 0) {
       testl(length, length);
-      j(zero, &done);
+      j(zero, &done, Label::kNear);
     }
-    leal(scratch, Operand(destination, length, times_1, 0));
 
     bind(&short_loop);
-    movb(length, Operand(source, 0));
-    movb(Operand(destination, 0), length);
+    movb(scratch, Operand(source, 0));
+    movb(Operand(destination, 0), scratch);
     incl(source);
     incl(destination);
-    cmpl(destination, scratch);
-    j(not_equal, &short_loop);
-
-    bind(&done);
+    decl(length);
+    j(not_zero, &short_loop);
   }
+
+  bind(&done);
 }
 
 
