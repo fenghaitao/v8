@@ -140,12 +140,12 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 
 const int
     Register::kRegisterCodeByAllocationIndex[kMaxNumAllocatableRegisters] = {
-  // rax, rbx, rdx, rcx, rdi, r8, r9, r11, r14, r15
-  0, 3, 2, 1, 7, 8, 9, 11, 14, 15
+  // rax, rbx, rdx, rcx, rsi, rdi, r8, r9, r11, r14, r15
+  0, 3, 2, 1, 6, 7, 8, 9, 11, 14, 15
 };
 
 const int Register::kAllocationIndexByRegisterCode[kNumRegisters] = {
-  0, 3, 2, 1, -1, -1, -1, 4, 5, 6, -1, 7, -1, -1, 8, 9
+  0, 3, 2, 1, -1, -1, 4, 5, 6, 7, -1, 8, -1, -1, 9, 10
 };
 
 
@@ -1366,6 +1366,15 @@ void Assembler::movb(const Operand& dst, Immediate imm) {
   emit(0xC6);
   emit_operand(0x0, dst);
   emit(static_cast<byte>(imm.value_));
+}
+
+
+void Assembler::movw(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x8B);
+  emit_operand(dst, src);
 }
 
 

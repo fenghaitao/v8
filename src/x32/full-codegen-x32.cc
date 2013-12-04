@@ -1595,6 +1595,9 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
+
+  int depth = 1;
+  expr->BuildConstantProperties(isolate(), &depth);
   Handle<FixedArray> constant_properties = expr->constant_properties();
   int flags = expr->fast_elements()
       ? ObjectLiteral::kFastElements
@@ -1604,7 +1607,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1 || Serializer::enabled() ||
+      depth > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ movl(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1723,6 +1726,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
+  int depth = 1;
+  expr->BuildConstantElements(isolate(), &depth);
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1749,8 +1754,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         DONT_TRACK_ALLOCATION_SITE,
         length);
     __ CallStub(&stub);
-  } else if (expr->depth() > 1 ||
-             Serializer::enabled() ||
+  } else if (depth > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ movl(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ Push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
@@ -3364,7 +3368,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
     __ movl(arg_reg_1, object);
-    __ movl(arg_reg_2, index, RelocInfo::NONE32);
+    __ movl(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movl(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ jmp(&done);
