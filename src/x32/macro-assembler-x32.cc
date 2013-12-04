@@ -1506,7 +1506,8 @@ void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
 void MacroAssembler::SmiAddConstant(Register dst,
                                     Register src,
                                     Smi* constant,
-                                    Label* on_not_smi_result,
+                                    SmiOperationExecutionMode mode,
+                                    Label* bailout_label,
                                     Label::Distance near_jump) {
   if (constant->value() == 0) {
     if (!dst.is(src)) {
@@ -1514,19 +1515,32 @@ void MacroAssembler::SmiAddConstant(Register dst,
     }
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
-
-    Label done;
     LoadSmiConstant(kScratchRegister, constant);
     addl(dst, kScratchRegister);
-    j(no_overflow, &done, Label::kNear);
-    // Restore src.
-    subl(dst, kScratchRegister);
-    jmp(on_not_smi_result, near_jump);
-    bind(&done);
+    if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
+      j(no_overflow, bailout_label, near_jump);
+      ASSERT(mode.Contains(PRESERVE_SOURCE_REGISTER));
+      subl(dst, kScratchRegister);
+    } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
+      if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
+        Label done;
+        j(no_overflow, &done, Label::kNear);
+        subl(dst, kScratchRegister);
+        jmp(bailout_label, near_jump);
+        bind(&done);
+      } else {
+        // Bailout if overflow without reserving src.
+        j(overflow, bailout_label, near_jump);
+      }
+    } else {
+      CHECK(mode.IsEmpty());
+    }
   } else {
+    ASSERT(mode.Contains(PRESERVE_SOURCE_REGISTER));
+    ASSERT(mode.Contains(BAILOUT_ON_OVERFLOW));
     LoadSmiConstant(dst, constant);
     addl(dst, src);
-    j(overflow, on_not_smi_result, near_jump);
+    j(overflow, bailout_label, near_jump);
   }
 }
 
@@ -1558,7 +1572,8 @@ void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
 void MacroAssembler::SmiSubConstant(Register dst,
                                     Register src,
                                     Smi* constant,
-                                    Label* on_not_smi_result,
+                                    SmiOperationExecutionMode mode,
+                                    Label* bailout_label,
                                     Label::Distance near_jump) {
   if (constant->value() == 0) {
     if (!dst.is(src)) {
@@ -1566,35 +1581,40 @@ void MacroAssembler::SmiSubConstant(Register dst,
     }
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
-    if (constant->value() == Smi::kMinValue) {
-      // Subtracting min-value from any non-negative value will overflow.
-      // We test the non-negativeness before doing the subtraction.
-      testl(src, src);
-      j(not_sign, on_not_smi_result, near_jump);
-      LoadSmiConstant(kScratchRegister, constant);
-      subl(dst, kScratchRegister);
+    LoadSmiConstant(kScratchRegister, constant);
+    subl(dst, kScratchRegister);
+    if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
+      j(no_overflow, bailout_label, near_jump);
+      ASSERT(mode.Contains(PRESERVE_SOURCE_REGISTER));
+      addl(dst, kScratchRegister);
+    } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
+      if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
+        Label done;
+        j(no_overflow, &done, Label::kNear);
+        addl(dst, kScratchRegister);
+        jmp(bailout_label, near_jump);
+        bind(&done);
+      } else {
+        // Bailout if overflow without reserving src.
+        j(overflow, bailout_label, near_jump);
+      }
     } else {
-      // Subtract by adding the negation.
-      LoadSmiConstant(kScratchRegister, Smi::FromInt(-constant->value()));
-      addl(kScratchRegister, dst);
-      j(overflow, on_not_smi_result, near_jump);
-      movl(dst, kScratchRegister);
+      CHECK(mode.IsEmpty());
     }
   } else {
+    ASSERT(mode.Contains(PRESERVE_SOURCE_REGISTER));
+    ASSERT(mode.Contains(BAILOUT_ON_OVERFLOW));
     if (constant->value() == Smi::kMinValue) {
-      // Subtracting min-value from any non-negative value will overflow.
-      // We test the non-negativeness before doing the subtraction.
-      testl(src, src);
-      j(not_sign, on_not_smi_result, near_jump);
-      LoadSmiConstant(dst, constant);
-      // Adding and subtracting the min-value gives the same result, it only
-      // differs on the overflow bit, which we don't check here.
-      addl(dst, src);
+      ASSERT(!dst.is(kScratchRegister));
+      movl(dst, src);
+      LoadSmiConstant(kScratchRegister, constant);
+      subl(dst, kScratchRegister);
+      j(overflow, bailout_label, near_jump);
     } else {
       // Subtract by adding the negation.
       LoadSmiConstant(dst, Smi::FromInt(-(constant->value())));
       addl(dst, src);
-      j(overflow, on_not_smi_result, near_jump);
+      j(overflow, bailout_label, near_jump);
     }
   }
 }
