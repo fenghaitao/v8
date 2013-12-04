@@ -158,7 +158,7 @@ bool LCodeGen::GeneratePrologue() {
 #endif
       __ Push(rax);
       __ Set(rax, slots);
-      __ movl(kScratchRegister, kSlotsZapValue, RelocInfo::NONE32);
+      __ Set(kScratchRegister, kSlotsZapValue);
       Label loop;
       __ bind(&loop);
       __ movl(MemOperand(rsp, rax, times_pointer_size, 0),
@@ -1133,7 +1133,7 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
       __ neg(reg1);
       DeoptimizeIf(zero, instr->environment());
     }
-    __ movl(reg2, multiplier, RelocInfo::NONE32);
+    __ Set(reg2, multiplier);
     // Result just fit in r64, because it's int32 * uint32.
     __ imul(reg2, reg1);
 
@@ -3507,7 +3507,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   static int64_t minus_one_half = V8_INT64_C(0xBFE0000000000000);  // -0.5
 
   Label done, round_to_zero, below_one_half, do_not_compensate, restore;
-  __ movq(kScratchRegister, one_half, RelocInfo::NONE64);
+  __ movq(kScratchRegister, one_half);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_one_half);
@@ -3522,7 +3522,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ jmp(&done);
 
   __ bind(&below_one_half);
-  __ movq(kScratchRegister, minus_one_half, RelocInfo::NONE64);
+  __ movq(kScratchRegister, minus_one_half);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(below_equal, &round_to_zero);
@@ -3578,7 +3578,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   Label done, sqrt;
   // Check base for -Infinity.  According to IEEE-754, double-precision
   // -Infinity has the highest 12 bits set and the lowest 52 bits cleared.
-  __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000), RelocInfo::NONE64);
+  __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000));
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -3685,8 +3685,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   XMMRegister result = ToDoubleRegister(instr->result());
   XMMRegister scratch4 = double_scratch0();
-  __ movq(scratch3, V8_INT64_C(0x4130000000000000),
-          RelocInfo::NONE64);  // 1.0 x 2^20 as double
+  __ movq(scratch3, V8_INT64_C(0x4130000000000000));  // 1.0 x 2^20 as double
   __ movq(scratch4, scratch3);
   __ movd(result, random);
   __ xorps(result, scratch4);

@@ -959,7 +959,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       Label continue_sqrt, continue_rsqrt, not_plus_half;
       // Test for 0.5.
       // Load double_scratch with 0.5.
-      __ movq(scratch, V8_UINT64_C(0x3FE0000000000000), RelocInfo::NONE64);
+      __ movq(scratch, V8_UINT64_C(0x3FE0000000000000));
       __ movq(double_scratch, scratch);
       // Already ruled out NaNs for exponent.
       __ ucomisd(double_scratch, double_exponent);
@@ -969,7 +969,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
-      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE64);
+      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
       __ movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -1001,7 +1001,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // case of Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
-      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE64);
+      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
       __ movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -2834,7 +2834,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Return result in single register (rax).
     __ movl(rcx, r14);  // argc.
     __ movl(rdx, r15);  // argv.
-    __ movl(r8, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(r8, ExternalReference::isolate_address(masm->isolate()));
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
@@ -2842,7 +2842,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Pass a pointer to the Arguments object as the second argument.
     __ movl(rdx, r14);  // argc.
     __ movl(r8, r15);   // argv.
-    __ movl(r9, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(r9, ExternalReference::isolate_address(masm->isolate()));
   }
 
 #else  // _WIN64
@@ -3030,9 +3030,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // Scratch register is neither callee-save, nor an argument register on any
     // platform. It's free to use at this point.
     // Cannot use smi-register for loading yet.
-    __ movl(kScratchRegister,
-            reinterpret_cast<uint32_t>(Smi::FromInt(marker)),
-            RelocInfo::NONE32);
+    __ movl(kScratchRegister, Smi::FromInt(marker), RelocInfo::NONE64);
     __ Push(kScratchRegister);  // context slot
     __ Push(kScratchRegister);  // function slot
     // Save callee-saved registers (X32/Win64 calling conventions).
