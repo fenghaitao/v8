@@ -1962,7 +1962,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->right()).is(rax));
   ASSERT(ToRegister(instr->result()).is(rax));
 
-  BinaryOpStub stub(instr->op(), NO_OVERWRITE);
+  BinaryOpICStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   __ nop();  // Signals no inlined code.
 }
@@ -3988,7 +3988,13 @@ void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
 void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
   Register result = ToRegister(instr->result());
   Register base = ToRegister(instr->base_object());
-  __ leal(result, Operand(base, instr->offset()));
+  if (instr->offset()->IsConstantOperand()) {
+    LConstantOperand* offset = LConstantOperand::cast(instr->offset());
+    __ leal(result, Operand(base, ToInteger32(offset)));
+  } else {
+    Register offset = ToRegister(instr->offset());
+    __ leal(result, Operand(base, offset, times_1, 0));
+  }
 }
 
 
@@ -4385,11 +4391,11 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         ToRegister(instr->temp()), kDontSaveFPRegs);
   } else {
+    ASSERT(ToRegister(instr->context()).is(rsi));
     PushSafepointRegistersScope scope(this);
     if (!object_reg.is(rax)) {
       __ movl(rax, object_reg);
     }
-    LoadContextFromDeferred(instr->context());
     __ Move(rbx, to_map);
     TransitionElementsKindStub stub(from_kind, to_kind);
     __ CallStub(&stub);
