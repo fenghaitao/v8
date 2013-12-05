@@ -1800,6 +1800,9 @@ void LCodeGen::DoAddI(LAddI* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
 
+  Representation target_rep = instr->hydrogen()->representation();
+  bool is_q = target_rep.IsSmi() || target_rep.IsExternal();
+
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
       int32_t offset = ToRepresentation(LConstantOperand::cast(right),
@@ -1808,7 +1811,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
               MemOperand(ToRegister(left), offset));
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
-      if (instr->hydrogen()->representation().IsSmi()) {
+      if (is_q) {
         __ leal(ToRegister(instr->result()), address);
       } else {
         __ leal(ToRegister(instr->result()), address);
@@ -1820,13 +1823,13 @@ void LCodeGen::DoAddI(LAddI* instr) {
               Immediate(ToRepresentation(LConstantOperand::cast(right),
                                          instr->hydrogen()->representation())));
     } else if (right->IsRegister()) {
-      if (instr->hydrogen_value()->representation().IsSmi()) {
+      if (is_q) {
         __ addl(ToRegister(left), ToRegister(right));
       } else {
         __ addl(ToRegister(left), ToRegister(right));
       }
     } else {
-      if (instr->hydrogen_value()->representation().IsSmi()) {
+      if (is_q) {
         __ addl(ToRegister(left), ToOperand(right));
       } else {
         __ addl(ToRegister(left), ToOperand(right));
