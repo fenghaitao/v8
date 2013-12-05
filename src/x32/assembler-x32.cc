@@ -1398,102 +1398,56 @@ void Assembler::movw(const Operand& dst, Immediate imm) {
 }
 
 
-void Assembler::movl(Register dst, const Operand& src) {
+void Assembler::emit_mov(Register dst, const Operand& src, int size) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
+  emit_rex(dst, src, size);
   emit(0x8B);
   emit_operand(dst, src);
 }
 
 
-void Assembler::movl(Register dst, Register src) {
+void Assembler::emit_mov(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);
   if (src.low_bits() == 4) {
-    emit_optional_rex_32(src, dst);
+    emit_rex(src, dst, size);
     emit(0x89);
     emit_modrm(src, dst);
   } else {
-    emit_optional_rex_32(dst, src);
+    emit_rex(dst, src, size);
     emit(0x8B);
     emit_modrm(dst, src);
   }
 }
 
 
-void Assembler::movl(const Operand& dst, Register src) {
+void Assembler::emit_mov(const Operand& dst, Register src, int size) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(src, dst);
+  emit_rex(src, dst, size);
   emit(0x89);
   emit_operand(src, dst);
 }
 
 
-void Assembler::movl(const Operand& dst, Immediate value) {
+void Assembler::emit_mov(Register dst, Immediate value, int size) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
+  emit_rex(dst, size);
+  if (size == kInt64Size) {
+    emit(0xC7);
+    emit_modrm(0x0, dst);
+  } else {
+    ASSERT(size == kInt32Size);
+    emit(0xB8 + dst.low_bits());
+  }
+  emit(value);
+}
+
+
+void Assembler::emit_mov(const Operand& dst, Immediate value, int size) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, size);
   emit(0xC7);
   emit_operand(0x0, dst);
   emit(value);
-}
-
-
-void Assembler::movl(Register dst, Immediate value) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  emit(0xB8 + dst.low_bits());
-  emit(value);
-}
-
-
-void Assembler::movl(Register dst, int32_t value, RelocInfo::Mode rmode) {
-  // Non-relocatable values might not need a 64-bit representation.
-  if (RelocInfo::IsNone(rmode)) {
-    movl(dst, Immediate(value));
-    return;
-  }
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  emit(0xB8 | dst.low_bits());
-  emitp(reinterpret_cast<void*>(value), rmode);
-}
-
-
-void Assembler::movq(Register dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  emit_rex_64(dst, src);
-  emit(0x8B);
-  emit_operand(dst, src);
-}
-
-
-void Assembler::movq(Register dst, Register src) {
-  EnsureSpace ensure_space(this);
-  if (src.low_bits() == 4) {
-    emit_rex_64(src, dst);
-    emit(0x89);
-    emit_modrm(src, dst);
-  } else {
-    emit_rex_64(dst, src);
-    emit(0x8B);
-    emit_modrm(dst, src);
-  }
-}
-
-
-void Assembler::movq(Register dst, Immediate value) {
-  EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
-  emit(0xC7);
-  emit_modrm(0x0, dst);
-  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
-}
-
-
-void Assembler::movq(const Operand& dst, Register src) {
-  EnsureSpace ensure_space(this);
-  emit_rex_64(src, dst);
-  emit(0x89);
-  emit_operand(src, dst);
 }
 
 
@@ -1516,12 +1470,8 @@ void Assembler::movq(Register dst, int64_t value) {
 }
 
 
-void Assembler::movq(const Operand& dst, Immediate value) {
-  EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
-  emit(0xC7);
-  emit_operand(0, dst);
-  emit(value);
+void Assembler::movq(Register dst, uint64_t value) {
+  movq(dst, static_cast<int64_t>(value));
 }
 
 
@@ -1550,21 +1500,12 @@ void Assembler::movl(const Operand& dst, Label* src) {
 
 void Assembler::movl(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   AllowDeferredHandleDereference using_raw_address;
-  // If there is no relocation info, emit the value of the handle efficiently
-  // (possibly using less that 8 bytes for the value).
-  if (RelocInfo::IsNone(mode)) {
-    // There is no possible reason to store a heap pointer without relocation
-    // info, so it must be a smi.
-    ASSERT(value->IsSmi());
-    movl(dst, reinterpret_cast<int32_t>(*value), RelocInfo::NONE32);
-  } else {
-    EnsureSpace ensure_space(this);
-    ASSERT(value->IsHeapObject());
-    ASSERT(!isolate()->heap()->InNewSpace(*value));
-    emit_optional_rex_32(dst);
-    emit(0xB8 | dst.low_bits());
-    emitp(value.location(), mode);
-  }
+  EnsureSpace ensure_space(this);
+  ASSERT(value->IsHeapObject());
+  ASSERT(!isolate()->heap()->InNewSpace(*value));
+  emit_optional_rex_32(dst);
+  emit(0xB8 | dst.low_bits());
+  emitp(value.location(), mode);
 }
 
 

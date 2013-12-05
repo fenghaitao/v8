@@ -2608,7 +2608,7 @@ void MacroAssembler::Pop(const Operand& dst) {
     // Restore the value of kSmiConstantRegister.
     // Should use InitializeSmiConstantRegister();
     movl(kSmiConstantRegister,
-         reinterpret_cast<uint32_t>(Smi::FromInt(kSmiConstantRegisterValue)),
+         reinterpret_cast<Address>(Smi::FromInt(kSmiConstantRegisterValue)),
          RelocInfo::NONE32);
   }
   leal(rsp, Operand(rsp, 4));
