@@ -2863,6 +2863,7 @@ class HUnarySIMDOperation V8_FINAL : public HTemplateInstruction<2> {
         case kInt32x4FlagZ:
         case kInt32x4FlagW:
         case kSIMDNegU32:
+        case kSIMDNot:
           return Representation::Int32x4();
         case kFloat32x4Splat:
           return Representation::Double();
@@ -2915,6 +2916,7 @@ class HUnarySIMDOperation V8_FINAL : public HTemplateInstruction<2> {
       case kSIMDToInt32x4:
       case kInt32x4Splat:
       case kSIMDNegU32:
+      case kSIMDNot:
         set_representation(Representation::Int32x4());
         type_ = HType::Int32x4();
         break;

@@ -2875,6 +2875,7 @@ const char* LUnarySIMDOperation::Mnemonic() const {
     case kSIMDAbs: return "simd-abs";
     case kSIMDNeg: return "simd-neg";
     case kSIMDNegU32: return "simd-negu32";
+    case kSIMDNot: return "simd-not";
     case kSIMDReciprocal: return "simd-reciprocal";
     case kSIMDReciprocalSqrt: return "simd-reciprocalSqrt";
     case kSIMDSqrt: return "simd-sqrt";
@@ -2915,6 +2916,7 @@ LInstruction* LChunkBuilder::DoUnarySIMDOperation(HUnarySIMDOperation* instr) {
     case kSIMDAbs:
     case kSIMDNeg:
     case kSIMDNegU32:
+    case kSIMDNot:
     case kSIMDReciprocal:
     case kSIMDReciprocalSqrt:
     case kSIMDSqrt:

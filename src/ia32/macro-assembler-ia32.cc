@@ -3746,7 +3746,7 @@ void MacroAssembler::notps(XMMRegister dst) {
   } float_not_constant =
       { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
   xorps(dst,
-        Operand(Operand(reinterpret_cast<int32_t>(&float_not_constant))));
+        Operand(reinterpret_cast<int32_t>(&float_not_constant)));
 }
 
 

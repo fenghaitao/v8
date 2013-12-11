@@ -7545,6 +7545,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
     case kSIMDToInt32x4:
     case kFloat32x4Splat:
     case kInt32x4Splat:
+    case kSIMDNot:
       if (expr->arguments()->length() == 1) {
         if (!CpuFeatures::IsSupported(SSE2)) return false;
         HValue* argument = Pop();
@@ -7779,6 +7780,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     case kSIMDToInt32x4:
     case kFloat32x4Splat:
     case kInt32x4Splat:
+    case kSIMDNot:
       if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
         if (!CpuFeatures::IsSupported(SSE2)) return false;
         AddCheckConstantFunction(expr->holder(), receiver, receiver_map);

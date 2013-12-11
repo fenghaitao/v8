@@ -1208,6 +1208,7 @@ const char* HUnarySIMDOperation::OpName() const {
     case kSIMDAbs: return "SIMD.abs";
     case kSIMDNeg: return "SIMD.neg";
     case kSIMDNegU32: return "SIMD.negu32";
+    case kSIMDNot: return "SIMD.not";
     case kSIMDReciprocal: return "SIMD.reciprocal";
     case kSIMDReciprocalSqrt: return "SIMD.reciprocalSqrt";
     case kSIMDSqrt: return "SIMD.sqrt";
