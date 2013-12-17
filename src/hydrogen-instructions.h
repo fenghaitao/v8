@@ -2992,6 +2992,12 @@ class HBinarySIMDOperation V8_FINAL : public HTemplateInstruction<3> {
         case kSIMDAddU32:
         case kSIMDSubU32:
         case kSIMDMulU32:
+        case kSIMDLessThanU32:
+        case kSIMDLessThanOrEqualU32:
+        case kSIMDEqualU32:
+        case kSIMDNotEqualU32:
+        case kSIMDGreaterThanOrEqualU32:
+        case kSIMDGreaterThanU32:
           return Representation::Int32x4();
         case kSIMDShuffle:
           return index == 1 ? Representation::Float32x4()
@@ -3082,6 +3088,12 @@ class HBinarySIMDOperation V8_FINAL : public HTemplateInstruction<3> {
       case kSIMDWithFlagZ:
       case kSIMDWithFlagW:
       case kSIMDShuffleU32:
+      case kSIMDLessThanU32:
+      case kSIMDLessThanOrEqualU32:
+      case kSIMDEqualU32:
+      case kSIMDNotEqualU32:
+      case kSIMDGreaterThanOrEqualU32:
+      case kSIMDGreaterThanU32:
         set_representation(Representation::Int32x4());
         type_ = HType::Int32x4();
         break;

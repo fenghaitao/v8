@@ -1160,6 +1160,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "ucomisd";
         } else if (opcode == 0x2F) {
           mnemonic = "comisd";
+        } else if (opcode == 0x76) {
+          mnemonic = "pcmpeqd";
         } else {
           UnimplementedInstruction();
         }

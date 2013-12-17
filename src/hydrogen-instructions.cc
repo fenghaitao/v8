@@ -1287,6 +1287,12 @@ const char* HBinarySIMDOperation::OpName() const {
     case kSIMDWithFlagY: return "SIMD.withFlagY";
     case kSIMDWithFlagZ: return "SIMD.withFlagZ";
     case kSIMDWithFlagW: return "SIMD.withFlagW";
+    case kSIMDLessThanU32: return "SIMD.int32x4.lessThan";
+    case kSIMDLessThanOrEqualU32: return "SIMD.int32x4.lessThanOrEqual";
+    case kSIMDEqualU32: return "SIMD.int32x4.equal";
+    case kSIMDNotEqualU32: return "SIMD.int32x4.notEqual";
+    case kSIMDGreaterThanOrEqualU32: return "SIMD.int32x4.greaterThanOrEqual";
+    case kSIMDGreaterThanU32: return "SIMD.int32x4.greaterThan";
     default:
       UNREACHABLE();
       return NULL;

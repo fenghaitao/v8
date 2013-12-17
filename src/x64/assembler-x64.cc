@@ -3128,6 +3128,16 @@ void Assembler::cmpnleps(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x76);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::roundsd(XMMRegister dst, XMMRegister src,
                         Assembler::RoundingMode mode) {
   ASSERT(IsEnabled(SSE4_1));

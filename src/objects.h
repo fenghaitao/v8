@@ -6690,6 +6690,12 @@ class Script: public Struct {
   V(SIMD.int32x4, withFlagW, SIMDWithFlagW)                         \
   V(SIMD.int32x4, bitsToFloat32x4, SIMDBitsToFloat32x4)             \
   V(SIMD.int32x4, toFloat32x4, SIMDToFloat32x4)                     \
+  V(SIMD.int32x4, lessThan, SIMDLessThanU32)                        \
+  V(SIMD.int32x4, lessThanOrEqual, SIMDLessThanOrEqualU32)          \
+  V(SIMD.int32x4, equal, SIMDEqualU32)                              \
+  V(SIMD.int32x4, notEqual, SIMDNotEqualU32)                        \
+  V(SIMD.int32x4, greaterThanOrEqual, SIMDGreaterThanOrEqualU32)    \
+  V(SIMD.int32x4, greaterThan, SIMDGreaterThanU32)                  \
   V(float32x4, zero, Float32x4Zero)                                 \
   V(float32x4, splat, Float32x4Splat)                               \
   V(int32x4, zero, Int32x4Zero)                                     \

@@ -1410,6 +1410,12 @@ const char* LBinarySIMDOperation::Mnemonic() const {
     case kSIMDWithFlagY: return "simd-withFlagY";
     case kSIMDWithFlagZ: return "simd-withFlagZ";
     case kSIMDWithFlagW: return "simd-withFlagW";
+    case kSIMDLessThanU32: return "simd-int32x4-lessThan";
+    case kSIMDLessThanOrEqualU32: return "simd-int32x4-lessThanOrEqual";
+    case kSIMDEqualU32: return "simd-int32x4-equal";
+    case kSIMDNotEqualU32: return "simd-int32x4-notEqual";
+    case kSIMDGreaterThanOrEqualU32: return "simd-int32x4-greaterThanOrEqual";
+    case kSIMDGreaterThanU32: return "simd-int32x4-greaterThan";
     default:
       UNREACHABLE();
       return NULL;
@@ -1469,7 +1475,13 @@ LInstruction* LChunkBuilder::DoBinarySIMDOperation(
     case kSIMDEqual:
     case kSIMDNotEqual:
     case kSIMDGreaterThanOrEqual:
-    case kSIMDGreaterThan: {
+    case kSIMDGreaterThan:
+    case kSIMDLessThanU32:
+    case kSIMDLessThanOrEqualU32:
+    case kSIMDEqualU32:
+    case kSIMDNotEqualU32:
+    case kSIMDGreaterThanOrEqualU32:
+    case kSIMDGreaterThanU32: {
       LOperand* left = UseRegisterAtStart(instr->left());
       LOperand* right = UseRegisterAtStart(instr->right());
       LBinarySIMDOperation* result =

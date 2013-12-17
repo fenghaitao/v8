@@ -7097,7 +7097,13 @@ void LCodeGen::DoBinarySIMDOperation(LBinarySIMDOperation* instr) {
     case kSIMDXor:
     case kSIMDAddU32:
     case kSIMDSubU32:
-    case kSIMDMulU32: {
+    case kSIMDMulU32:
+    case kSIMDLessThanU32:
+    case kSIMDLessThanOrEqualU32:
+    case kSIMDEqualU32:
+    case kSIMDNotEqualU32:
+    case kSIMDGreaterThanOrEqualU32:
+    case kSIMDGreaterThanU32: {
       ASSERT(instr->left()->Equals(instr->result()));
       ASSERT(instr->hydrogen()->left()->representation().IsInt32x4());
       ASSERT(instr->hydrogen()->right()->representation().IsInt32x4());
@@ -7135,6 +7141,16 @@ void LCodeGen::DoBinarySIMDOperation(LBinarySIMDOperation* instr) {
             __ pshufd(xmm_scratch, xmm_scratch, 8);
             __ punpackldq(left_reg, xmm_scratch);
           }
+          break;
+        case kSIMDEqualU32:
+          __ pcmpeqd(left_reg, right_reg);
+          break;
+        case kSIMDLessThanU32:
+        case kSIMDLessThanOrEqualU32:
+        case kSIMDNotEqualU32:
+        case kSIMDGreaterThanOrEqualU32:
+        case kSIMDGreaterThanU32:
+          UNIMPLEMENTED();
           break;
         default:
           UNREACHABLE();

@@ -655,6 +655,55 @@ function SIMDWithFlagW(t, w) {
   return %SIMDWithFlagW(t, w);
 }
 
+function SIMDLessThanu32(t, other) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  other = TO_INT32x4(other);
+  CHECK_INT32x4(other);
+  return %SIMDLessThanu32(t, other);
+}
+
+function SIMDLessThanOrEqualu32(t, other) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  other = TO_INT32x4(other);
+  CHECK_INT32x4(other);
+  return %SIMDLessThanOrEqualu32(t, other);
+}
+
+
+function SIMDEqualu32(t, other) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  other = TO_INT32x4(other);
+  CHECK_INT32x4(other);
+  return %SIMDEqualu32(t, other);
+}
+
+function SIMDNotEqualu32(t, other) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  other = TO_INT32x4(other);
+  CHECK_INT32x4(other);
+  return %SIMDNotEqualu32(t, other);
+}
+
+function SIMDGreaterThanOrEqualu32(t, other) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  other = TO_INT32x4(other);
+  CHECK_INT32x4(other);
+  return %SIMDGreaterThanOrEqualu32(t, other);
+}
+
+function SIMDGreaterThanu32(t, other) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  other = TO_INT32x4(other);
+  CHECK_INT32x4(other);
+  return %SIMDGreaterThanu32(t, other);
+}
+
 function SetUpSIMD() {
   %CheckIsBootstrapping();
 
@@ -979,7 +1028,13 @@ function SetUpSIMD() {
     "withFlagZ", SIMDWithFlagZ,
     "withFlagW", SIMDWithFlagW,
     "bitsToFloat32x4", SIMDBitsToFloat32x4,
-    "toFloat32x4", SIMDToFloat32x4
+    "toFloat32x4", SIMDToFloat32x4,
+    "lessThan", SIMDLessThanu32,
+    "lessThanOrEqual", SIMDLessThanOrEqualu32,
+    "equal", SIMDEqualu32,
+    "notEqual", SIMDNotEqualu32,
+    "greaterThanOrEqual", SIMDGreaterThanOrEqualu32,
+    "greaterThan", SIMDGreaterThanu32
   ));
 
 }

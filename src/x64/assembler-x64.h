@@ -1489,6 +1489,8 @@ class Assembler : public AssemblerBase {
   void cmpnltps(XMMRegister dst, XMMRegister src);
   void cmpnleps(XMMRegister dst, XMMRegister src);
 
+  void pcmpeqd(XMMRegister dst, XMMRegister src);
+
   // Debugging
   void Print();
 
