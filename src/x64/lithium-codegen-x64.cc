@@ -4050,6 +4050,51 @@ void LCodeGen::DoBinarySIMDOperation(LBinarySIMDOperation* instr) {
         return;
       }
     }
+    case kSIMDShiftLeftU32:
+    case kSIMDShiftRightU32:
+    case kSIMDShiftRightArithmeticU32: {
+      ASSERT(instr->left()->Equals(instr->result()));
+      ASSERT(instr->hydrogen()->left()->representation().IsInt32x4());
+      if (instr->hydrogen()->right()->IsConstant() &&
+          HConstant::cast(instr->hydrogen()->right())->HasInteger32Value()) {
+        int32_t value = ToInteger32(LConstantOperand::cast(instr->right()));
+        uint8_t shift = static_cast<uint8_t>(value & 0xFF);
+        XMMRegister left_reg = ToInt32x4Register(instr->left());
+        switch (instr->op()) {
+          case kSIMDShiftLeftU32:
+            __ pslld(left_reg, shift);
+            break;
+          case kSIMDShiftRightU32:
+            __ psrld(left_reg, shift);
+            break;
+          case kSIMDShiftRightArithmeticU32:
+            __ psrad(left_reg, shift);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        return;
+      } else {
+        XMMRegister left_reg = ToInt32x4Register(instr->left());
+        Register shift = ToRegister(instr->right());
+        XMMRegister xmm_scratch = double_scratch0();
+        __ movd(xmm_scratch, shift);
+        switch (instr->op()) {
+          case kSIMDShiftLeftU32:
+            __ pslld(left_reg, xmm_scratch);
+            break;
+          case kSIMDShiftRightU32:
+            __ psrld(left_reg, xmm_scratch);
+            break;
+          case kSIMDShiftRightArithmeticU32:
+            __ psrad(left_reg, xmm_scratch);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        return;
+      }
+    }
     case kSIMDLessThan:
     case kSIMDLessThanOrEqual:
     case kSIMDEqual:

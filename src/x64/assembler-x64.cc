@@ -3128,6 +3128,71 @@ void Assembler::cmpnleps(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::pslld(XMMRegister reg, int8_t shift) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg);
+  emit(0x0F);
+  emit(0x72);
+  emit_sse_operand(rsi, reg);  // rsi == 6
+  emit(shift);
+}
+
+
+void Assembler::pslld(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xF2);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::psrld(XMMRegister reg, int8_t shift) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg);
+  emit(0x0F);
+  emit(0x72);
+  emit_sse_operand(rdx, reg);  // rdx == 2
+  emit(shift);
+}
+
+
+void Assembler::psrld(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xD2);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::psrad(XMMRegister reg, int8_t shift) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg);
+  emit(0x0F);
+  emit(0x72);
+  emit_sse_operand(rsp, reg);  // rsp == 4
+  emit(shift);
+}
+
+
+void Assembler::psrad(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xE2);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);

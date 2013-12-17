@@ -1489,6 +1489,13 @@ class Assembler : public AssemblerBase {
   void cmpnltps(XMMRegister dst, XMMRegister src);
   void cmpnleps(XMMRegister dst, XMMRegister src);
 
+  void pslld(XMMRegister reg, int8_t shift);
+  void pslld(XMMRegister dst, XMMRegister src);
+  void psrld(XMMRegister reg, int8_t shift);
+  void psrld(XMMRegister dst, XMMRegister src);
+  void psrad(XMMRegister reg, int8_t shift);
+  void psrad(XMMRegister dst, XMMRegister src);
+
   void pcmpeqd(XMMRegister dst, XMMRegister src);
 
   // Debugging

@@ -6696,6 +6696,9 @@ class Script: public Struct {
   V(SIMD.int32x4, notEqual, SIMDNotEqualU32)                        \
   V(SIMD.int32x4, greaterThanOrEqual, SIMDGreaterThanOrEqualU32)    \
   V(SIMD.int32x4, greaterThan, SIMDGreaterThanU32)                  \
+  V(SIMD.int32x4, shiftLeft, SIMDShiftLeftU32)                       \
+  V(SIMD.int32x4, shiftRight, SIMDShiftRightU32)                     \
+  V(SIMD.int32x4, shiftRightArithmetic, SIMDShiftRightArithmeticU32) \
   V(float32x4, zero, Float32x4Zero)                                 \
   V(float32x4, splat, Float32x4Splat)                               \
   V(int32x4, zero, Int32x4Zero)                                     \

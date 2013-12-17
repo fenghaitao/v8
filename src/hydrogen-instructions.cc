@@ -1293,6 +1293,10 @@ const char* HBinarySIMDOperation::OpName() const {
     case kSIMDNotEqualU32: return "SIMD.int32x4.notEqual";
     case kSIMDGreaterThanOrEqualU32: return "SIMD.int32x4.greaterThanOrEqual";
     case kSIMDGreaterThanU32: return "SIMD.int32x4.greaterThan";
+    case kSIMDShiftLeftU32: return "SIMD.int32x4.shiftLeft";
+    case kSIMDShiftRightU32: return "SIMD.int32x4.shiftRight";
+    case kSIMDShiftRightArithmeticU32:
+      return "SIMD.int32x4.shiftRightArithmetic";
     default:
       UNREACHABLE();
       return NULL;

@@ -2496,6 +2496,69 @@ void Assembler::psllq(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::pslld(XMMRegister reg, int8_t shift) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x72);
+  emit_sse_operand(esi, reg);  // esi == 6
+  EMIT(shift);
+}
+
+
+void Assembler::pslld(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xF2);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::psrld(XMMRegister reg, int8_t shift) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x72);
+  emit_sse_operand(edx, reg);  // edx == 2
+  EMIT(shift);
+}
+
+
+void Assembler::psrld(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xD2);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::psrad(XMMRegister reg, int8_t shift) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x72);
+  emit_sse_operand(esp, reg);  // esp == 4
+  EMIT(shift);
+}
+
+
+void Assembler::psrad(XMMRegister dst, XMMRegister src) {
+  ASSERT(IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xE2);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::psrlq(XMMRegister reg, int8_t shift) {
   ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);

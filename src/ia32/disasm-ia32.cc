@@ -1482,11 +1482,47 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(rm),
                            static_cast<int>(imm8));
             data += 2;
+          } else if (*data == 0xF2) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("pslld %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
+          } else if (*data == 0x72) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            int8_t imm8 = static_cast<int8_t>(data[1]);
+            ASSERT(regop == esi || regop == edx);
+            AppendToBuffer("%s %s,%d",
+                           (regop == esi) ? "pslld"
+                           : ((regop == edx) ? "psrld" : "psrad"),
+                           NameOfXMMRegister(rm),
+                           static_cast<int>(imm8));
+            data += 2;
+          } else if (*data == 0xD2) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("psrld %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else if (*data == 0xD3) {
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("psrlq %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
+          } else if (*data == 0xE2) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("psrad %s,%s",
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;

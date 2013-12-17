@@ -704,6 +704,39 @@ function SIMDGreaterThanu32(t, other) {
   return %SIMDGreaterThanu32(t, other);
 }
 
+function SIMDShiftLeftu32(t, s) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  s = TO_NUMBER_INLINE(s);
+  var x = t.x << s;
+  var y = t.y << s;
+  var z = t.z << s;
+  var w = t.w << s;
+  return %CreateInt32x4(x, y, z, w);
+}
+
+function SIMDShiftRightu32(t, s) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  s = TO_NUMBER_INLINE(s);
+  var x = t.x >>> s;
+  var y = t.y >>> s;
+  var z = t.z >>> s;
+  var w = t.w >>> s;
+  return %CreateInt32x4(x, y, z, w);
+}
+
+function SIMDShiftRightArithmeticu32(t, s) {
+  t = TO_INT32x4(t);
+  CHECK_INT32x4(t);
+  s = TO_NUMBER_INLINE(s);
+  var x = t.x >> s;
+  var y = t.y >> s;
+  var z = t.z >> s;
+  var w = t.w >> s;
+  return %CreateInt32x4(x, y, z, w);
+}
+
 function SetUpSIMD() {
   %CheckIsBootstrapping();
 
@@ -1034,7 +1067,11 @@ function SetUpSIMD() {
     "equal", SIMDEqualu32,
     "notEqual", SIMDNotEqualu32,
     "greaterThanOrEqual", SIMDGreaterThanOrEqualu32,
-    "greaterThan", SIMDGreaterThanu32
+    "greaterThan", SIMDGreaterThanu32,
+    "shiftLeft", SIMDShiftLeftu32,
+    "shiftRight", SIMDShiftRightu32,
+    "shiftRightArithmetic", SIMDShiftRightArithmeticu32
+
   ));
 
 }

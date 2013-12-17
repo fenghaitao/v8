@@ -619,6 +619,35 @@ testSIMDComparisons();
 %OptimizeFunctionOnNextCall(testSIMDComparisons);
 testSIMDComparisons();
 
+function testSIMDShift() {
+  var m = int32x4(1, 2, 100, 0);
+
+  var a = SIMD.int32x4.shiftLeft(m, 2);
+  assertEquals(4, a.x);
+  assertEquals(8, a.y);
+  assertEquals(400, a.z);
+  assertEquals(0, a.w);
+
+  var b = SIMD.int32x4.shiftRight(a, 2);
+  assertEquals(1, b.x);
+  assertEquals(2, b.y);
+  assertEquals(100, b.z);
+  assertEquals(0, b.w);
+
+  var n = int32x4(-8, 2, 1, 100);
+
+  var c = SIMD.int32x4.shiftRightArithmetic(n, 2);
+  assertEquals(-2, c.x);
+  assertEquals(0, c.y);
+  assertEquals(0, c.z);
+  assertEquals(25, c.w);
+}
+
+testSIMDShift();
+testSIMDShift();
+%OptimizeFunctionOnNextCall(testSIMDShift);
+testSIMDShift();
+
 function testInt32x4ArrayBasic() {
   var a = new Int32x4Array(1);
   assertEquals(1, a.length);

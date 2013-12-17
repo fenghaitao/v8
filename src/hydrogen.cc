@@ -7595,6 +7595,9 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
     case kSIMDNotEqualU32:
     case kSIMDGreaterThanOrEqualU32:
     case kSIMDGreaterThanU32:
+    case kSIMDShiftLeftU32:
+    case kSIMDShiftRightU32:
+    case kSIMDShiftRightArithmeticU32:
       if (expr->arguments()->length() == 2) {
         if (!CpuFeatures::IsSupported(SSE2)) return false;
         HValue* right = Pop();
@@ -7836,6 +7839,9 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     case kSIMDNotEqualU32:
     case kSIMDGreaterThanOrEqualU32:
     case kSIMDGreaterThanU32:
+    case kSIMDShiftLeftU32:
+    case kSIMDShiftRightU32:
+    case kSIMDShiftRightArithmeticU32:
       if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
         if (!CpuFeatures::IsSupported(SSE2)) return false;
         AddCheckConstantFunction(expr->holder(), receiver, receiver_map);

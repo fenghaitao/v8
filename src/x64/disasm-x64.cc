@@ -338,6 +338,17 @@ class DisassemblerX64 {
     OPERAND_QUADWORD_SIZE = 3
   };
 
+  enum {
+    rax = 0,
+    rcx = 1,
+    rdx = 2,
+    rbx = 3,
+    rsp = 4,
+    rbp = 5,
+    rsi = 6,
+    rdi = 7
+  };
+
   const NameConverter& converter_;
   v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_;
@@ -1140,6 +1151,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x62) {
         AppendToBuffer("punpackldq %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x72) {
+        AppendToBuffer(regop == rsi ? "pslld "
+                                    : regop == rdx ? "psrld" : "psrad");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", (*current) & 0xff);
+        current += 1;
       } else if (opcode == 0x73) {
         AppendToBuffer("psrldq ");
         current += PrintRightXMMOperand(current);
@@ -1162,6 +1179,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "comisd";
         } else if (opcode == 0x76) {
           mnemonic = "pcmpeqd";
+        } else if (opcode == 0xD2) {
+          mnemonic = "psrld";
+        } else if (opcode == 0xE2) {
+          mnemonic = "psrad";
+        } else if (opcode == 0xF2) {
+          mnemonic = "pslld";
         } else {
           UnimplementedInstruction();
         }
