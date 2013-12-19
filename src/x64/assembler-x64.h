@@ -1497,6 +1497,7 @@ class Assembler : public AssemblerBase {
   void psrad(XMMRegister dst, XMMRegister src);
 
   void pcmpeqd(XMMRegister dst, XMMRegister src);
+  void pcmpgtd(XMMRegister dst, XMMRegister src);
 
   // Debugging
   void Print();

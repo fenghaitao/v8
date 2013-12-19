@@ -1125,6 +1125,7 @@ class Assembler : public AssemblerBase {
 
   void cmpltsd(XMMRegister dst, XMMRegister src);
   void pcmpeqd(XMMRegister dst, XMMRegister src);
+  void pcmpgtd(XMMRegister dst, XMMRegister src);
 
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);

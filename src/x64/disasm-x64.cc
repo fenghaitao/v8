@@ -1177,6 +1177,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "ucomisd";
         } else if (opcode == 0x2F) {
           mnemonic = "comisd";
+        } else if (opcode == 0x66) {
+          mnemonic = "pcmpgtd";
         } else if (opcode == 0x76) {
           mnemonic = "pcmpeqd";
         } else if (opcode == 0xD2) {

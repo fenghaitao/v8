@@ -575,18 +575,11 @@ function testSIMDComparisons() {
   var m = int32x4(1, 2, 100, 1);
   var n = int32x4(2, 2, 1, 100);
   var cmp;
-/*cmp = SIMD.int32x4.lessThan(m, n);
+  cmp = SIMD.int32x4.lessThan(m, n);
   assertEquals(-1, cmp.x);
   assertEquals(0x0, cmp.y);
   assertEquals(0x0, cmp.z);
   assertEquals(-1, cmp.w);
-
-  cmp = SIMD.int32x4.lessThanOrEqual(m, n);
-  assertEquals(-1, cmp.x);
-  assertEquals(-1, cmp.y);
-  assertEquals(0x0, cmp.z);
-  assertEquals(-1, cmp.w);
-*/
 
   cmp = SIMD.int32x4.equal(m, n);
   assertEquals(0x0, cmp.x);
@@ -594,24 +587,11 @@ function testSIMDComparisons() {
   assertEquals(0x0, cmp.z);
   assertEquals(0x0, cmp.w);
 
-/*cmp = SIMD.int32x4.notEqual(m, n);
-  assertEquals(-1, cmp.x);
-  assertEquals(0x0, cmp.y);
-  assertEquals(-1, cmp.z);
-  assertEquals(-1, cmp.w);
-
-  cmp = SIMD.int32x4.greaterThanOrEqual(m, n);
-  assertEquals(0x0, cmp.x);
-  assertEquals(-1, cmp.y);
-  assertEquals(-1, cmp.z);
-  assertEquals(0x0, cmp.w);
-
   cmp = SIMD.int32x4.greaterThan(m, n);
   assertEquals(0x0, cmp.x);
   assertEquals(0x0, cmp.y);
   assertEquals(-1, cmp.z);
   assertEquals(0x0, cmp.w);
-*/
 }
 
 testSIMDComparisons();

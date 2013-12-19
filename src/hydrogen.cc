@@ -7589,11 +7589,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
     case kSIMDWithFlagY:
     case kSIMDWithFlagZ:
     case kSIMDWithFlagW:
-    case kSIMDLessThanU32:
-    case kSIMDLessThanOrEqualU32:
     case kSIMDEqualU32:
-    case kSIMDNotEqualU32:
-    case kSIMDGreaterThanOrEqualU32:
     case kSIMDGreaterThanU32:
     case kSIMDShiftLeftU32:
     case kSIMDShiftRightU32:
@@ -7833,11 +7829,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     case kSIMDWithFlagY:
     case kSIMDWithFlagZ:
     case kSIMDWithFlagW:
-    case kSIMDLessThanU32:
-    case kSIMDLessThanOrEqualU32:
     case kSIMDEqualU32:
-    case kSIMDNotEqualU32:
-    case kSIMDGreaterThanOrEqualU32:
     case kSIMDGreaterThanU32:
     case kSIMDShiftLeftU32:
     case kSIMDShiftRightU32:

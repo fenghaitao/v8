@@ -240,11 +240,7 @@ namespace internal {
   F(SIMDWithFlagY, 2, 1) \
   F(SIMDWithFlagZ, 2, 1) \
   F(SIMDWithFlagW, 2, 1) \
-  F(SIMDLessThanu32, 2, 1) \
-  F(SIMDLessThanOrEqualu32, 2, 1) \
   F(SIMDEqualu32, 2, 1) \
-  F(SIMDNotEqualu32, 2, 1) \
-  F(SIMDGreaterThanOrEqualu32, 2, 1) \
   F(SIMDGreaterThanu32, 2, 1) \
   \
   /* Regular expressions */ \

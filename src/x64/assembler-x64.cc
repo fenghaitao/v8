@@ -3129,7 +3129,6 @@ void Assembler::cmpnleps(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::pslld(XMMRegister reg, int8_t shift) {
-  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(reg);
@@ -3141,7 +3140,6 @@ void Assembler::pslld(XMMRegister reg, int8_t shift) {
 
 
 void Assembler::pslld(XMMRegister dst, XMMRegister src) {
-  ASSERT(IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);
@@ -3199,6 +3197,16 @@ void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x76);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::pcmpgtd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x66);
   emit_sse_operand(dst, src);
 }
 

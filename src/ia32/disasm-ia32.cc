@@ -1452,6 +1452,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(rm),
                            static_cast<int>(imm8));
             data += 2;
+          } else if (*data == 0x66) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("pcmpgtd %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else if (*data == 0x76) {
             data++;
             int mod, regop, rm;
