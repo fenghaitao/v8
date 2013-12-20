@@ -559,6 +559,29 @@ function SIMDNot(t) {
   return %SIMDNot(t);
 }
 
+function SIMDAndf32(a, b) {
+  a = SIMDBitsToInt32x4(a);
+  b = SIMDBitsToInt32x4(b);
+  return SIMDBitsToFloat32x4(SIMDAnd(a, b));
+}
+
+function SIMDOrf32(a, b) {
+  a = SIMDBitsToInt32x4(a);
+  b = SIMDBitsToInt32x4(b);
+  return SIMDBitsToFloat32x4(SIMDOr(a, b));
+}
+
+function SIMDXorf32(a, b) {
+  a = SIMDBitsToInt32x4(a);
+  b = SIMDBitsToInt32x4(b);
+  return SIMDBitsToFloat32x4(SIMDXor(a, b));
+}
+
+function SIMDNotf32(t) {
+  t = SIMDBitsToInt32x4(t);
+  return SIMDBitsToFloat32x4(SIMDNot(t));
+}
+
 function SIMDNegu32(t) {
   t = TO_INT32x4(t);
   CHECK_INT32x4(t);
@@ -994,6 +1017,10 @@ function SetUpSIMD() {
     "reciprocalSqrt", SIMDReciprocalSqrt,
     "scale", SIMDScale,
     "sqrt", SIMDSqrt,
+    "and", SIMDAndf32,
+    "or", SIMDOrf32,
+    "xor", SIMDXorf32,
+    "not", SIMDNotf32,
     "shuffle", SIMDShuffle,
     "shuffleMix", SIMDShuffleMix,
     "withX", SIMDWithX,
@@ -1043,6 +1070,10 @@ function SetUpSIMD() {
   ));
 
   %SetInlineBuiltinFlag(SIMDLessThanu32);
+  %SetInlineBuiltinFlag(SIMDAndf32);
+  %SetInlineBuiltinFlag(SIMDOrf32);
+  %SetInlineBuiltinFlag(SIMDXorf32);
+  %SetInlineBuiltinFlag(SIMDNotf32);
 }
 
 SetUpSIMD();
