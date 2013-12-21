@@ -996,8 +996,8 @@ function SetUpSIMD() {
   %SetProperty($SIMD, "WWWZ", 0xBF, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetProperty($SIMD, "WWWW", 0xFF, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
-  %SetProperty($SIMD, "float32x4", new $Object(), DONT_ENUM | DONT_DELETE);
-  %SetProperty($SIMD, "int32x4", new $Object(), DONT_ENUM | DONT_DELETE);
+  %SetProperty($SIMD, "float32x4", $Float32x4, DONT_ENUM | DONT_DELETE);
+  %SetProperty($SIMD, "int32x4", $Int32x4, DONT_ENUM | DONT_DELETE);
 
   %ToFastProperties($SIMD);
 
