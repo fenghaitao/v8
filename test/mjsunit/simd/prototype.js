@@ -28,8 +28,8 @@
 // Flags: --simd_object --allow-natives-syntax
 
 function testFloat32x4Prototype() {
-  var a4 = float32x4(1.0, -2.0, 3.0, -4.0);
-  float32x4.prototype = {};
+  var a4 = SIMD.float32x4(1.0, -2.0, 3.0, -4.0);
+  SIMD.float32x4.prototype = {};
   assertEquals(undefined, a4.x);
   assertEquals(undefined, a4.y);
   assertEquals(undefined, a4.z);
@@ -42,8 +42,8 @@ testFloat32x4Prototype();
 testFloat32x4Prototype();
 
 function testInt32x4Prototype() {
-  var a4 = int32x4(1.0, -2.0, 3.0, -4.0);
-  int32x4.prototype = {};
+  var a4 = SIMD.int32x4(1.0, -2.0, 3.0, -4.0);
+  SIMD.int32x4.prototype = {};
   assertEquals(undefined, a4.x);
   assertEquals(undefined, a4.y);
   assertEquals(undefined, a4.z);

@@ -28,7 +28,7 @@
 // Flags: --simd_object --allow-natives-syntax
 
 function testdeopt(a, b) {
-  var a4 = float32x4(1.0, -2.0, 3.0, -4.0);
+  var a4 = SIMD.float32x4(1.0, -2.0, 3.0, -4.0);
   var b4 = SIMD.float32x4.abs(a4);
 
   if (a > 0) {
@@ -49,7 +49,7 @@ testdeopt(1, 1);
 testdeopt(0, 1);
 
 function testdeopt2() {
-  var a4 = float32x4(1.0, -1.0, 1.0, -1.0);
+  var a4 = SIMD.float32x4(1.0, -1.0, 1.0, -1.0);
   var b4 = SIMD.float32x4.abs(a4);
 
   assertEquals(1.0, b4.x);
@@ -57,7 +57,7 @@ function testdeopt2() {
   assertEquals(1.0, b4.z);
   assertEquals(1.0, b4.w);
 
-  var new_a4 = new float32x4(1.0, -1.0, 1.0, -1.0);
+  var new_a4 = new SIMD.float32x4(1.0, -1.0, 1.0, -1.0);
   var new_b4 = SIMD.float32x4.abs(new_a4);
 
   assertEquals(1.0, new_b4.x);

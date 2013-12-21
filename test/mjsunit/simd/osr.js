@@ -28,7 +28,7 @@
 // Flags: --simd_object
 
 function testSIMDAbs() {
-  var a4 = float32x4(1.0, -2.0, 3.0, -4.0);
+  var a4 = SIMD.float32x4(1.0, -2.0, 3.0, -4.0);
   var b4;
   for (var i = 0; i < 100000; i++) {
     b4 = SIMD.float32x4.abs(a4);

@@ -61,7 +61,7 @@ function testArgumentsObjectwithFloat32x4Field() {
       c - 456,  // integer in stack slot
       a + 0.1, a + 0.2, a + 0.3, a + 0.4, a + 0.5,
       a + 0.6,  // double in stack slot
-      float32x4(1, 2, 3, 4)
+      SIMD.float32x4(1, 2, 3, 4)
     );
   }
 
@@ -109,7 +109,7 @@ function testArgumentsObjectwithInt32x4Field() {
       c - 456,  // integer in stack slot
       a + 0.1, a + 0.2, a + 0.3, a + 0.4, a + 0.5,
       a + 0.6,  // double in stack slot
-      int32x4(1, 2, 3, 4)
+      SIMD.int32x4(1, 2, 3, 4)
     );
   }
 

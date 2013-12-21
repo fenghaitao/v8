@@ -28,8 +28,8 @@
 // Flags: --simd_object  --allow-natives-syntax
 
 function testConstructor() {
-  var u4 = int32x4(1, 2, 3, 4);
-  var new_u4 = new int32x4(1, 2, 3, 4);
+  var u4 = SIMD.int32x4(1, 2, 3, 4);
+  var new_u4 = new SIMD.int32x4(1, 2, 3, 4);
   assertEquals(1, u4.x);
   assertEquals(2, u4.y);
   assertEquals(3, u4.z);
@@ -43,13 +43,13 @@ function testConstructor() {
 testConstructor();
 
 function testZeroConstructor() {
-  var u4 = int32x4.zero();
+  var u4 = SIMD.int32x4.zero();
   assertEquals(0, u4.x);
   assertEquals(0, u4.y);
   assertEquals(0, u4.z);
   assertEquals(0, u4.w);
 
-  var new_u4 = new int32x4.zero();
+  var new_u4 = new SIMD.int32x4.zero();
   assertEquals(0, new_u4.x);
   assertEquals(0, new_u4.y);
   assertEquals(0, new_u4.z);
@@ -62,13 +62,13 @@ testZeroConstructor();
 testZeroConstructor();
 
 function testBoolConstructor() {
-  var u4 = int32x4.bool(true, false, true, false);
+  var u4 = SIMD.int32x4.bool(true, false, true, false);
   assertEquals(-1, u4.x);
   assertEquals(0, u4.y);
   assertEquals(-1, u4.z);
   assertEquals(0, u4.w);
 
-  var new_u4 = int32x4.bool(false, true, false, true);
+  var new_u4 = SIMD.int32x4.bool(false, true, false, true);
   assertEquals(0, new_u4.x);
   assertEquals(-1, new_u4.y);
   assertEquals(0, new_u4.z);
@@ -81,7 +81,7 @@ testBoolConstructor();
 testBoolConstructor();
 
 function testSplatConstructor() {
-  var u4 = int32x4.splat(4);
+  var u4 = SIMD.int32x4.splat(4);
   assertEquals(4, u4.x);
   assertEquals(4, u4.y);
   assertEquals(4, u4.z);
@@ -94,10 +94,10 @@ testSplatConstructor();
 testSplatConstructor();
 
 function testTypeof() {
-  var u4 = int32x4(1, 2, 3, 4);
+  var u4 = SIMD.int32x4(1, 2, 3, 4);
   assertEquals(typeof(u4), "int32x4");
 
-  var new_u4 = new int32x4(1, 2, 3, 4);
+  var new_u4 = new SIMD.int32x4(1, 2, 3, 4);
   assertEquals(typeof(new_u4), "object");
   assertEquals(typeof(new_u4.valueOf()), "int32x4");
   assertEquals(Object.prototype.toString.call(new_u4), "[object int32x4]");
@@ -106,11 +106,11 @@ function testTypeof() {
 testTypeof();
 
 function testSignMaskGetter() {
-  var a = int32x4(0x80000000 - 0xFFFFFFFF - 1, 0x7000000, -1, 0x0);
+  var a = SIMD.int32x4(0x80000000 - 0xFFFFFFFF - 1, 0x7000000, -1, 0x0);
   assertEquals(0x5, a.signMask);
-  var b = int32x4(0x0, 0x0, 0x0, 0x0);
+  var b = SIMD.int32x4(0x0, 0x0, 0x0, 0x0);
   assertEquals(0x0, b.signMask);
-  var c = int32x4(-1, -1, -1, -1);
+  var c = SIMD.int32x4(-1, -1, -1, -1);
   assertEquals(0xf, c.signMask);
 }
 
@@ -121,9 +121,9 @@ testSignMaskGetter();
 
 
 function testSIMDAnd() {
-  var m = int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
+  var m = SIMD.int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
                   0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1);
-  var n = int32x4(0x55555555, 0x55555555, 0x55555555, 0x55555555);
+  var n = SIMD.int32x4(0x55555555, 0x55555555, 0x55555555, 0x55555555);
   assertEquals(0xAAAAAAAA - 0xFFFFFFFF - 1, m.x);
   assertEquals(0xAAAAAAAA - 0xFFFFFFFF - 1, m.y);
   assertEquals(0xAAAAAAAA - 0xFFFFFFFF - 1, m.z);
@@ -153,9 +153,9 @@ testSIMDAnd();
 testSIMDAnd();
 
 function testSIMDOr() {
-  var m = int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
+  var m = SIMD.int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
                   0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1);
-  var n = int32x4(0x55555555, 0x55555555, 0x55555555, 0x55555555);
+  var n = SIMD.int32x4(0x55555555, 0x55555555, 0x55555555, 0x55555555);
   var o = SIMD.int32x4.or(m,n); // or
   assertEquals(-1, o.x);
   assertEquals(-1, o.y);
@@ -173,9 +173,9 @@ testSIMDOr();
 testSIMDOr();
 
 function testSIMDInt32x4Or() {
-  var m = int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
+  var m = SIMD.int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
                   0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1);
-  var n = int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
+  var n = SIMD.int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
                   0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1);
   var o = SIMD.int32x4.xor(m,n); // xor
   assertEquals(0x0, o.x);
@@ -194,9 +194,9 @@ testSIMDInt32x4Or();
 testSIMDInt32x4Or();
 
 function testSIMDNot() {
-  var m = int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
+  var m = SIMD.int32x4(0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1,
                   0xAAAAAAAA - 0xFFFFFFFF - 1, 0xAAAAAAAA - 0xFFFFFFFF - 1);
-  var n = int32x4(0x55555555, 0x55555555, 0x55555555, 0x55555555);
+  var n = SIMD.int32x4(0x55555555, 0x55555555, 0x55555555, 0x55555555);
   m = SIMD.int32x4.not(m);
   n = SIMD.int32x4.not(n);
   assertEquals(0xAAAAAAAA - 0xFFFFFFFF - 1, n.x);
@@ -215,7 +215,7 @@ testSIMDNot();
 testSIMDNot();
 
 function testSIMDNegu32() {
-  var m = int32x4(-1, 1, -1, 1);
+  var m = SIMD.int32x4(-1, 1, -1, 1);
   m = SIMD.int32x4.neg(m);
   assertEquals(1, m.x);
   assertEquals(-1, m.y);
@@ -229,9 +229,9 @@ testSIMDNegu32();
 testSIMDNegu32();
 
 function testSIMDSelect() {
-  var m = int32x4.bool(true, true, false, false);
-  var t = float32x4(1.0, 2.0, 3.0, 4.0);
-  var f = float32x4(5.0, 6.0, 7.0, 8.0);
+  var m = SIMD.int32x4.bool(true, true, false, false);
+  var t = SIMD.float32x4(1.0, 2.0, 3.0, 4.0);
+  var f = SIMD.float32x4(5.0, 6.0, 7.0, 8.0);
   var s = SIMD.int32x4.select(m, t, f);
   assertEquals(1.0, s.x);
   assertEquals(2.0, s.y);
@@ -246,7 +246,7 @@ testSIMDSelect();
 
 
 function testSIMDWithXu32() {
-    var a = int32x4(1, 2, 3, 4);
+    var a = SIMD.int32x4(1, 2, 3, 4);
     var c = SIMD.int32x4.withX(a, 20);
     assertEquals(20, c.x);
     assertEquals(2, c.y);
@@ -260,7 +260,7 @@ testSIMDWithXu32();
 testSIMDWithXu32();
 
 function testSIMDWithYu32() {
-    var a = int32x4(1, 2, 3, 4);
+    var a = SIMD.int32x4(1, 2, 3, 4);
     var c = SIMD.int32x4.withY(a, 20);
     assertEquals(1, c.x);
     assertEquals(20, c.y);
@@ -274,7 +274,7 @@ testSIMDWithYu32();
 testSIMDWithYu32();
 
 function testSIMDWithZu32() {
-    var a = int32x4(1, 2, 3, 4);
+    var a = SIMD.int32x4(1, 2, 3, 4);
     var c = SIMD.int32x4.withZ(a, 20);
     assertEquals(1, c.x);
     assertEquals(2, c.y);
@@ -288,7 +288,7 @@ testSIMDWithZu32();
 testSIMDWithZu32();
 
 function testSIMDWithWu32() {
-    var a = int32x4(1, 2, 3, 4);
+    var a = SIMD.int32x4(1, 2, 3, 4);
     var c = SIMD.int32x4.withW(a, 20);
     assertEquals(1, c.x);
     assertEquals(2, c.y);
@@ -302,7 +302,7 @@ testSIMDWithWu32();
 testSIMDWithWu32();
 
 function testSIMDWithFlagX() {
-    var a = int32x4.bool(true, false, true, false);
+    var a = SIMD.int32x4.bool(true, false, true, false);
 
     // boolean
     var c = SIMD.int32x4.withFlagX(a, true);
@@ -409,7 +409,7 @@ testSIMDWithFlagX();
 testSIMDWithFlagX();
 
 function testSIMDWithFlagY() {
-    var a = int32x4.bool(true, false, true, false);
+    var a = SIMD.int32x4.bool(true, false, true, false);
     var c = SIMD.int32x4.withFlagY(a, true);
     assertEquals(true, c.flagX);
     assertEquals(true, c.flagY);
@@ -432,7 +432,7 @@ testSIMDWithFlagY();
 testSIMDWithFlagY();
 
 function testSIMDWithFlagZ() {
-    var a = int32x4.bool(true, false, true, false);
+    var a = SIMD.int32x4.bool(true, false, true, false);
     var c = SIMD.int32x4.withFlagZ(a, true);
     assertEquals(true, c.flagX);
     assertEquals(false, c.flagY);
@@ -455,7 +455,7 @@ testSIMDWithFlagZ();
 testSIMDWithFlagZ();
 
 function testSIMDWithFlagW() {
-    var a = int32x4.bool(true, false, true, false);
+    var a = SIMD.int32x4.bool(true, false, true, false);
     var c = SIMD.int32x4.withFlagW(a, true);
     assertEquals(true, c.flagX);
     assertEquals(false, c.flagY);
@@ -478,8 +478,8 @@ testSIMDWithFlagW();
 testSIMDWithFlagW();
 
 function testSIMDAddu32() {
-  var a = int32x4(-1, -1, 0x7fffffff, 0x0);
-  var b = int32x4(0x1, -1, 0x1, -1);
+  var a = SIMD.int32x4(-1, -1, 0x7fffffff, 0x0);
+  var b = SIMD.int32x4(0x1, -1, 0x1, -1);
   var c = SIMD.int32x4.add(a, b);
   assertEquals(0x0, c.x);
   assertEquals(-2, c.y);
@@ -493,8 +493,8 @@ testSIMDAddu32();
 testSIMDAddu32();
 
 function testSIMDSubu32() {
-  var a = int32x4(-1, -1, 0x80000000 - 0xFFFFFFFF - 1, 0x0);
-  var b = int32x4(0x1, -1, 0x1, -1);
+  var a = SIMD.int32x4(-1, -1, 0x80000000 - 0xFFFFFFFF - 1, 0x0);
+  var b = SIMD.int32x4(0x1, -1, 0x1, -1);
   var c = SIMD.int32x4.sub(a, b);
   assertEquals(-2, c.x);
   assertEquals(0x0, c.y);
@@ -508,8 +508,8 @@ testSIMDSubu32();
 testSIMDSubu32();
 
 function testSIMDMulu32() {
-  var a = int32x4(-1, -1, 0x80000000 - 0xFFFFFFFF - 1, 0x0);
-  var b = int32x4(0x1, -1, 0x80000000 - 0xFFFFFFFF - 1, -1);
+  var a = SIMD.int32x4(-1, -1, 0x80000000 - 0xFFFFFFFF - 1, 0x0);
+  var b = SIMD.int32x4(0x1, -1, 0x80000000 - 0xFFFFFFFF - 1, -1);
   var c = SIMD.int32x4.mul(a, b);
   assertEquals(-1, c.x);
   assertEquals(0x1, c.y);
@@ -523,7 +523,7 @@ testSIMDMulu32();
 testSIMDMulu32();
 
 function testSIMDShuffleu32() {
-  var m = int32x4(1, 2, 3, 4);
+  var m = SIMD.int32x4(1, 2, 3, 4);
   var xxxx = SIMD.int32x4.shuffle(m, SIMD.XXXX);
   assertEquals(1, xxxx.x);
   assertEquals(1, xxxx.y);
@@ -572,8 +572,8 @@ testSIMDShuffleu32();
 testSIMDShuffleu32();
 
 function testSIMDComparisons() {
-  var m = int32x4(1, 2, 100, 1);
-  var n = int32x4(2, 2, 1, 100);
+  var m = SIMD.int32x4(1, 2, 100, 1);
+  var n = SIMD.int32x4(2, 2, 1, 100);
   var cmp;
   cmp = SIMD.int32x4.lessThan(m, n);
   assertEquals(-1, cmp.x);
@@ -600,7 +600,7 @@ testSIMDComparisons();
 testSIMDComparisons();
 
 function testSIMDShift() {
-  var m = int32x4(1, 2, 100, 0);
+  var m = SIMD.int32x4(1, 2, 100, 0);
 
   var a = SIMD.int32x4.shiftLeft(m, 2);
   assertEquals(4, a.x);
@@ -614,7 +614,7 @@ function testSIMDShift() {
   assertEquals(100, b.z);
   assertEquals(0, b.w);
 
-  var n = int32x4(-8, 2, 1, 100);
+  var n = SIMD.int32x4(-8, 2, 1, 100);
 
   var c = SIMD.int32x4.shiftRightArithmetic(n, 2);
   assertEquals(-2, c.x);
@@ -649,10 +649,10 @@ testInt32x4ArrayBasic();
 
 function testInt32x4ArrayGetAndSet() {
   var a = new Int32x4Array(4);
-  a[0] = int32x4(1, 2, 3, 4);
-  a[1] = int32x4(5, 6, 7, 8);
-  a[2] = int32x4(9, 10, 11, 12);
-  a[3] = int32x4(13, 14, 15, 16);
+  a[0] = SIMD.int32x4(1, 2, 3, 4);
+  a[1] = SIMD.int32x4(5, 6, 7, 8);
+  a[2] = SIMD.int32x4(9, 10, 11, 12);
+  a[3] = SIMD.int32x4(13, 14, 15, 16);
   assertEquals(a[0].x, 1);
   assertEquals(a[0].y, 2);
   assertEquals(a[0].z, 3);
@@ -674,10 +674,10 @@ function testInt32x4ArrayGetAndSet() {
   assertEquals(a[3].w, 16);
 
   var b = new Int32x4Array(4);
-  b.setAt(0, int32x4(1, 2, 3, 4));
-  b.setAt(1, int32x4(5, 6, 7, 8));
-  b.setAt(2, int32x4(9, 10, 11, 12));
-  b.setAt(3, int32x4(13, 14, 15, 16));
+  b.setAt(0,SIMD.int32x4(1, 2, 3, 4));
+  b.setAt(1,SIMD.int32x4(5, 6, 7, 8));
+  b.setAt(2,SIMD.int32x4(9, 10, 11, 12));
+  b.setAt(3,SIMD.int32x4(13, 14, 15, 16));
 
   assertEquals(b.getAt(0).x, 1);
   assertEquals(b.getAt(0).y, 2);
@@ -704,10 +704,10 @@ testInt32x4ArrayGetAndSet();
 
 function testInt32x4ArraySwap() {
   var a = new Int32x4Array(4);
-  a[0] = int32x4(1, 2, 3, 4);
-  a[1] = int32x4(5, 6, 7, 8);
-  a[2] = int32x4(9, 10, 11, 12);
-  a[3] = int32x4(13, 14, 15, 16);
+  a[0] = SIMD.int32x4(1, 2, 3, 4);
+  a[1] = SIMD.int32x4(5, 6, 7, 8);
+  a[2] = SIMD.int32x4(9, 10, 11, 12);
+  a[3] = SIMD.int32x4(13, 14, 15, 16);
 
   // Swap element 0 and element 3
   var t = a[0];
@@ -742,10 +742,10 @@ testInt32x4ArraySwap();
 
 function testInt32x4ArrayCopy() {
   var a = new Int32x4Array(4);
-  a[0] = int32x4(1, 2, 3, 4);
-  a[1] = int32x4(5, 6, 7, 8);
-  a[2] = int32x4(9, 10, 11, 12);
-  a[3] = int32x4(13, 14, 15, 16);
+  a[0] = SIMD.int32x4(1, 2, 3, 4);
+  a[1] = SIMD.int32x4(5, 6, 7, 8);
+  a[2] = SIMD.int32x4(9, 10, 11, 12);
+  a[3] = SIMD.int32x4(13, 14, 15, 16);
   var b = new Int32x4Array(a);
   assertEquals(a[0].x, b[0].x);
   assertEquals(a[0].y, b[0].y);
@@ -767,7 +767,7 @@ function testInt32x4ArrayCopy() {
   assertEquals(a[3].z, b[3].z);
   assertEquals(a[3].w, b[3].w);
 
-  a[2] = int32x4(17, 18, 19, 20);
+  a[2] = SIMD.int32x4(17, 18, 19, 20);
 
   assertEquals(a[2].x, 17);
   assertEquals(a[2].y, 18);
@@ -875,10 +875,10 @@ testInt32x4ArrayViewValues();
 
 function testViewOnInt32x4Array() {
   var a = new Int32x4Array(4);
-  a[0] = int32x4(1, 2, 3, 4);
-  a[1] = int32x4(5, 6, 7, 8);
-  a[2] = int32x4(9, 10, 11, 12);
-  a[3] = int32x4(13, 14, 15, 16);
+  a[0] = SIMD.int32x4(1, 2, 3, 4);
+  a[1] = SIMD.int32x4(5, 6, 7, 8);
+  a[2] = SIMD.int32x4(9, 10, 11, 12);
+  a[3] = SIMD.int32x4(13, 14, 15, 16);
   assertEquals(a[0].x, 1);
   assertEquals(a[0].y, 2);
   assertEquals(a[0].z, 3);
@@ -934,8 +934,8 @@ function testArrayOfInt32x4() {
   var a = [];
   var a4 = new Int32x4Array(2);
   for (var i = 0; i < a4.length; i++) {
-    a[i] = int32x4(i, i + 1, i + 2, i + 3);
-    a4[i] = int32x4(i, i + 1, i + 2, i + 3);
+    a[i] = SIMD.int32x4(i, i + 1, i + 2, i + 3);
+    a4[i] = SIMD.int32x4(i, i + 1, i + 2, i + 3);
   }
 
   for (var i = 0; i < a4.length; i++) {

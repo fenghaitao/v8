@@ -1447,9 +1447,23 @@ void Genesis::InitializeExperimentalGlobal() {
   }
 
   if (FLAG_simd_object) {
+    // --- S I M D ---
+    Handle<String> name = factory()->InternalizeUtf8String("SIMD");
+    Handle<JSFunction> cons = factory()->NewFunction(name,
+                                  factory()->the_hole_value());
+    JSFunction::SetInstancePrototype(cons,
+        Handle<Object>(native_context()->initial_object_prototype(),
+                       isolate()));
+    cons->SetInstanceClassName(*name);
+    Handle<JSObject> simd_object = factory()->NewJSObject(cons, TENURED);
+    ASSERT(simd_object->IsJSObject());
+    CHECK_NOT_EMPTY_HANDLE(isolate(),
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                                 global, name, simd_object, DONT_ENUM));
+    native_context()->set_simd_object(*simd_object);
     // --- f l o a t 3 2 x 4 ---
     Handle<JSFunction> float32x4_fun =
-        InstallFunction(global, "float32x4", JS_VALUE_TYPE, JSValue::kSize,
+        InstallFunction(simd_object, "float32x4", JS_VALUE_TYPE, JSValue::kSize,
                         isolate()->initial_object_prototype(),
                         Builtins::kIllegal, true, true);
     native_context()->set_float32x4_function(*float32x4_fun);
@@ -1462,7 +1476,7 @@ void Genesis::InitializeExperimentalGlobal() {
 
     // --- i n t 3 2 x 4 ---
     Handle<JSFunction> int32x4_fun =
-        InstallFunction(global, "int32x4", JS_VALUE_TYPE, JSValue::kSize,
+        InstallFunction(simd_object, "int32x4", JS_VALUE_TYPE, JSValue::kSize,
                         isolate()->initial_object_prototype(),
                         Builtins::kIllegal, true, true);
     native_context()->set_int32x4_function(*int32x4_fun);
@@ -2194,9 +2208,9 @@ void Genesis::InstallExperimentalSIMDBuiltinFunctionIds() {
   EXPERIMENTAL_SIMD_FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)
 #undef INSTALL_BUILTIN_ID
   {
-    Handle<GlobalObject> global(native_context()->global_object());
-    InstallBuiltinFunctionId(global, "float32x4", kFloat32x4Constructor);
-    InstallBuiltinFunctionId(global, "int32x4", kInt32x4Constructor);
+    Handle<JSObject> simd(native_context()->simd_object());
+    InstallBuiltinFunctionId(simd, "float32x4", kFloat32x4Constructor);
+    InstallBuiltinFunctionId(simd, "int32x4", kInt32x4Constructor);
   }
 }
 

@@ -1953,6 +1953,7 @@ class Float32x4: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Float32x4);
 };
 
+
 class Int32x4: public HeapObject {
  public:
   // [value]: number value.
@@ -1986,7 +1987,6 @@ class Int32x4: public HeapObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Int32x4);
 };
-
 
 
 enum EnsureElementsMode {
@@ -6692,39 +6692,39 @@ class Script: public Struct {
   V(SIMD.int32x4, toFloat32x4, SIMDToFloat32x4)                     \
   V(SIMD.int32x4, equal, SIMDEqualU32)                              \
   V(SIMD.int32x4, greaterThan, SIMDGreaterThanU32)                  \
-  V(SIMD.int32x4, shiftLeft, SIMDShiftLeftU32)                       \
-  V(SIMD.int32x4, shiftRight, SIMDShiftRightU32)                     \
-  V(SIMD.int32x4, shiftRightArithmetic, SIMDShiftRightArithmeticU32) \
-  V(float32x4, zero, Float32x4Zero)                                 \
-  V(float32x4, splat, Float32x4Splat)                               \
-  V(int32x4, zero, Int32x4Zero)                                     \
-  V(int32x4, bool, Int32x4Bool)                                     \
-  V(int32x4, splat, Int32x4Splat)                                   \
+  V(SIMD.int32x4, shiftLeft, SIMDShiftLeftU32)                      \
+  V(SIMD.int32x4, shiftRight, SIMDShiftRightU32)                    \
+  V(SIMD.int32x4, shiftRightArithmetic, SIMDShiftRightArithmeticU32)\
+  V(SIMD.float32x4, zero, Float32x4Zero)                            \
+  V(SIMD.float32x4, splat, Float32x4Splat)                          \
+  V(SIMD.int32x4, zero, Int32x4Zero)                                \
+  V(SIMD.int32x4, bool, Int32x4Bool)                                \
+  V(SIMD.int32x4, splat, Int32x4Splat)                              \
   V(Float32x4Array.prototype, getAt, Float32x4ArrayGetAt)           \
   V(Float32x4Array.prototype, setAt, Float32x4ArraySetAt)           \
   V(Int32x4Array.prototype, getAt, Int32x4ArrayGetAt)               \
   V(Int32x4Array.prototype, setAt, Int32x4ArraySetAt)
 
 
-#define EXPERIMENTAL_SIMD_FUNCTIONS_WITH_FAKE_ID_LIST(V) \
-  V(global, float32x4, Float32x4Constructor)             \
-  V(global, int32x4, Int32x4Constructor)                 \
-  V(global, unreachable, Float32x4OrInt32x4Unreachable)  \
-  V(global, change, Float32x4OrInt32x4Change)            \
-  V(int32x4.prototype, signMask, Int32x4SignMask)        \
-  V(int32x4.prototype, x, Int32x4X)                      \
-  V(int32x4.prototype, y, Int32x4Y)                      \
-  V(int32x4.prototype, z, Int32x4Z)                      \
-  V(int32x4.prototype, w, Int32x4W)                      \
-  V(int32x4.prototype, flagX, Int32x4FlagX)              \
-  V(int32x4.prototype, flagY, Int32x4FlagY)              \
-  V(int32x4.prototype, flagZ, Int32x4FlagZ)              \
-  V(int32x4.prototype, flagW, Int32x4FlagW)              \
-  V(float32x4.prototype, signMask, Float32x4SignMask)    \
-  V(float32x4.prototype, x, Float32x4X)                  \
-  V(float32x4.prototype, y, Float32x4Y)                  \
-  V(float32x4.prototype, z, Float32x4Z)                  \
-  V(float32x4.prototype, w, Float32x4W)
+#define EXPERIMENTAL_SIMD_FUNCTIONS_WITH_FAKE_ID_LIST(V)      \
+  V(SIMD, float32x4, Float32x4Constructor)                    \
+  V(SIMD, int32x4, Int32x4Constructor)                        \
+  V(SIMD, unreachable, Float32x4OrInt32x4Unreachable)         \
+  V(SIMD, change, Float32x4OrInt32x4Change)                   \
+  V(SIMD.int32x4.prototype, signMask, Int32x4SignMask)        \
+  V(SIMD.int32x4.prototype, x, Int32x4X)                      \
+  V(SIMD.int32x4.prototype, y, Int32x4Y)                      \
+  V(SIMD.int32x4.prototype, z, Int32x4Z)                      \
+  V(SIMD.int32x4.prototype, w, Int32x4W)                      \
+  V(SIMD.int32x4.prototype, flagX, Int32x4FlagX)              \
+  V(SIMD.int32x4.prototype, flagY, Int32x4FlagY)              \
+  V(SIMD.int32x4.prototype, flagZ, Int32x4FlagZ)              \
+  V(SIMD.int32x4.prototype, flagW, Int32x4FlagW)              \
+  V(SIMD.float32x4.prototype, signMask, Float32x4SignMask)    \
+  V(SIMD.float32x4.prototype, x, Float32x4X)                  \
+  V(SIMD.float32x4.prototype, y, Float32x4Y)                  \
+  V(SIMD.float32x4.prototype, z, Float32x4Z)                  \
+  V(SIMD.float32x4.prototype, w, Float32x4W)
 
 enum BuiltinFunctionId {
   kArrayCode,

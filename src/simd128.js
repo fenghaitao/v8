@@ -31,7 +31,9 @@
 // in runtime.js:
 // var $Array = global.Array;
 
-var $Float32x4 = global.float32x4;
+var $SIMD = global.SIMD;
+
+var $Float32x4 = $SIMD.float32x4;
 
 function ThrowFloat32x4TypeError() {
   throw MakeTypeError("this is not a float32x4 value.");
@@ -142,7 +144,7 @@ SetUpFloat32x4();
 
 //------------------------------------------------------------------------------
 
-var $Int32x4 = global.int32x4;
+var $Int32x4 = $SIMD.int32x4;
 
 function ThrowInt32x4TypeError() {
   throw MakeTypeError("this is not a int32x4 value.");
@@ -296,11 +298,6 @@ function SetUpInt32x4() {
 SetUpInt32x4();
 
 //------------------------------------------------------------------------------
-
-// Instance class name can only be set on functions. That is the only
-// purpose for SIMDConstructor.
-function SIMDConstructor() {}
-var $SIMD = new SIMDConstructor();
 
 function SIMDAbs(t) {
   t = TO_FLOAT32x4(t);
@@ -734,10 +731,6 @@ function SIMDShiftRightArithmeticu32(t, s) {
 function SetUpSIMD() {
   %CheckIsBootstrapping();
 
-  %SetPrototype($SIMD, $Object.prototype);
-  %SetProperty(global, "SIMD", $SIMD, DONT_ENUM);
-  %FunctionSetInstanceClassName(SIMDConstructor, 'SIMD');
-
   %OptimizeObjectForAddingMultipleProperties($SIMD, 258);
   %SetProperty($SIMD, "XXXX", 0x00, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetProperty($SIMD, "XXXY", 0x40, DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -995,9 +988,6 @@ function SetUpSIMD() {
   %SetProperty($SIMD, "WWWY", 0x7F, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetProperty($SIMD, "WWWZ", 0xBF, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetProperty($SIMD, "WWWW", 0xFF, DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-  %SetProperty($SIMD, "float32x4", $Float32x4, DONT_ENUM | DONT_DELETE);
-  %SetProperty($SIMD, "int32x4", $Int32x4, DONT_ENUM | DONT_DELETE);
 
   %ToFastProperties($SIMD);
 

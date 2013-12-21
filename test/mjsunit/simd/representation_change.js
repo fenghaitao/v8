@@ -30,9 +30,9 @@
 function testSIMDAbs(i) {
   var a;
   if (i < 3) {
-    a = float32x4(1, 1, 1, 1);
+    a = SIMD.float32x4(1, 1, 1, 1);
   } else {
-    a = int32x4(2, 2, 2, 2);
+    a = SIMD.int32x4(2, 2, 2, 2);
   }
   return SIMD.float32x4.abs(a);
 }
@@ -42,7 +42,7 @@ function tryTestSIMDAbs(i) {
   try {
     r = testSIMDAbs(i);
   } catch (o) {
-    AssertEquals(o, "TypeError: <unknown message this is not a float32x4 value.>");
+    AssertEquals(o, "TypeError: <unknown message this is not a SIMD.float32x4 value.>");
   } finally {
     return r;
   }
