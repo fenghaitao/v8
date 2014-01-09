@@ -730,7 +730,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     // holder haven't changed and thus we can use cached constant function.
     if (*interceptor_holder != lookup->holder()) {
       stub_compiler_->CheckPrototypes(
-          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), receiver,
+          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), holder,
           handle(lookup->holder()), scratch1, scratch2, scratch3,
           name, depth2, miss);
     } else {
@@ -746,7 +746,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       GenerateFastApiCall(masm, optimization, arguments_.immediate());
     } else {
       Handle<JSFunction> fun = optimization.constant_function();
-      stub_compiler_->GenerateJumpFunctionIgnoreReceiver(fun);
+      stub_compiler_->GenerateJumpFunction(object, fun);
     }
 
     // Deferred code for fast API call case---clean preallocated space.
@@ -798,15 +798,17 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            Label* interceptor_succeeded) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(holder);  // Save the holder.
-      __ Push(name_);  // Save the name.
+      __ Push(receiver);
+      __ Push(holder);
+      __ Push(name_);
 
       CompileCallLoadPropertyWithInterceptor(
           masm, receiver, holder, name_, holder_obj,
           IC::kLoadPropertyWithInterceptorOnly);
 
-      __ Pop(name_);  // Restore the name.
-      __ Pop(receiver);  // Restore the holder.
+      __ Pop(name_);
+      __ Pop(holder);
+      __ Pop(receiver);
       // Leave the internal frame.
     }
 
