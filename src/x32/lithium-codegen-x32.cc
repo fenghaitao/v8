@@ -2855,7 +2855,9 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     __ movl(result, FieldOperand(object, JSObject::kPropertiesOffset));
     object = result;
   }
-  __ Load(result, FieldOperand(object, offset), access.representation());
+
+  Representation representation = access.representation();
+  __ Load(result, FieldOperand(object, offset), representation);
 }
 
 
