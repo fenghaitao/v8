@@ -29,7 +29,6 @@
 #define V8_X32_CODE_STUBS_X32_H_
 
 #include "ic-inl.h"
-#include "type-info.h"
 
 namespace v8 {
 namespace internal {
