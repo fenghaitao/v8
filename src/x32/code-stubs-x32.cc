@@ -180,18 +180,6 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpICStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { rdx, rax };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
-}
-
-
 static void InitializeArrayConstructorDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor,
@@ -336,6 +324,29 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
+}
+
+
+void BinaryOpICStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx, rax };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
+}
+
+
+void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rcx, rdx, rax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite);
 }
 
 
@@ -2338,28 +2349,45 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow, non_function;
   StackArgumentsAccessor args(rsp, argc_);
 
+  // Check that the function really is a JavaScript function.
+  __ JumpIfSmi(rdi, &non_function);
+
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
   // function stub.
-  if (ReceiverMightBeImplicit()) {
-    Label call;
-    // Get the receiver from the stack.
-    __ movl(rax, args.GetReceiverOperand());
-    // Call as function is indicated with the hole.
-    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
-    __ j(not_equal, &call, Label::kNear);
+  if (ReceiverMightBeImplicit() || ReceiverIsImplicit()) {
+    Label try_call, call, patch_current_context;
+    if (ReceiverMightBeImplicit()) {
+      // Get the receiver from the stack.
+      __ movl(rax, args.GetReceiverOperand());
+      // Call as function is indicated with the hole.
+      __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &try_call, Label::kNear);
+    }
     // Patch the receiver on the stack with the global receiver object.
-    __ movl(rcx, GlobalObjectOperand());
-    __ movl(rcx, FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &patch_current_context);
+    CallStubCompiler::FetchGlobalProxy(masm, rcx, rdi);
     __ movl(args.GetReceiverOperand(), rcx);
-    __ bind(&call);
-  }
+    __ jmp(&call, Label::kNear);
 
-  // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(rdi, &non_function);
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &slow);
+    __ bind(&patch_current_context);
+    __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
+    __ movl(args.GetReceiverOperand(), kScratchRegister);
+    __ jmp(&slow);
+
+    __ bind(&try_call);
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &slow);
+
+    __ bind(&call);
+  } else {
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &slow);
+  }
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
@@ -2402,7 +2430,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);
   __ Set(rax, argc_ + 1);
   __ Set(rbx, 0);
-  __ SetCallKind(rcx, CALL_AS_METHOD);
+  __ SetCallKind(rcx, CALL_AS_FUNCTION);
   __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor =
@@ -2482,6 +2510,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
+  BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -4225,6 +4254,35 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // tagged as a small integer.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+}
+
+
+void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx    : left
+  //  -- rax    : right
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  // Load rcx with the allocation site.  We stick an undefined dummy value here
+  // and replace it with the real allocation site later when we instantiate this
+  // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
+  __ Move(rcx, handle(isolate->heap()->undefined_value()));
+
+  // Make sure that we actually patched the allocation site.
+  if (FLAG_debug_code) {
+    __ testb(rcx, Immediate(kSmiTagMask));
+    __ Assert(zero, kExpectedAllocationSite);
+    __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
+           isolate->factory()->allocation_site_map());
+    __ Assert(equal, kExpectedAllocationSite);
+  }
+
+  // Tail call into the stub that handles binary operations with allocation
+  // sites.
+  BinaryOpWithAllocationSiteStub stub(state_);
+  __ TailCallStub(&stub);
 }
 
 
