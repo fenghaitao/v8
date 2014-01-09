@@ -494,7 +494,6 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 Register* values) {
   ASSERT(optimization.is_simple_api_call());
 
-  // Copy return value.
   __ PopReturnAddressTo(scratch1);
 
   // receiver
@@ -562,8 +561,6 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(!scratch1.is(rax));
   // store receiver address for GenerateFastApiCallBody
   __ movl(rax, rsp);
-
-  // return address
   __ PushReturnAddressFrom(scratch1);
 
   GenerateFastApiCallBody(masm, optimization, argc, true);
