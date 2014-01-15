@@ -21,7 +21,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 #define __k __
-#define __n __
 
 
 class JumpPatchSite BASE_EMBEDDED {
@@ -4730,7 +4729,6 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 }
 
 
-#undef __n
 #undef __k
 #undef __
 

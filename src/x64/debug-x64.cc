@@ -67,7 +67,6 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
 
 
 #define __ ACCESS_MASM(masm)
-#define __q __
 
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
@@ -310,7 +309,6 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 
 const bool LiveEdit::kFrameDropperSupported = true;
 
-#undef __q
 #undef __
 
 } }  // namespace v8::internal

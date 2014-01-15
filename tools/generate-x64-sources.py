@@ -35,6 +35,8 @@ import os
 #   ./generate-x32-source.py {debug|release} output_file_names input_file_names
 #
 # The annotations include:
+#   __a (argument) : Replace (n + 1) * kPointerSize with 1 * kRegisterSize +
+#                    n * kPointerSize and __a with __ or remove "__a ".
 #   The size of return address is kRegisterSize for X32, the current X64 codes
 #   assume return address size is kPointerSize, so we replace the argument
 #   access offset with the right value.
@@ -132,66 +134,7 @@ def HandleMovQ(line, key):
   return result
 
 operator_handlers = {
-  "movq("       : ("movl(",     HandleMovQ),
-  "push("       : ("Push(",  HandlePushPop),
-  "pop("        : ("Pop(",   HandlePushPop),
-  "push_imm32(" : ("Push_imm32(",  Replace),
-  " cmovq("     : (" cmovl(",      Replace),
-  " xchg("      : (" xchgl(",      Replace),
-  " addq("      : (" addl(",       Replace),
-  " sbbq("      : (" sbbl(",       Replace),
-  " cmpq("      : (" cmpl(",       Replace),
-  " and_("      : (" andl(",       Replace),
-  " decq("      : (" decl(",       Replace),
-  " cqo("       : (" cdq(",        Replace),
-  " idivq("     : (" idivl(",      Replace),
-  " imul("      : (" imull(",      Replace),
-  " incq("      : (" incl(",       Replace),
-  " lea("       : (" leal(",       Replace),
-  " neg("       : (" negl(",       Replace),
-  " not_("      : (" notl(",       Replace),
-  " or_("       : (" orl(",        Replace),
-  " rol("       : (" roll(",       Replace),
-  " ror("       : (" rorl(",       Replace),
-  " sar("       : (" sarl(",       Replace),
-  " sar_cl("    : (" sarl_cl(",    Replace),
-  " shl("       : (" shll(",       Replace),
-  " shl_cl("    : (" shll_cl(",    Replace),
-  " shr("       : (" shrl(",       Replace),
-  " shr_cl("    : (" shrl_cl(",    Replace),
-  " subq("      : (" subl(",       Replace),
-  " testq("     : (" testl(",      Replace),
-  " xor_("      : (" xorl(",       Replace),
-  " movzxbq("   : (" movzxbl(",    Replace),
-  " repmovsq("  : (" repmovsl(",   Replace),
-  "->cmovq("    : ("->cmovl(",     Replace),
-  "->xchg("     : ("->xchgl(",     Replace),
-  "->addq("     : ("->addl(",      Replace),
-  "->sbbq("     : ("->sbbl(",      Replace),
-  "->cmpq("     : ("->cmpl(",      Replace),
-  "->and_("     : ("->andl(",      Replace),
-  "->decq("     : ("->decl(",      Replace),
-  "->cqo("      : ("->cdq(",       Replace),
-  "->idivq("    : ("->idivl(",     Replace),
-  "->imul("     : ("->imull(",     Replace),
-  "->incq("     : ("->incl(",      Replace),
-  "->lea("      : ("->leal(",      Replace),
-  "->neg("      : ("->negl(",      Replace),
-  "->not_("     : ("->notl(",      Replace),
-  "->or_("      : ("->orl(",       Replace),
-  "->rol("      : ("->roll(",      Replace),
-  "->ror("      : ("->rorl(",      Replace),
-  "->sar("      : ("->sarl(",      Replace),
-  "->sar_cl("   : ("->sarl_cl(",   Replace),
-  "->shl("      : ("->shll(",      Replace),
-  "->shl_cl("   : ("->shll_cl(",   Replace),
-  "->shr("      : ("->shrl(",      Replace),
-  "->shr_cl("   : ("->shrl_cl(",   Replace),
-  "->subq("     : ("->subl(",      Replace),
-  "->testq("    : ("->testl(",     Replace),
-  "->xor_("     : ("->xorl(",      Replace),
-  "->movzxbq("  : ("->movzxbl(",   Replace),
-  "->repmovsq(" : ("->repmovsl(",  Replace),
+  "movq("       : ("movp(",     HandleMovQ),
 }
 
 def HandleAnnotations(line, debug):
@@ -202,7 +145,6 @@ def HandleAnnotations(line, debug):
       if result.find(annotation + " ") != -1:
         if result.find("#define" + annotation + " __") != -1:
           # Add a new line to keep debugging easier if debug
-          result = "\n" if debug else ""
           annotation_handlers[annotation][0] = " __"
         else:
           (cont, result) = annotation_handlers[annotation][1](result)
@@ -215,7 +157,6 @@ def HandleAnnotations(line, debug):
       else:
         if result.find("#define") != -1 or result.find("#undef") != -1:
           # Add a new line to keep debugging easier if debug
-          result = "\n" if debug else ""
           annotation_handlers[annotation][0] = " "
       break
 
@@ -255,18 +196,15 @@ def HandleComment(line):
   return result
 
 def ProcessLine(line, is_assembler, debug):
-  if line.find("#include") != -1:
-    result = line.replace("x64", "x32")
-  else:
-    result = line.replace("X64", "X32")
-    if not is_assembler:
-      (cont, result) = HandleAnnotations(result, debug)
-      if cont:
-        for key in operator_handlers:
-          if result.find(key) != -1:
-            handler = operator_handlers[key][1]
-            result  = handler(result, key)
-            break
+  result = line
+  if not is_assembler:
+    (cont, result) = HandleAnnotations(result, debug)
+    if cont:
+      for key in operator_handlers:
+        if result.find(key) != -1:
+          handler = operator_handlers[key][1]
+          result  = handler(result, key)
+          break
 
   return result
 
@@ -278,8 +216,7 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
     # Process codes inside #ifdef V8_TARGET_ARCH_X32 lines #endif
     # If debug, keep the #ifdef and #endif, otherwise remove them
     begin = line_number
-    if debug:
-      lines_out.append(line_in)
+    lines_out.append(line_in)
 
     line_number += 1;
     line_in = lines_in[line_number]
@@ -288,8 +225,7 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
       line_number += 1;
       line_in = lines_in[line_number]
 
-    if debug:
-      lines_out.append(line_in)
+    lines_out.append(line_in)
 
     return line_number - begin + 1
   elif line_in.find("#ifndef V8_TARGET_ARCH_X32") != -1:
@@ -297,60 +233,25 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
     # #ifndef V8_TARGET_ARCH_X32 x64_lines #else x32_lines #endif
     # If debug, keep all, otherwise remove #ifdef, x64_lines, #else and #endif
     begin = line_number
-    if debug:
-      lines_out.append(line_in)
+    lines_out.append(line_in)
 
     line_number += 1;
     line_in = lines_in[line_number]
     while (line_in.find("#else")) == -1 and (line_in.find("#endif")) == -1:
-      if debug:
-        lines_out.append(line_in)
+      lines_out.append(line_in)
       line_number += 1;
       line_in = lines_in[line_number]
     if (line_in.find("#else")) != -1:
-      if debug:
-        lines_out.append(line_in)
+      lines_out.append(line_in)
       line_number += 1;
       line_in = lines_in[line_number]
       while (line_in.find("#endif")) == -1:
         lines_out.append(line_in)
         line_number += 1;
         line_in = lines_in[line_number]
-    if debug:
-      lines_out.append(line_in)
+    lines_out.append(line_in)
 
     return line_number - begin + 1
-  elif (line_in.lstrip().find("//") == 0 and line_in.find(" : ") != -1):
-    longest = 0
-    begin   = line_number
-    index   = line_number
-    comment = line_in
-    while comment.lstrip().find("//") == 0:
-      if comment.find(" : ") != -1:
-        left = comment[0:comment.find(" : ")].rstrip()
-        if (left.find("rsp[") != -1 or left.find("rbp[") != -1):
-          left = HandleComment(left)
-        longest = max(longest, len(left))
-      index += 1
-      if index >= len(lines_in):
-        break
-      comment = lines_in[index]
-
-    while (line_number < index):
-      line_in  = lines_in[line_number]
-      if line_in.find(" : ") != -1:
-        left  = line_in[0:line_in.find(" : ")].rstrip()
-        if (left.find("rsp[") != -1 or left.find("rbp[") != -1):
-          left = HandleComment(left)
-        for i in range(len(left), longest):
-          left += " "
-        right = line_in[line_in.find(" : "):]
-        line_out = left + right
-      else:
-        line_out = line_in
-      lines_out.append(line_out)
-      line_number += 1
-    return line_number - begin
   else:
     line_out = ProcessLine(line_in, is_assembler, debug)
     lines_out.append(line_out)
@@ -363,12 +264,12 @@ def ProcessFile(name, debug):
 
 # Replace x64 with x32 to form the name "../../src/x32/code-stubs-x32.[h|cc]"
 # Create x32 folder if it does not exist
-  out_filename = name.replace("x64", "x32")
+  out_filename = name
   if not os.path.exists(os.path.dirname(out_filename)):
     os.makedirs(os.path.dirname(out_filename))
 
 # Process lines of the input file
-  is_assembler = name.find("assembler-x64") == 14
+  is_assembler = name.find("assembler-x64") == 10
   lines_out = []
   line_number = 0
   total_lines = len(lines_in)
