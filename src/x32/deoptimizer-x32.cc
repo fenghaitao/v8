@@ -170,7 +170,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
   __ movl(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize));
-  __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kRegisterSize));
+  __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize +
+                            kPCOnStackSize));
 
   __ subl(arg5, rbp);
   __ negl(arg5);
@@ -215,7 +216,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Remove the bailout id and return address from the stack.
-  __ addl(rsp, Immediate(2 * kRegisterSize));
+  __ addl(rsp, Immediate(1 * kRegisterSize + kPCOnStackSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.

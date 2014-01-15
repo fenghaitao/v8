@@ -3861,7 +3861,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   // Optionally save all XMM registers.
   if (save_doubles) {
     int space = XMMRegister::kMaxNumAllocatableRegisters * kDoubleSize +
-    arg_stack_space * kRegisterSize;
+        arg_stack_space * kRegisterSize;
     subl(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
@@ -3914,7 +3914,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     }
   }
   // Get the return address from the stack and restore the frame pointer.
-  movl(rcx, Operand(rbp, 1 * kRegisterSize));
+  movl(rcx, Operand(rbp, 1 * kFPOnStackSize));
   movl(rbp, Operand(rbp, 0 * kPointerSize));
 
   // Drop everything up to and including the arguments and the receiver
@@ -4803,7 +4803,7 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
       ArgumentStackSlotsForCFunctionCall(num_arguments);
   subl(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
   andl(rsp, Immediate(-frame_alignment));
-  movq(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
+  movl(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
 }
 
 

@@ -5175,10 +5175,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ push(arg_reg_2);
 
   // Calculate the original stack pointer and store it in the second arg.
-  __ leal(arg_reg_2, Operand(rsp, (kNumSavedRegisters + 1) * kRegisterSize));
+  __ leal(arg_reg_2,
+         Operand(rsp, kNumSavedRegisters * kRegisterSize + kPCOnStackSize));
 
   // Calculate the function address to the first arg.
-  __ movq(arg_reg_1, Operand(rsp, kNumSavedRegisters * kRegisterSize));
+  __ movl(arg_reg_1, Operand(rsp, kNumSavedRegisters * kRegisterSize));
   __ subl(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
 
   // Save the remainder of the volatile registers.
