@@ -145,12 +145,11 @@ def HandleAnnotations(line, debug):
       if result.find(annotation + " ") != -1:
         if result.find("#define" + annotation + " __") != -1:
           # Add a new line to keep debugging easier if debug
-          annotation_handlers[annotation][0] = " __"
+          annotation_handlers[annotation][0] = annotation
         else:
           (cont, result) = annotation_handlers[annotation][1](result)
           if annotation_handlers[annotation][0] == " ":
-            result = result.replace(annotation + " ", \
-                                    annotation_handlers[annotation][0])
+            pass
           else:
             result = result.replace(annotation, \
                                     annotation_handlers[annotation][0])
