@@ -368,9 +368,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
       Handle<Code> code =
           masm->isolate()->builtins()->HandleApiCallConstruct();
-      ParameterCount expected(0);
-      __ InvokeCode(code, expected, expected, RelocInfo::CODE_TARGET,
-                    CALL_FUNCTION, NullCallWrapper());
+      __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(rax);
       __ InvokeFunction(rdi, actual, CALL_FUNCTION, NullCallWrapper());
@@ -1307,7 +1305,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : actual number of arguments
   //  -- rbx : expected number of arguments
-  //  -- rdx : code entry to call
+  //  -- rdi: function (passed through to callee)
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;
@@ -1315,6 +1313,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ IncrementCounter(counters->arguments_adaptors(), 1);
 
   Label enough, too_few;
+  __ movl(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpl(rax, rbx);
   __ j(less, &too_few);
   __ cmpl(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
