@@ -2374,21 +2374,10 @@ void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
 }
 
 
-void CallStubCompiler::PatchGlobalProxy(Handle<Object> object,
-                                        Handle<JSFunction> function) {
+void CallStubCompiler::PatchImplicitReceiver(Handle<Object> object) {
   if (object->IsGlobalObject()) {
     StackArgumentsAccessor args(rsp, arguments());
-    __ MoveHeapObject(rdx, handle(function->context()->global_proxy()));
-    __ movl(args.GetReceiverOperand(), rdx);
-  }
-}
-
-
-void CallStubCompiler::PatchGlobalProxy(Handle<Object> object,
-                                        Register function) {
-  if (object->IsGlobalObject()) {
-    FetchGlobalProxy(masm(), rdx, function);
-    StackArgumentsAccessor args(rsp, arguments().immediate());
+    __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
     __ movl(args.GetReceiverOperand(), rdx);
   }
 }
@@ -2482,11 +2471,10 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
   GenerateFunctionCheck(function, rbx, miss);
 
   if (!function.is(rdi)) __ movl(rdi, function);
-  PatchGlobalProxy(object, function);
+  PatchImplicitReceiver(object);
 
   // Invoke the function.
-  __ InvokeFunction(rdi, arguments(), JUMP_FUNCTION,
-                    NullCallWrapper(), call_kind());
+  __ InvokeFunction(rdi, arguments(), JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -2595,15 +2583,6 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 #define __ ACCESS_MASM(masm)
 
 
-void CallStubCompiler::FetchGlobalProxy(MacroAssembler* masm,
-                                        Register target,
-                                        Register function) {
-  __ movl(target, FieldOperand(function, JSFunction::kContextOffset));
-  __ movl(target, ContextOperand(target, Context::GLOBAL_OBJECT_INDEX));
-  __ movl(target, FieldOperand(target, GlobalObject::kGlobalReceiverOffset));
-}
-
-
 void StoreStubCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm,
     Handle<JSFunction> setter) {
@@ -2626,7 +2605,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,
-                        CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+                        CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -2781,7 +2760,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
       ParameterCount actual(0);
       ParameterCount expected(getter);
       __ InvokeFunction(getter, expected, actual,
-                        CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+                        CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
