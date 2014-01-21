@@ -3851,7 +3851,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     }
   }
   // Get the return address from the stack and restore the frame pointer.
-  movl(rcx, Operand(rbp, 1 * kFPOnStackSize));
+  movl(rcx, Operand(rbp, kFPOnStackSize));
   movl(rbp, Operand(rbp, 0 * kPointerSize));
 
   // Drop everything up to and including the arguments and the receiver
