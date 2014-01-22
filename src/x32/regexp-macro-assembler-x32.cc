@@ -316,7 +316,7 @@ void RegExpMacroAssemblerX32::CheckNotBackReferenceIgnoreCase(
     __ j(below, &loop);
 
     // Compute new value of character position after the matched part.
-    __ movl(rdi, r11);
+    __ movp(rdi, r11);
     __ subq(rdi, rsi);
   } else {
     ASSERT(mode_ == UC16);
@@ -342,7 +342,7 @@ void RegExpMacroAssemblerX32::CheckNotBackReferenceIgnoreCase(
     // Set byte_offset2.
     __ leal(rdx, Operand(rsi, rdi, times_1, 0));
     // Set byte_length.
-    __ movl(r8, rbx);
+    __ movp(r8, rbx);
     // Isolate.
     __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));
 #else  // AMD64 calling convention
@@ -351,9 +351,9 @@ void RegExpMacroAssemblerX32::CheckNotBackReferenceIgnoreCase(
     // Compute and set byte_offset1 (start of capture).
     __ leal(rdi, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
-    __ movl(rsi, rax);
+    __ movp(rsi, rax);
     // Set byte_length.
-    __ movl(rdx, rbx);
+    __ movp(rdx, rbx);
     // Isolate.
     __ LoadAddress(rcx, ExternalReference::isolate_address(isolate()));
 #endif
@@ -442,7 +442,7 @@ void RegExpMacroAssemblerX32::CheckNotBackReference(
 
   // Success.
   // Set current character position to position after match.
-  __ movl(rdi, rbx);
+  __ movp(rdi, rbx);
   __ subq(rdi, rsi);
 
   __ bind(&fallthrough);
@@ -523,7 +523,7 @@ void RegExpMacroAssemblerX32::CheckBitInTable(
   __ Move(rax, table);
   Register index = current_character();
   if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
-    __ movl(rbx, current_character());
+    __ movp(rbx, current_character());
     __ andl(rbx, Immediate(kTableMask));
     index = rbx;
   }
@@ -676,7 +676,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
 
   // Actually emit code to start a new stack frame.
   __ push(rbp);
-  __ movl(rbp, rsp);
+  __ movp(rbp, rsp);
   // Save parameters and callee-save registers. Order here should correspond
   //  to order of kBackup_ebx etc.
 #ifdef _WIN64
@@ -718,7 +718,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
 
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
-  __ movl(rcx, rsp);
+  __ movp(rcx, rsp);
   __ Move(kScratchRegister, stack_limit);
   __ subl(rcx, Operand(kScratchRegister, 0));
   // Handle it if the stack pointer is already below the stack limit.
@@ -744,14 +744,14 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   // Allocate space on stack for registers.
   __ subl(rsp, Immediate(num_registers_ * kPointerSize));
   // Load string length.
-  __ movl(rsi, Operand(rbp, kInputEnd));
+  __ movp(rsi, Operand(rbp, kInputEnd));
   // Load input position.
-  __ movl(rdi, Operand(rbp, kInputStart));
+  __ movp(rdi, Operand(rbp, kInputStart));
   // Set up rdi to be negative offset from string end.
   __ subq(rdi, rsi);
   // Set rax to address of char before start of the string
   // (effectively string position -1).
-  __ movl(rbx, Operand(rbp, kStartIndex));
+  __ movp(rbx, Operand(rbp, kStartIndex));
   __ neg(rbx);
   if (mode_ == UC16) {
     __ leal(rax, Operand(rdi, rbx, times_2, -char_size()));
@@ -760,7 +760,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   }
   // Store this value in a local variable, for use when clearing
   // position registers.
-  __ movl(Operand(rbp, kInputStartMinusOne), rax);
+  __ movp(Operand(rbp, kInputStartMinusOne), rax);
 
 #if V8_OS_WIN
   // Ensure that we have written to each stack page, in order. Skipping a page
@@ -770,7 +770,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   for (int i = num_saved_registers_ + kRegistersPerPage - 1;
       i < num_registers_;
       i += kRegistersPerPage) {
-    __ movl(register_location(i), rax);  // One write every page.
+    __ movp(register_location(i), rax);  // One write every page.
   }
 #endif  // V8_OS_WIN
 
@@ -799,20 +799,20 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
       __ Set(rcx, kRegisterZero);
       Label init_loop;
       __ bind(&init_loop);
-      __ movl(Operand(rbp, rcx, times_1, 0), rax);
+      __ movp(Operand(rbp, rcx, times_1, 0), rax);
       __ subq(rcx, Immediate(kPointerSize));
       __ cmpq(rcx,
               Immediate(kRegisterZero - num_saved_registers_ * kPointerSize));
       __ j(greater, &init_loop);
     } else {  // Unroll the loop.
       for (int i = 0; i < num_saved_registers_; i++) {
-        __ movl(register_location(i), rax);
+        __ movp(register_location(i), rax);
       }
     }
   }
 
   // Initialize backtrack stack pointer.
-  __ movl(backtrack_stackpointer(), Operand(rbp, kStackHighEnd));
+  __ movp(backtrack_stackpointer(), Operand(rbp, kStackHighEnd));
 
   __ jmp(&start_label_);
 
@@ -822,9 +822,9 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
     __ bind(&success_label_);
     if (num_saved_registers_ > 0) {
       // copy captures to output
-      __ movl(rdx, Operand(rbp, kStartIndex));
-      __ movl(rbx, Operand(rbp, kRegisterOutput));
-      __ movl(rcx, Operand(rbp, kInputEnd));
+      __ movp(rdx, Operand(rbp, kStartIndex));
+      __ movp(rbx, Operand(rbp, kRegisterOutput));
+      __ movp(rcx, Operand(rbp, kInputEnd));
       __ subl(rcx, Operand(rbp, kInputStart));
       if (mode_ == UC16) {
         __ leal(rcx, Operand(rcx, rdx, times_2, 0));
@@ -835,7 +835,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
         __ movsxlq(rax, register_location(i));
         if (i == 0 && global_with_zero_length_check()) {
           // Keep capture start in rdx for the zero-length check later.
-          __ movl(rdx, rax);
+          __ movp(rdx, rax);
         }
         __ addl(rax, rcx);  // Convert to index from start, not end.
         if (mode_ == UC16) {
@@ -857,13 +857,13 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
       __ cmpl(rcx, Immediate(num_saved_registers_));
       __ j(less, &exit_label_);
 
-      __ movl(Operand(rbp, kNumOutputRegisters), rcx);
+      __ movp(Operand(rbp, kNumOutputRegisters), rcx);
       // Advance the location for output.
       __ addl(Operand(rbp, kRegisterOutput),
               Immediate(num_saved_registers_ * kIntSize));
 
       // Prepare rax to initialize registers with its value in the next run.
-      __ movl(rax, Operand(rbp, kInputStartMinusOne));
+      __ movp(rax, Operand(rbp, kInputStartMinusOne));
 
       if (global_with_zero_length_check()) {
         // Special case for zero-length matches.
@@ -884,14 +884,14 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
 
       __ jmp(&load_char_start_regexp);
     } else {
-      __ movl(rax, Immediate(SUCCESS));
+      __ movp(rax, Immediate(SUCCESS));
     }
   }
 
   __ bind(&exit_label_);
   if (global()) {
     // Return the number of successful captures.
-    __ movl(rax, Operand(rbp, kSuccessfulCaptures));
+    __ movp(rax, Operand(rbp, kSuccessfulCaptures));
   }
 
   __ bind(&return_rax);
@@ -904,9 +904,9 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   // Stack now at rbp.
 #else
   // Restore callee save register.
-  __ movl(rbx, Operand(rbp, kBackup_rbx));
+  __ movp(rbx, Operand(rbp, kBackup_rbx));
   // Skip rsp to rbp.
-  __ movl(rsp, rbp);
+  __ movp(rsp, rbp);
 #endif
   // Exit function frame, restore previous one.
   __ pop(rbp);
@@ -938,7 +938,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
     __ pop(rdi);
     __ pop(backtrack_stackpointer());
     // String might have moved: Reload esi from frame.
-    __ movl(rsi, Operand(rbp, kInputEnd));
+    __ movp(rsi, Operand(rbp, kInputEnd));
     SafeReturn();
   }
 
@@ -965,7 +965,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
     __ LoadAddress(r8, ExternalReference::isolate_address(isolate()));
 #else
     // AMD64 ABI passes parameters in rdi, rsi, rdx.
-    __ movl(rdi, backtrack_stackpointer());   // First argument.
+    __ movp(rdi, backtrack_stackpointer());   // First argument.
     __ leal(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
     __ LoadAddress(rdx, ExternalReference::isolate_address(isolate()));
 #endif
@@ -977,7 +977,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
     __ testl(rax, rax);
     __ j(equal, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
-    __ movl(backtrack_stackpointer(), rax);
+    __ movp(backtrack_stackpointer(), rax);
     // Restore saved registers and continue.
     __ Move(code_object_pointer(), masm_.CodeObject());
 #ifndef _WIN64
@@ -1062,7 +1062,7 @@ void RegExpMacroAssemblerX32::PopCurrentPosition() {
 
 void RegExpMacroAssemblerX32::PopRegister(int register_index) {
   Pop(rax);
-  __ movl(register_location(register_index), rax);
+  __ movp(register_location(register_index), rax);
 }
 
 
@@ -1079,7 +1079,7 @@ void RegExpMacroAssemblerX32::PushCurrentPosition() {
 
 void RegExpMacroAssemblerX32::PushRegister(int register_index,
                                            StackCheckFlag check_stack_limit) {
-  __ movl(rax, register_location(register_index));
+  __ movp(rax, register_location(register_index));
   Push(rax);
   if (check_stack_limit) CheckStackLimit();
 }
@@ -1111,7 +1111,7 @@ void RegExpMacroAssemblerX32::SetCurrentPositionFromEnd(int by) {
 
 void RegExpMacroAssemblerX32::SetRegister(int register_index, int to) {
   ASSERT(register_index >= num_saved_registers_);  // Reserved for positions!
-  __ movl(register_location(register_index), Immediate(to));
+  __ movp(register_location(register_index), Immediate(to));
 }
 
 
@@ -1124,27 +1124,27 @@ bool RegExpMacroAssemblerX32::Succeed() {
 void RegExpMacroAssemblerX32::WriteCurrentPositionToRegister(int reg,
                                                              int cp_offset) {
   if (cp_offset == 0) {
-    __ movl(register_location(reg), rdi);
+    __ movp(register_location(reg), rdi);
   } else {
     __ leal(rax, Operand(rdi, cp_offset * char_size()));
-    __ movl(register_location(reg), rax);
+    __ movp(register_location(reg), rax);
   }
 }
 
 
 void RegExpMacroAssemblerX32::ClearRegisters(int reg_from, int reg_to) {
   ASSERT(reg_from <= reg_to);
-  __ movl(rax, Operand(rbp, kInputStartMinusOne));
+  __ movp(rax, Operand(rbp, kInputStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
-    __ movl(register_location(reg), rax);
+    __ movp(register_location(reg), rax);
   }
 }
 
 
 void RegExpMacroAssemblerX32::WriteStackPointerToRegister(int reg) {
-  __ movl(rax, backtrack_stackpointer());
+  __ movp(rax, backtrack_stackpointer());
   __ subl(rax, Operand(rbp, kStackHighEnd));
-  __ movl(register_location(reg), rax);
+  __ movp(register_location(reg), rax);
 }
 
 
@@ -1157,17 +1157,17 @@ void RegExpMacroAssemblerX32::CallCheckStackGuardState() {
   __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
   // Second argument: Code* of self. (Do this before overwriting r8).
-  __ movl(rdx, code_object_pointer());
+  __ movp(rdx, code_object_pointer());
   // Third argument: RegExp code frame pointer.
-  __ movl(r8, rbp);
+  __ movp(r8, rbp);
   // First argument: Next address on the stack (will be address of
   // return address).
   __ leal(rcx, Operand(rsp, -kPointerSize));
 #else
   // Third argument: RegExp code frame pointer.
-  __ movl(rdx, rbp);
+  __ movp(rdx, rbp);
   // Second argument: Code* of self.
-  __ movl(rsi, code_object_pointer());
+  __ movp(rsi, code_object_pointer());
   // First argument: Next address on the stack (will be address of
   // return address).
   __ leal(rdi, Operand(rsp, -kRegisterSize));

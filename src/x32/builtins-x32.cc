@@ -88,9 +88,9 @@ static void CallRuntimePassFunction(
 
 
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
-  __ movl(kScratchRegister,
+  __ movp(kScratchRegister,
           FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movl(kScratchRegister,
+  __ movp(kScratchRegister,
           FieldOperand(kScratchRegister, SharedFunctionInfo::kCodeOffset));
   __ leal(kScratchRegister, FieldOperand(kScratchRegister, Code::kHeaderSize));
   __ jmp(kScratchRegister);
@@ -160,7 +160,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Verified that the constructor is a JSFunction.
       // Load the initial map and verify that it is in fact a map.
       // rdi: constructor
-      __ movl(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+      __ movp(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
       // Will both indicate a NULL and a Smi
       ASSERT(kSmiTag == 0);
       __ JumpIfSmi(rax, &rt_call);
@@ -180,7 +180,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       if (count_constructions) {
         Label allocate;
         // Decrease generous allocation count.
-        __ movl(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+        __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
         __ decb(FieldOperand(rcx,
                              SharedFunctionInfo::kConstructionCountOffset));
         __ j(not_zero, &allocate);
@@ -212,10 +212,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rax: initial map
       // rbx: JSObject (not HeapObject tagged - the actual address).
       // rdi: start of next object
-      __ movl(Operand(rbx, JSObject::kMapOffset), rax);
+      __ movp(Operand(rbx, JSObject::kMapOffset), rax);
       __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
-      __ movl(Operand(rbx, JSObject::kPropertiesOffset), rcx);
-      __ movl(Operand(rbx, JSObject::kElementsOffset), rcx);
+      __ movp(Operand(rbx, JSObject::kPropertiesOffset), rcx);
+      __ movp(Operand(rbx, JSObject::kElementsOffset), rcx);
       // Set extra fields in the newly allocated object.
       // rax: initial map
       // rbx: JSObject
@@ -284,9 +284,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rdx: number of elements
       // rax: start of next object
       __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
-      __ movl(Operand(rdi, HeapObject::kMapOffset), rcx);  // setup the map
+      __ movp(Operand(rdi, HeapObject::kMapOffset), rcx);  // setup the map
       __ Integer32ToSmi(rdx, rdx);
-      __ movl(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
+      __ movp(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
 
       // Initialize the fields to undefined.
       // rbx: JSObject
@@ -298,7 +298,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ leal(rcx, Operand(rdi, FixedArray::kHeaderSize));
         __ jmp(&entry);
         __ bind(&loop);
-        __ movl(Operand(rcx, 0), rdx);
+        __ movp(Operand(rcx, 0), rdx);
         __ addl(rcx, Immediate(kPointerSize));
         __ bind(&entry);
         __ cmpl(rcx, rax);
@@ -310,7 +310,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rbx: JSObject
       // rdi: FixedArray
       __ orl(rdi, Immediate(kHeapObjectTag));  // add the heap tag
-      __ movl(FieldOperand(rbx, JSObject::kPropertiesOffset), rdi);
+      __ movp(FieldOperand(rbx, JSObject::kPropertiesOffset), rdi);
 
 
       // Continue with JSObject being successfully allocated
@@ -329,10 +329,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // rdi: function (constructor)
     __ bind(&rt_call);
     // Must restore rdi (constructor) before calling runtime.
-    __ movl(rdi, Operand(rsp, 0));
+    __ movp(rdi, Operand(rsp, 0));
     __ Push(rdi);
     __ CallRuntime(Runtime::kNewObject, 1);
-    __ movl(rbx, rax);  // store result in rbx
+    __ movp(rbx, rax);  // store result in rbx
 
     // New object allocated.
     // rbx: newly allocated object
@@ -341,7 +341,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Pop(rdi);
 
     // Retrieve smi-tagged arguments count from the stack.
-    __ movl(rax, Operand(rsp, 0));
+    __ movp(rax, Operand(rsp, 0));
     __ SmiToInteger32(rax, rax);
 
     // Push the allocated receiver to the stack. We need two copies
@@ -355,7 +355,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ movl(rcx, rax);
+    __ movp(rcx, rax);
     __ jmp(&entry);
     __ bind(&loop);
     __ Push(Operand(rbx, rcx, times_pointer_size, 0));
@@ -365,7 +365,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Call the function.
     if (is_api_function) {
-      __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+      __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
       Handle<Code> code =
           masm->isolate()->builtins()->HandleApiCallConstruct();
       __ Call(code, RelocInfo::CODE_TARGET);
@@ -380,7 +380,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Restore context from the frame.
-    __ movl(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
     // If the result is an object (in the ECMA sense), we should get rid
     // of the receiver and use the result; see ECMA-262 section 13.2.2-7
@@ -398,11 +398,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
     __ bind(&use_receiver);
-    __ movl(rax, Operand(rsp, 0));
+    __ movp(rax, Operand(rsp, 0));
 
     // Restore the arguments count and leave the construct frame.
     __ bind(&exit);
-    __ movl(rbx, Operand(rsp, kPointerSize));  // Get arguments count.
+    __ movp(rbx, Operand(rsp, kPointerSize));  // Get arguments count.
 
     // Leave construct frame.
   }
@@ -466,19 +466,19 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Load the function context into rsi.
-    __ movl(rsi, FieldOperand(rdx, JSFunction::kContextOffset));
+    __ movp(rsi, FieldOperand(rdx, JSFunction::kContextOffset));
 
     // Push the function and the receiver onto the stack.
     __ Push(rdx);
     __ Push(r8);
 
     // Load the number of arguments and setup pointer to the arguments.
-    __ movl(rax, r9);
+    __ movp(rax, r9);
     // Load the previous frame pointer to access C argument on stack
-    __ movl(kScratchRegister, Operand(rbp, 0));
-    __ movl(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
+    __ movp(kScratchRegister, Operand(rbp, 0));
+    __ movp(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
     // Load the function pointer into rdi.
-    __ movl(rdi, rdx);
+    __ movp(rdi, rdx);
 #else  // _WIN64
     // GCC parameters in:
     // rdi : entry (ignored)
@@ -487,7 +487,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // rcx : argc
     // r8  : argv
 
-    __ movl(rdi, rsi);
+    __ movp(rdi, rsi);
     // rdi : function
 
     // Clear the context before we push it when entering the internal frame.
@@ -498,11 +498,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Push the function and receiver and setup the context.
     __ Push(rdi);
     __ Push(rdx);
-    __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+    __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
     // Load the number of arguments and setup pointer to the arguments.
-    __ movl(rax, rcx);
-    __ movl(rbx, r8);
+    __ movp(rax, rcx);
+    __ movp(rbx, r8);
 #endif  // _WIN64
 
     // Current stack contents:
@@ -522,7 +522,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Set(rcx, 0);  // Set loop variable to 0.
     __ jmp(&entry);
     __ bind(&loop);
-    __ movl(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
+    __ movp(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
     __ Push(Operand(kScratchRegister, 0));  // dereference handle
     __ addl(rcx, Immediate(1));
     __ bind(&entry);
@@ -609,7 +609,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   __ subl(Operand(rsp, 0), Immediate(5));
   __ Pushad();
   __ Move(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
-  __ movl(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
+  __ movp(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(2);
@@ -641,7 +641,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   // pointers.
   __ Pushad();
   __ Move(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
-  __ movl(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
+  __ movp(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
   __ subl(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
@@ -655,7 +655,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   // Perform prologue operations usually performed by the young code stub.
   __ PopReturnAddressTo(kScratchRegister);
   __ push(rbp);  // Caller's frame pointer.
-  __ movl(rbp, rsp);
+  __ movp(rbp, rsp);
   __ Push(rsi);  // Callee's context.
   __ Push(rdi);  // Callee's JS Function.
   __ PushReturnAddressFrom(kScratchRegister);
@@ -725,7 +725,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
-  __ movl(rax, Operand(rsp, kPCOnStackSize + kPointerSize));
+  __ movp(rax, Operand(rsp, kPCOnStackSize + kPointerSize));
   __ cmpl(kScratchRegister, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, rax.
@@ -776,7 +776,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //    if it is a function.
   Label slow, non_function;
   StackArgumentsAccessor args(rsp, rax);
-  __ movl(rdi, args.GetReceiverOperand());
+  __ movp(rdi, args.GetReceiverOperand());
   __ JumpIfSmi(rdi, &non_function);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &slow);
@@ -786,10 +786,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ Set(rdx, 0);  // indicate regular JS_FUNCTION
   { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
-    __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+    __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
     // Do not transform the receiver for strict mode functions.
-    __ movl(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ testb(FieldOperand(rbx, SharedFunctionInfo::kStrictModeByteOffset),
              Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
     __ j(not_equal, &shift_arguments);
@@ -801,7 +801,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
-    __ movl(rbx, args.GetArgumentOperand(1));
+    __ movp(rbx, args.GetArgumentOperand(1));
     __ JumpIfSmi(rbx, &convert_to_object, Label::kNear);
 
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
@@ -822,7 +822,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
       __ Push(rbx);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-      __ movl(rbx, rax);
+      __ movp(rbx, rax);
       __ Set(rdx, 0);  // indicate regular JS_FUNCTION
 
       __ Pop(rax);
@@ -830,16 +830,16 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     }
 
     // Restore the function to rdi.
-    __ movl(rdi, args.GetReceiverOperand());
+    __ movp(rdi, args.GetReceiverOperand());
     __ jmp(&patch_receiver, Label::kNear);
 
     __ bind(&use_global_receiver);
-    __ movl(rbx,
+    __ movp(rbx,
             Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-    __ movl(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+    __ movp(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
-    __ movl(args.GetArgumentOperand(1), rbx);
+    __ movp(args.GetArgumentOperand(1), rbx);
 
     __ jmp(&shift_arguments);
   }
@@ -856,18 +856,18 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
   //     receiver, so overwrite the first argument which will ultimately
   //     become the receiver.
-  __ movl(args.GetArgumentOperand(1), rdi);
+  __ movp(args.GetArgumentOperand(1), rdi);
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
   //    the original first argument the new receiver.
   __ bind(&shift_arguments);
   { Label loop;
-    __ movl(rcx, rax);
+    __ movp(rcx, rax);
     __ incl(rcx);  // HWRegSize = kPointerSize + kPointerSize
     __ bind(&loop);
-    __ movl(rbx, Operand(rsp, rcx, times_pointer_size, 0));
-    __ movl(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
+    __ movp(rbx, Operand(rsp, rcx, times_pointer_size, 0));
+    __ movp(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
     __ decl(rcx);
     __ j(not_sign, &loop);  // While non-negative (to copy return address).
     __ leal(rsp, Operand(rsp, 4));  // Discard bottom-half of return address
@@ -901,13 +901,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 5b. Get the code to call from the function and check that the number of
   //     expected arguments matches what we're providing.  If so, jump
   //     (tail-call) to the code in register edx without checking arguments.
-  __ movl(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   // kFormalParameterCountOffset is not tagged in X64, while tagged in X32.
-  __ movl(rbx,
+  __ movp(rbx,
           FieldOperand(rdx,
                        SharedFunctionInfo::kFormalParameterCountOffset));
   __ SmiToInteger32(rbx, rbx);
-  __ movl(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpl(rax, rbx);
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -945,7 +945,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // limit" is checked.
     Label okay;
     __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
-    __ movl(rcx, rsp);
+    __ movp(rcx, rsp);
     // Make rcx the space we have left. The stack might already be overflowed
     // here which will cause rcx to become negative.
     __ subl(rcx, kScratchRegister);
@@ -971,20 +971,20 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Push(Immediate(0));  // index
 
     // Get the receiver.
-    __ movl(rbx, Operand(rbp, kReceiverOffset));
+    __ movp(rbx, Operand(rbp, kReceiverOffset));
 
     // Check that the function is a JS function (otherwise it must be a proxy).
     Label push_receiver;
-    __ movl(rdi, Operand(rbp, kFunctionOffset));
+    __ movp(rdi, Operand(rbp, kFunctionOffset));
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &push_receiver);
 
     // Change context eagerly to get the right global object if necessary.
-    __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+    __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
     // Do not transform the receiver for strict mode functions.
     Label call_to_object, use_global_receiver;
-    __ movl(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
              Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
     __ j(not_equal, &push_receiver);
@@ -1011,13 +1011,13 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ bind(&call_to_object);
     __ Push(rbx);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ movl(rbx, rax);
+    __ movp(rbx, rax);
     __ jmp(&push_receiver, Label::kNear);
 
     __ bind(&use_global_receiver);
-    __ movl(rbx,
+    __ movp(rbx,
             Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-    __ movl(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+    __ movp(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
     // Push the receiver.
     __ bind(&push_receiver);
@@ -1025,10 +1025,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Copy all arguments from the array to the stack.
     Label entry, loop;
-    __ movl(rax, Operand(rbp, kIndexOffset));
+    __ movp(rax, Operand(rbp, kIndexOffset));
     __ jmp(&entry);
     __ bind(&loop);
-    __ movl(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
+    __ movp(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
 
     // Use inline caching to speed up access to arguments.
     Handle<Code> ic =
@@ -1043,9 +1043,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Push(rax);
 
     // Update the index on the stack and in register rax.
-    __ movl(rax, Operand(rbp, kIndexOffset));
+    __ movp(rax, Operand(rbp, kIndexOffset));
     __ SmiAddConstant(rax, rax, Smi::FromInt(1));
-    __ movl(Operand(rbp, kIndexOffset), rax);
+    __ movp(Operand(rbp, kIndexOffset), rax);
 
     __ bind(&entry);
     __ cmpl(rax, Operand(rbp, kLimitOffset));
@@ -1055,7 +1055,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     Label call_proxy;
     ParameterCount actual(rax);
     __ SmiToInteger32(rax, rax);
-    __ movl(rdi, Operand(rbp, kFunctionOffset));
+    __ movp(rdi, Operand(rbp, kFunctionOffset));
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &call_proxy);
     __ InvokeFunction(rdi, actual, CALL_FUNCTION, NullCallWrapper());
@@ -1091,7 +1091,7 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray functions should be maps.
-    __ movl(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+    __ movp(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
@@ -1121,7 +1121,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     // Initial map for the builtin Array functions should be maps.
-    __ movl(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+    __ movp(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
@@ -1164,11 +1164,11 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   Label no_arguments;
   __ testl(rax, rax);
   __ j(zero, &no_arguments);
-  __ movl(rbx, args.GetArgumentOperand(1));
+  __ movp(rbx, args.GetArgumentOperand(1));
   __ PopReturnAddressTo(rcx);
   __ leal(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
   __ PushReturnAddressFrom(rcx);
-  __ movl(rax, rbx);
+  __ movp(rax, rbx);
 
   // Lookup the argument in the number to string cache.
   Label not_cached, argument_is_string;
@@ -1204,15 +1204,15 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     __ cmpb(FieldOperand(rcx, Map::kUnusedPropertyFieldsOffset), Immediate(0));
     __ Assert(equal, kUnexpectedUnusedPropertiesOfStringWrapper);
   }
-  __ movl(FieldOperand(rax, HeapObject::kMapOffset), rcx);
+  __ movp(FieldOperand(rax, HeapObject::kMapOffset), rcx);
 
   // Set properties and elements.
   __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
-  __ movl(FieldOperand(rax, JSObject::kPropertiesOffset), rcx);
-  __ movl(FieldOperand(rax, JSObject::kElementsOffset), rcx);
+  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), rcx);
+  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rcx);
 
   // Set the value.
-  __ movl(FieldOperand(rax, JSValue::kValueOffset), rbx);
+  __ movp(FieldOperand(rax, JSValue::kValueOffset), rbx);
 
   // Ensure the object is fully initialized.
   STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
@@ -1228,7 +1228,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ JumpIfSmi(rax, &convert_argument);
   Condition is_string = masm->IsObjectStringType(rax, rbx, rcx);
   __ j(NegateCondition(is_string), &convert_argument);
-  __ movl(rbx, rax);
+  __ movp(rbx, rax);
   __ IncrementCounter(counters->string_ctor_string_value(), 1);
   __ jmp(&argument_is_string);
 
@@ -1242,7 +1242,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
     __ Pop(rdi);
   }
-  __ movl(rbx, rax);
+  __ movp(rbx, rax);
   __ jmp(&argument_is_string);
 
   // Load the empty string into rbx, remove the receiver from the
@@ -1269,7 +1269,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ push(rbp);
-  __ movl(rbp, rsp);
+  __ movp(rbp, rsp);
 
   // Store the arguments adaptor context sentinel.
   __ Push(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
@@ -1287,10 +1287,10 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
 
 static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Retrieve the number of arguments from the stack. Number is a Smi.
-  __ movl(rbx, Operand(rbp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ movp(rbx, Operand(rbp, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   // Leave the frame.
-  __ movl(rsp, rbp);
+  __ movp(rsp, rbp);
   __ pop(rbp);
 
   // Remove caller arguments from the stack.
@@ -1313,7 +1313,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ IncrementCounter(counters->arguments_adaptors(), 1);
 
   Label enough, too_few;
-  __ movl(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpl(rax, rbx);
   __ j(less, &too_few);
   __ cmpl(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
@@ -1365,7 +1365,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ j(less, &fill);
 
     // Restore function pointer.
-    __ movl(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+    __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   }
 
   // Call the entry point.
@@ -1389,7 +1389,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Lookup the function in the JavaScript frame.
-  __ movl(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Pass function as argument.
@@ -1406,7 +1406,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ bind(&skip);
 
   // Load deoptimization data from the code object.
-  __ movl(rbx, Operand(rax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+  __ movp(rbx, Operand(rax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiToInteger32(rbx, Operand(rbx, FixedArray::OffsetOfElementAt(

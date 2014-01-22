@@ -322,7 +322,7 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
       ExternalReference(Debug_Address::RestarterFrameFunctionPointer(),
                         masm->isolate());
   __ Move(rax, restarter_frame_function_slot);
-  __ movl(Operand(rax, 0), Immediate(0));
+  __ movp(Operand(rax, 0), Immediate(0));
 
   // We do not know our frame height, but set rsp based on rbp.
   __ leal(rsp, Operand(rbp, -1 * kPointerSize));
@@ -331,11 +331,11 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ pop(rbp);
 
   // Load context from the function.
-  __ movl(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+  __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // Get function code.
-  __ movl(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movl(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
   __ leal(rdx, FieldOperand(rdx, Code::kHeaderSize));
 
   // Re-run JSFunction, rdi is function, rsi is context.
