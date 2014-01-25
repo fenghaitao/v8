@@ -1112,7 +1112,7 @@ void StubCompiler::GenerateTailCall(MacroAssembler* masm, Handle<Code> code) {
 #define __ ACCESS_MASM((masm()))
 
 
-Register StubCompiler::CheckPrototypes(Handle<Type> type,
+Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
                                        Register object_reg,
                                        Handle<JSObject> holder,
                                        Register holder_reg,
@@ -1264,7 +1264,7 @@ void StoreStubCompiler::HandlerFrontendFooter(Handle<Name> name, Label* miss) {
 
 
 Register LoadStubCompiler::CallbackHandlerFrontend(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Register object_reg,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1589,77 +1589,6 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 
   // Return the generated code.
   return GetCode(Code::FAST, name);
-}
-
-
-Handle<Code> CallStubCompiler::CompileArrayPopCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name,
-    Code::StubType type) {
-  // If object is not an array or is observed or sealed, bail out to regular
-  // call.
-  if (!object->IsJSArray() ||
-      !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed() ||
-      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
-    return Handle<Code>::null();
-  }
-
-  Label miss, return_undefined, call_builtin;
-
-  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
-
-  // Get the elements array of the object.
-  __ movp(rbx, FieldOperand(rdx, JSArray::kElementsOffset));
-
-  // Check that the elements are in fast mode and writable.
-  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &call_builtin);
-
-  // Get the array's length into rcx and calculate new length.
-  __ SmiToInteger32(rcx, FieldOperand(rdx, JSArray::kLengthOffset));
-  __ subl(rcx, Immediate(1));
-  __ j(negative, &return_undefined);
-
-  // Get the last element.
-  __ LoadRoot(r9, Heap::kTheHoleValueRootIndex);
-  __ movp(rax, FieldOperand(rbx,
-                            rcx, times_pointer_size,
-                            FixedArray::kHeaderSize));
-  // Check if element is already the hole.
-  __ cmpl(rax, r9);
-  // If so, call slow-case to also check prototypes for value.
-  __ j(equal, &call_builtin);
-
-  // Set the array's length.
-  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rcx);
-
-  // Fill with the hole and return original value.
-  __ movp(FieldOperand(rbx,
-                       rcx, times_pointer_size,
-                       FixedArray::kHeaderSize),
-          r9);
-  const int argc = arguments().immediate();
-  __ ret((argc + 1) * kPointerSize);
-
-  __ bind(&return_undefined);
-  __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ ret((argc + 1) * kPointerSize);
-
-  __ bind(&call_builtin);
-  __ TailCallExternalReference(
-      ExternalReference(Builtins::c_ArrayPop, isolate()),
-      argc + 1,
-      1);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(type, name);
 }
 
 
@@ -2037,7 +1966,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<Type> type,
+Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<HeapType> type,
                                                       Handle<JSObject> last,
                                                       Handle<Name> name) {
   NonexistentHandlerFrontend(type, last, name);
@@ -2120,7 +2049,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 
 
 Handle<Code> LoadStubCompiler::CompileLoadGlobal(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<GlobalObject> global,
     Handle<PropertyCell> cell,
     Handle<Name> name,
@@ -2179,13 +2108,13 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   int receiver_count = types->length();
   int number_of_handled_maps = 0;
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Type> type = types->at(current);
+    Handle<HeapType> type = types->at(current);
     Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
       // Check map and tail call if there's a match
       __ Cmp(map_reg, map);
-      if (type->Is(Type::Number())) {
+      if (type->Is(HeapType::Number())) {
         ASSERT(!number_case.is_unused());
         __ bind(&number_case);
       }
