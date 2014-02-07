@@ -40,6 +40,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
                                 BuiltinExtraArguments extra_args) {

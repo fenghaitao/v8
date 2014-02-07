@@ -16,7 +16,7 @@ namespace internal {
 
 
 #define __ ACCESS_MASM(masm)
-#define __k __
+
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
@@ -1515,7 +1515,6 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 }
 
 
-#undef __k
 #undef __
 
 } }  // namespace v8::internal

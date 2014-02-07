@@ -127,7 +127,8 @@ def HandleMovQ(line, key):
   result = line
   if result.find("xmm") == -1 and result.find("double_scratch") == -1 and \
      result.find("V8_UINT64_C") == -1 and result.find("V8_INT64_C") == -1 and \
-     result.find("MoveDouble") == -1:
+     result.find("MoveDouble") == -1 and result.find("kRegisterSize") == -1 and \
+     result.find("StackOperandForReturnAddress") == -1:
     result = Replace(result, key)
   return result
 

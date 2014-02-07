@@ -97,7 +97,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 
   // Fill the frame content from the actual data on the frame.
   for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
+    input_->SetFrameSlot(i, Memory::uintptr_at(tos + i));
   }
 }
 
@@ -186,9 +186,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   // On windows put the arguments on the stack (PrepareCallCFunction
   // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
-  __ movl(Operand(rsp, 4 * kRegisterSize), arg5);
+  __ movq(Operand(rsp, 4 * kRegisterSize), arg5);
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate()));
-  __ movl(Operand(rsp, 5 * kRegisterSize), arg5);
+  __ movq(Operand(rsp, 5 * kRegisterSize), arg5);
 #else
   __ movp(r8, arg5);
   __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));

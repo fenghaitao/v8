@@ -169,8 +169,8 @@ ModuloFunction CreateModuloFunction() {
   __ j(zero, &valid_result);
   __ fstp(0);  // Drop result in st(0).
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
-  __ movl(rcx, kNaNValue);
-  __ movl(Operand(rsp, kRegisterSize), rcx);
+  __ movq(rcx, kNaNValue);
+  __ movq(Operand(rsp, kRegisterSize), rcx);
   __ movsd(xmm0, Operand(rsp, kRegisterSize));
   __ jmp(&return_result);
 
