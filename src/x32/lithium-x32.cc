@@ -1061,18 +1061,6 @@ LInstruction* LChunkBuilder::DoDeclareGlobals(HDeclareGlobals* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
-  LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LGlobalObject(context));
-}
-
-
-LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
-  LOperand* global_object = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LGlobalReceiver(global_object));
-}
-
-
 LInstruction* LChunkBuilder::DoCallJSFunction(
     HCallJSFunction* instr) {
   LOperand* function = UseFixed(instr->function(), rdi);
@@ -1990,13 +1978,6 @@ LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
 
 LInstruction* LChunkBuilder::DoLoadRoot(HLoadRoot* instr) {
   return DefineAsRegister(new(zone()) LLoadRoot);
-}
-
-
-LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
-    HLoadExternalArrayPointer* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LLoadExternalArrayPointer(input));
 }
 
 
