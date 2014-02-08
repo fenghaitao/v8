@@ -3800,7 +3800,7 @@ void MacroAssembler::AssertSmi(const Operand& object) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (emit_debug_code()) {
     ASSERT(!int32_register.is(kScratchRegister));
-    __k movq(kScratchRegister, V8_INT64_C(0x0000000100000000));
+    movq(kScratchRegister, V8_INT64_C(0x0000000100000000));
     __k cmpq(kScratchRegister, int32_register);
     Check(above_equal, k32BitValueInRegisterIsNotZeroExtended);
   }

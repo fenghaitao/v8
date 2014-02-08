@@ -47,19 +47,7 @@ import os
 #     3) Use push/pop for return address and FP register
 #     4) Get signed index register for SIB access
 #
-#   __q (quad) : Replace kPointerSize with kRegisterSize and __q with __
-#                or remove "__q ".
-#   We need to use quadword for X32 when:
-#     1) Pass arguments to the C++ runtime, we need 8-byte in the stack
-#         according to X32 ABI (https://sites.google.com/site/x32abi/)
-#     2) Access a stack slot when skipping return address or FP
-#     3) Compute size of state in the deoptimization process as we store state
-#        as quadword in the stack
-#
-#   __s (quad, keep) : Combine __k and __q. It is used when storing a register
-#     to the runtime stack for RegExp.
-#
-# After handling the annotations, if not __k or __s, the rest of the line will
+# After handling the annotations, if not __k, the rest of the line will
 # be processed according to the operator_handlers (see below).
 
 argument_replacements = {
@@ -76,64 +64,49 @@ argument_replacements = {
   "(argc_ + 1) * kPointerSize" : "1 * kRegisterSize + argc_ * kPointerSize",
 }
 
-def HandleArgument(line):
-  result = line
-  if result.find("times_pointer_size, 0)") != -1:
-    result = result.replace("times_pointer_size, 0)", \
-                            "times_pointer_size, kPointerSize)")
-  else:
-    for argument in argument_replacements:
-      if result.find(argument) != -1:
-        result = result.replace(argument, argument_replacements[argument])
-        break
-
-  return (True, result)
-
 def HandleKeep(line):
   return (False, line)
 
-def HandleQuad(line):
-  result = line
-  result = result.replace("kPointerSize", "kRegisterSize")
-  return (True, result)
-
-def HandleNone64(line):
-  result = line
-  result = result.replace("RelocInfo::NONE64", "RelocInfo::NONE32")
-  return (True, result)
-
-def HandleQuadKeep(line):
-  (cont, result) = HandleQuad(line)
-  return HandleKeep(result)
-
 annotation_handlers = {
   " __k" : [" ", HandleKeep],
-  " __q" : [" ", HandleQuad],
-  " __s" : [" ", HandleQuadKeep],
 }
 
-def Replace(line, key):
+def Replace(line, key, lines, line_number):
   return line.replace(key, operator_handlers[key][0])
 
-def HandlePushPop(line, key):
+def HandlePushPop(line, key, lines, line_number):
   if line.find("push(rbp)") == -1 and line.find("pop(rbp)") == -1 and \
      line.find("PopReturnAddressTo") == -1 and \
      line.find("PushReturnAddressFrom") == -1:
-    return Replace(line, key)
+    return Replace(line, key, lines, line_number)
   else:
     return line
 
-def HandleMovQ(line, key):
+def HandleMovQ(line, key, lines, line_number):
   result = line
-  if result.find("xmm") == -1 and result.find("double_scratch") == -1 and \
-     result.find("V8_UINT64_C") == -1 and result.find("V8_INT64_C") == -1 and \
-     result.find("MoveDouble") == -1 and result.find("kRegisterSize") == -1 and \
-     result.find("StackOperandForReturnAddress") == -1:
-    result = Replace(result, key)
+  keep = False
+  while True:
+    operands = lines[line_number]
+    if operands.find("xmm") != -1 or \
+       operands.find("V8_UINT64_C") != -1 or operands.find("V8_INT64_C") != -1 or \
+       operands.find("double_scratch") != -1 or \
+       operands.find("MoveDouble") != -1 or \
+       operands.find("FixedDoubleArray::kHeaderSize") != -1 or \
+       operands.find("kNaNValue") != -1 or \
+       operands.find("kHoleNanInt64") != -1 or \
+       operands.find("kRegisterSize") != -1 or \
+       operands.find("StackOperandForReturnAddress") != -1:
+      keep = True
+    if operands.find(");") != -1:
+      break
+    line_number += 1
+  if not keep:
+    result = Replace(result, key, lines, line_number)
+
   return result
 
 operator_handlers = {
-  "movq("       : ("movl(",     HandleMovQ),
+  "movq("       : ("movp(",     HandleMovQ),
   "push("       : ("Push(",  HandlePushPop),
   "pop("        : ("Pop(",   HandlePushPop),
   "push_imm32(" : ("Push_imm32(",  Replace),
@@ -255,7 +228,8 @@ def HandleComment(line):
 
   return result
 
-def ProcessLine(line, is_assembler, debug):
+def ProcessLine(lines, line_number, is_assembler, debug):
+  line = lines[line_number]
   if line.find("#include") != -1:
     result = line.replace("x64", "x32")
   else:
@@ -266,7 +240,7 @@ def ProcessLine(line, is_assembler, debug):
         for key in operator_handlers:
           if result.find(key) != -1:
             handler = operator_handlers[key][1]
-            result  = handler(result, key)
+            result  = handler(result, key, lines, line_number)
             break
 
   return result
@@ -353,7 +327,7 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
       line_number += 1
     return line_number - begin
   else:
-    line_out = ProcessLine(line_in, is_assembler, debug)
+    line_out = ProcessLine(lines_in, line_number, is_assembler, debug)
     lines_out.append(line_out)
     return 1
 

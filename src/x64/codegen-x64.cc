@@ -147,7 +147,7 @@ ModuloFunction CreateModuloFunction() {
   __ j(zero, &valid_result);
   __ fstp(0);  // Drop result in st(0).
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
-  __k movq(rcx, kNaNValue);
+  __ movq(rcx, kNaNValue);
   __ movq(Operand(rsp, kRegisterSize), rcx);
   __ movsd(xmm0, Operand(rsp, kRegisterSize));
   __ jmp(&return_result);
@@ -280,7 +280,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
 
   Label loop, entry, convert_hole;
-  __k movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64));
+  __ movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64));
   // r15: the-hole NaN
   __ jmp(&entry);
 
@@ -337,7 +337,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
     __ Assert(equal, kObjectFoundInSmiOnlyArray);
   }
 
-  __k movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
+  __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
   __ bind(&entry);
   __ decp(r9);
   __ j(not_sign, &loop);
@@ -382,7 +382,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ movp(FieldOperand(r11, FixedArray::kLengthOffset), r14);
 
   // Prepare for conversion loop.
-  __k movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64));
+  __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64));
   __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
   // rsi: the-hole NaN
   // rdi: pointer to the-hole
@@ -396,7 +396,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Box doubles into heap numbers.
   __ bind(&loop);
-  __k movq(r14, FieldOperand(r8,
+  __ movq(r14, FieldOperand(r8,
                             r9,
                             times_8,
                             FixedDoubleArray::kHeaderSize));
