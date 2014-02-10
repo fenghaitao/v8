@@ -1353,8 +1353,6 @@ void LCodeGen::DoMulI(LMulI* instr) {
     }
     __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
-      // Constant can't be represented as Smi due to immediate size limit.
-      ASSERT(!instr->hydrogen_value()->representation().IsSmi());
       if (ToInteger32(LConstantOperand::cast(right)) < 0) {
         DeoptimizeIf(no_condition, instr->environment());
       } else if (ToInteger32(LConstantOperand::cast(right)) == 0) {
@@ -3419,10 +3417,10 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
   __ LoadFromSafepointRegisterSlot(input_reg, input_reg);
 
   __ bind(&allocated);
-  __ MoveDouble(tmp2, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ movq(tmp2, FieldOperand(input_reg, HeapNumber::kValueOffset));
   __ shl(tmp2, Immediate(1));
   __ shr(tmp2, Immediate(1));
-  __ MoveDouble(FieldOperand(tmp, HeapNumber::kValueOffset), tmp2);
+  __ movq(FieldOperand(tmp, HeapNumber::kValueOffset), tmp2);
   __ StoreToSafepointRegisterSlot(input_reg, tmp);
 
   __ bind(&done);

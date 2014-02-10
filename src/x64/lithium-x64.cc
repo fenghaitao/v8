@@ -1266,6 +1266,8 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
+    ASSERT(instr->CheckFlag(HValue::kTruncatingToInt32));
+
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
     return DefineSameAsFirst(new(zone()) LBitI(left, right));
@@ -1505,14 +1507,8 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-#ifndef V8_TARGET_ARCH_X32
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-#else
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
-#endif
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new(zone()) LSubI(left, right);
@@ -1536,14 +1532,8 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     // are multiple uses of the add's inputs, so using a 3-register add will
     // preserve all input values for later uses.
     bool use_lea = LAddI::UseLea(instr);
-#ifndef V8_TARGET_ARCH_X32
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-#else
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
-#endif
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     HValue* right_candidate = instr->BetterRightOperand();
     LOperand* right;

@@ -90,7 +90,7 @@ def HandleMovQ(line, key, lines, line_number):
     if operands.find("xmm") != -1 or \
        operands.find("V8_UINT64_C") != -1 or operands.find("V8_INT64_C") != -1 or \
        operands.find("double_scratch") != -1 or \
-       operands.find("MoveDouble") != -1 or \
+       operands.find("HeapNumber::kValueOffset") != -1 or \
        operands.find("FixedDoubleArray::kHeaderSize") != -1 or \
        operands.find("kNaNValue") != -1 or \
        operands.find("kHoleNanInt64") != -1 or \
