@@ -3086,14 +3086,6 @@ void MacroAssembler::TestBitSharedFunctionInfoSpecialField(Register base,
 }
 
 
-#ifdef V8_TARGET_ARCH_X32
-void MacroAssembler::Jump(const Operand& src) {
-  movl(kScratchRegister, src);
-  jmp(kScratchRegister);
-}
-#endif
-
-
 void MacroAssembler::Jump(ExternalReference ext) {
   LoadAddress(kScratchRegister, ext);
   jmp(kScratchRegister);

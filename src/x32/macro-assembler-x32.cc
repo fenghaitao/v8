@@ -985,8 +985,18 @@ void MacroAssembler::Set(Register dst, int64_t x) {
 }
 
 
-void MacroAssembler::Set(const Operand& dst, int32_t x) {
-  movl(dst, Immediate(x));
+void MacroAssembler::Set(const Operand& dst, intptr_t x) {
+  if (kPointerSize == kInt64Size) {
+    if (is_int32(x)) {
+      movp(dst, Immediate(static_cast<int32_t>(x)));
+    } else {
+      Set(kScratchRegister, x);
+      movp(dst, kScratchRegister);
+    }
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(dst, Immediate(static_cast<int32_t>(x)));
+  }
 }
 
 
@@ -2657,15 +2667,20 @@ void MacroAssembler::TestBit(const Operand& src, int bits) {
 }
 
 
-void MacroAssembler::Jump(const Operand& src) {
-  movl(kScratchRegister, src);
+void MacroAssembler::Jump(ExternalReference ext) {
+  LoadAddress(kScratchRegister, ext);
   jmp(kScratchRegister);
 }
 
 
-void MacroAssembler::Jump(ExternalReference ext) {
-  LoadAddress(kScratchRegister, ext);
-  jmp(kScratchRegister);
+void MacroAssembler::Jump(const Operand& op) {
+  if (kPointerSize == kInt64Size) {
+    jmp(op);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(kScratchRegister, op);
+    jmp(kScratchRegister);
+  }
 }
 
 
@@ -2701,8 +2716,13 @@ void MacroAssembler::Call(ExternalReference ext) {
 
 
 void MacroAssembler::Call(const Operand& op) {
-  movl(kScratchRegister, op);
-  call(kScratchRegister);
+  if (kPointerSize == kInt64Size) {
+    call(op);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(kScratchRegister, op);
+    call(kScratchRegister);
+  }
 }
 
 
