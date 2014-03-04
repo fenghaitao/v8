@@ -1197,6 +1197,7 @@ class Assembler : public AssemblerBase {
   // Bit operations.
   void bt(const Operand& dst, Register src);
   void bts(const Operand& dst, Register src);
+  void bsrl(Register dst, Register src);
 
   // Miscellaneous
   void clc();

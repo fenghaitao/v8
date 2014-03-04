@@ -1326,6 +1326,12 @@ int DisassemblerX32::TwoByteOpcodeInstruction(byte* data) {
     } else {
       AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
     }
+  } else if (opcode == 0xBD) {
+    AppendToBuffer("%s%c ", mnemonic, operand_size_code());
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("%s,", NameOfCPURegister(regop));
+    current += PrintRightOperand(current);
   } else {
     UnimplementedInstruction();
   }
@@ -1368,6 +1374,8 @@ const char* DisassemblerX32::TwoByteMnemonic(byte opcode) {
       return "movzxb";
     case 0xB7:
       return "movzxw";
+    case 0xBD:
+      return "bsr";
     case 0xBE:
       return "movsxb";
     case 0xBF:
@@ -1451,7 +1459,8 @@ int DisassemblerX32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data += 3;
           break;
         case OPERAND_DOUBLEWORD_SIZE:
-          addr = reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data + 1));
+          addr =
+              reinterpret_cast<byte*>(*reinterpret_cast<uint32_t*>(data + 1));
           data += 5;
           break;
         case OPERAND_QUADWORD_SIZE:

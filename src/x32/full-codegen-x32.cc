@@ -1444,7 +1444,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
   // variables.
   switch (var->location()) {
     case Variable::UNALLOCATED: {
-      Comment cmnt(masm_, "Global variable");
+      Comment cmnt(masm_, "[ Global variable");
       // Use inline caching. Variable name is passed in rcx and the global
       // object on the stack.
       __ Move(rcx, var->name());
@@ -1457,7 +1457,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
     case Variable::PARAMETER:
     case Variable::LOCAL:
     case Variable::CONTEXT: {
-      Comment cmnt(masm_, var->IsContextSlot() ? "Context slot" : "Stack slot");
+      Comment cmnt(masm_, var->IsContextSlot() ? "[ Context slot"
+                                               : "[ Stack slot");
       if (var->binding_needs_init()) {
         // var->scope() may be NULL when the proxy is located in eval code and
         // refers to a potential outside binding. Currently those bindings are
@@ -1519,12 +1520,12 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
     }
 
     case Variable::LOOKUP: {
+      Comment cmnt(masm_, "[ Lookup slot");
       Label done, slow;
       // Generate code for loading from variables potentially shadowed
       // by eval-introduced variables.
       EmitDynamicLookupFastCase(var, NOT_INSIDE_TYPEOF, &slow, &done);
       __ bind(&slow);
-      Comment cmnt(masm_, "Lookup slot");
       __ Push(rsi);  // Context.
       __ Push(var->name());
       __ CallRuntime(Runtime::kLoadContextSlot, 2);
@@ -2400,6 +2401,27 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
 }
 
 
+void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
+    Variable* var, MemOperand location) {
+  __ movp(location, rax);
+  if (var->IsContextSlot()) {
+    __ movp(rdx, rax);
+    __ RecordWriteContextSlot(
+        rcx, Context::SlotOffset(var->index()), rdx, rbx, kDontSaveFPRegs);
+  }
+}
+
+
+void FullCodeGenerator::EmitCallStoreContextSlot(
+    Handle<String> name, LanguageMode mode) {
+  __ Push(rax);  // Value.
+  __ Push(rsi);  // Context.
+  __ Push(name);
+  __ Push(Smi::FromInt(mode));
+  __ CallRuntime(Runtime::kStoreContextSlot, 4);
+}
+
+
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
                                                Token::Value op) {
   if (var->IsUnallocated()) {
@@ -2407,37 +2429,30 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ Move(rcx, var->name());
     __ movp(rdx, GlobalObjectOperand());
     CallStoreIC();
+
   } else if (op == Token::INIT_CONST) {
     // Const initializers need a write barrier.
     ASSERT(!var->IsParameter());  // No const parameters.
-    if (var->IsStackLocal()) {
-      Label skip;
-      __ movp(rdx, StackOperand(var));
-      __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
-      __ j(not_equal, &skip);
-      __ movp(StackOperand(var), rax);
-      __ bind(&skip);
-    } else {
-      ASSERT(var->IsContextSlot() || var->IsLookupSlot());
-      // Like var declarations, const declarations are hoisted to function
-      // scope.  However, unlike var initializers, const initializers are
-      // able to drill a hole to that function context, even from inside a
-      // 'with' context.  We thus bypass the normal static scope lookup for
-      // var->IsContextSlot().
+    if (var->IsLookupSlot()) {
       __ Push(rax);
       __ Push(rsi);
       __ Push(var->name());
       __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      ASSERT(var->IsStackLocal() || var->IsContextSlot());
+      Label skip;
+      MemOperand location = VarOperand(var, rcx);
+      __ movp(rdx, location);
+      __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &skip);
+      EmitStoreToStackLocalOrContextSlot(var, location);
+      __ bind(&skip);
     }
 
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     if (var->IsLookupSlot()) {
-      __ Push(rax);  // Value.
-      __ Push(rsi);  // Context.
-      __ Push(var->name());
-      __ Push(Smi::FromInt(language_mode()));
-      __ CallRuntime(Runtime::kStoreContextSlot, 4);
+      EmitCallStoreContextSlot(var->name(), language_mode());
     } else {
       ASSERT(var->IsStackAllocated() || var->IsContextSlot());
       Label assign;
@@ -2448,18 +2463,16 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ Push(var->name());
       __ CallRuntime(Runtime::kThrowReferenceError, 1);
       __ bind(&assign);
-      __ movp(location, rax);
-      if (var->IsContextSlot()) {
-        __ movp(rdx, rax);
-        __ RecordWriteContextSlot(
-            rcx, Context::SlotOffset(var->index()), rdx, rbx, kDontSaveFPRegs);
-      }
+      EmitStoreToStackLocalOrContextSlot(var, location);
     }
 
   } else if (!var->is_const_mode() || op == Token::INIT_CONST_HARMONY) {
     // Assignment to var or initializing assignment to let/const
     // in harmony mode.
-    if (var->IsStackAllocated() || var->IsContextSlot()) {
+    if (var->IsLookupSlot()) {
+      EmitCallStoreContextSlot(var->name(), language_mode());
+    } else {
+      ASSERT(var->IsStackAllocated() || var->IsContextSlot());
       MemOperand location = VarOperand(var, rcx);
       if (generate_debug_code_ && op == Token::INIT_LET) {
         // Check for an uninitialized let binding.
@@ -2467,20 +2480,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
         __ Check(equal, kLetBindingReInitialization);
       }
-      // Perform the assignment.
-      __ movp(location, rax);
-      if (var->IsContextSlot()) {
-        __ movp(rdx, rax);
-        __ RecordWriteContextSlot(
-            rcx, Context::SlotOffset(var->index()), rdx, rbx, kDontSaveFPRegs);
-      }
-    } else {
-      ASSERT(var->IsLookupSlot());
-      __ Push(rax);  // Value.
-      __ Push(rsi);  // Context.
-      __ Push(var->name());
-      __ Push(Smi::FromInt(language_mode()));
-      __ CallRuntime(Runtime::kStoreContextSlot, 4);
+      EmitStoreToStackLocalOrContextSlot(var, location);
     }
   }
   // Non-initializing assignments to consts are ignored.
@@ -4480,7 +4480,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
   ASSERT(!context()->IsTest());
 
   if (proxy != NULL && proxy->var()->IsUnallocated()) {
-    Comment cmnt(masm_, "Global variable");
+    Comment cmnt(masm_, "[ Global variable");
     __ Move(rcx, proxy->name());
     __ movp(rax, GlobalObjectOperand());
     // Use a regular load, not a contextual load, to avoid a reference
@@ -4489,6 +4489,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     PrepareForBailout(expr, TOS_REG);
     context()->Plug(rax);
   } else if (proxy != NULL && proxy->var()->IsLookupSlot()) {
+    Comment cmnt(masm_, "[ Lookup slot");
     Label done, slow;
 
     // Generate code for loading from variables potentially shadowed

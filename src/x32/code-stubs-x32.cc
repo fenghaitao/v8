@@ -2194,7 +2194,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   // Make sure the function is the Array() function
-  __ LoadArrayFunction(rcx);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
   __ cmpl(rdi, rcx);
   __ j(not_equal, &megamorphic);
   __ jmp(&done);
@@ -2216,7 +2216,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // indicate the ElementsKind if function is the Array constructor.
   __ bind(&initialize);
   // Make sure the function is the Array() function
-  __ LoadArrayFunction(rcx);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
   __ cmpl(rdi, rcx);
   __ j(not_equal, &not_array_function);
 
@@ -5177,7 +5177,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register context = rsi;
 
   int argc = ArgumentBits::decode(bit_field_);
-  bool restore_context = RestoreContextBits::decode(bit_field_);
+  bool is_store = IsStoreBits::decode(bit_field_);
   bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
 
   typedef FunctionCallbackArguments FCA;
@@ -5253,19 +5253,21 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
-  StackArgumentsAccessor args_from_rbp(rbp, FCA::kArgsLength,
+  // Accessor for FunctionCallbackInfo and first js arg.
+  StackArgumentsAccessor args_from_rbp(rbp, FCA::kArgsLength + 1,
                                        ARGUMENTS_DONT_CONTAIN_RECEIVER);
   Operand context_restore_operand = args_from_rbp.GetArgumentOperand(
-      FCA::kArgsLength - 1 - FCA::kContextSaveIndex);
+      FCA::kArgsLength - FCA::kContextSaveIndex);
+  // Stores return the first js argument
   Operand return_value_operand = args_from_rbp.GetArgumentOperand(
-      FCA::kArgsLength - 1 - FCA::kReturnValueOffset);
+      is_store ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
   __ CallApiFunctionAndReturn(
       api_function_address,
       thunk_address,
       callback_arg,
       argc + FCA::kArgsLength + 1,
       return_value_operand,
-      restore_context ? &context_restore_operand : NULL);
+      &context_restore_operand);
 }
 
 
