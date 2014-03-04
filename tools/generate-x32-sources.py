@@ -275,13 +275,21 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
     if debug:
       lines_out.append(line_in)
 
+    depth = 1;
     line_number += 1;
     line_in = lines_in[line_number]
-    while (line_in.find("#else")) == -1 and (line_in.find("#endif")) == -1:
+    while (line_in.find("#else") == -1 and line_in.find("#endif") == -1) or depth > 1:
       if debug:
         lines_out.append(line_in)
       line_number += 1;
       line_in = lines_in[line_number]
+      if (line_in.find("#if") != -1 or line_in.find("#ifdef") != -1):
+        depth += 1
+      elif line_in.find("#endif") != -1 and depth > 1:
+        depth -= 1
+        line_number += 1;
+        line_in = lines_in[line_number]
+
     if (line_in.find("#else")) != -1:
       if debug:
         lines_out.append(line_in)
