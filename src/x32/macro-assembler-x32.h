@@ -1369,6 +1369,10 @@ class MacroAssembler: public Assembler {
                                   Register filler);
 
 
+  // Emit code for a flooring division by a constant. The dividend register is
+  // unchanged, the result is in rdx, and rax gets clobbered.
+  void FlooringDiv(Register dividend, int32_t divisor);
+
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
