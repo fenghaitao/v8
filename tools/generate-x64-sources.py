@@ -78,63 +78,56 @@ argument_replacements = {
   "(argc_ + 1) * kPointerSize" : "1 * kRegisterSize + argc_ * kPointerSize",
 }
 
-def HandleArgument(line):
-  result = line
-  if result.find("times_pointer_size, 0)") != -1:
-    result = result.replace("times_pointer_size, 0)", \
-                            "times_pointer_size, kPointerSize)")
-  else:
-    for argument in argument_replacements:
-      if result.find(argument) != -1:
-        result = result.replace(argument, argument_replacements[argument])
-        break
-
-  return (True, result)
-
 def HandleKeep(line):
   return (False, line)
 
-def HandleQuad(line):
-  result = line
-  result = result.replace("kPointerSize", "kRegisterSize")
-  return (True, result)
-
-def HandleNone64(line):
-  result = line
-  result = result.replace("RelocInfo::NONE64", "RelocInfo::NONE32")
-  return (True, result)
-
-def HandleQuadKeep(line):
-  (cont, result) = HandleQuad(line)
-  return HandleKeep(result)
-
 annotation_handlers = {
   " __k" : [" ", HandleKeep],
-  " __q" : [" ", HandleQuad],
-  " __s" : [" ", HandleQuadKeep],
 }
 
-def Replace(line, key):
+def Replace(line, key, lines, line_number):
   return line.replace(key, operator_handlers[key][0])
 
-def HandlePushPop(line, key):
+def HandlePushPop(line, key, lines, line_number):
   if line.find("push(rbp)") == -1 and line.find("pop(rbp)") == -1 and \
      line.find("PopReturnAddressTo") == -1 and \
      line.find("PushReturnAddressFrom") == -1:
-    return Replace(line, key)
+    return Replace(line, key, lines, line_number)
   else:
+    if line.find("push(") != -1:
+      return line.replace("push(", "pushq(")
+    elif line.find("pop(") != -1:
+      return line.replace("pop(", "popq(")
     return line
 
-def HandleMovQ(line, key):
+def HandleMovQ(line, key, lines, line_number):
   result = line
-  if result.find("xmm") == -1 and result.find("double_scratch") == -1 and \
-     result.find("V8_UINT64_C") == -1 and result.find("V8_INT64_C") == -1 and \
-     result.find("MoveDouble") == -1:
-    result = Replace(result, key)
+  keep = False
+  while True:
+    operands = lines[line_number]
+    if operands.find("xmm") != -1 or \
+       operands.find("V8_UINT64_C") != -1 or operands.find("V8_INT64_C") != -1 or \
+       operands.find("double_scratch") != -1 or \
+       operands.find("HeapNumber::kValueOffset") != -1 or \
+       operands.find("FixedDoubleArray::kHeaderSize") != -1 or \
+       operands.find("kNaNValue") != -1 or \
+       operands.find("kHoleNanInt64") != -1 or \
+       operands.find("kRegisterSize") != -1 or \
+       operands.find("StackOperandForReturnAddress") != -1:
+      keep = True
+    if operands.find(");") != -1:
+      break
+    line_number += 1
+  if not keep:
+    result = Replace(result, key, lines, line_number)
+
   return result
 
 operator_handlers = {
   "movq("       : ("movp(",     HandleMovQ),
+  "push("       : ("pushp(", HandlePushPop),
+  "pop("        : ("popp(",  HandlePushPop),
+  "push_imm32(" : ("pushp_imm32(", Replace),
 }
 
 def HandleAnnotations(line, debug):
@@ -185,24 +178,15 @@ comment_replacements = {
   "rsp[(argc - n) * 8]"            : "rsp[(argc - n - 1) * 4 + 8]",
 }
 
-def HandleComment(line):
-  result = line
-  for comment in comment_replacements:
-    if result.find(comment) != -1:
-      result = result.replace(comment, comment_replacements[comment])
-      break
-
-  return result
-
-def ProcessLine(line, is_assembler, debug):
-  result = line
+def ProcessLine(lines, line_number, is_assembler, debug):
+  result = lines[line_number]
   if not is_assembler:
     (cont, result) = HandleAnnotations(result, debug)
     if cont:
       for key in operator_handlers:
         if result.find(key) != -1:
           handler = operator_handlers[key][1]
-          result  = handler(result, key)
+          result  = handler(result, key, lines, line_number)
           break
 
   return result
@@ -234,12 +218,21 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
     begin = line_number
     lines_out.append(line_in)
 
+    depth = 1;
     line_number += 1;
     line_in = lines_in[line_number]
-    while (line_in.find("#else")) == -1 and (line_in.find("#endif")) == -1:
+    while (line_in.find("#else") == -1 and line_in.find("#endif") == -1) or depth > 1:
       lines_out.append(line_in)
       line_number += 1;
       line_in = lines_in[line_number]
+      if (line_in.find("#if") != -1 or line_in.find("#ifdef") != -1):
+        depth += 1
+      elif line_in.find("#endif") != -1 and depth > 1:
+        depth -= 1
+        lines_out.append(line_in)
+        line_number += 1;
+        line_in = lines_in[line_number]
+
     if (line_in.find("#else")) != -1:
       lines_out.append(line_in)
       line_number += 1;
@@ -252,7 +245,7 @@ def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
 
     return line_number - begin + 1
   else:
-    line_out = ProcessLine(line_in, is_assembler, debug)
+    line_out = ProcessLine(lines_in, line_number, is_assembler, debug)
     lines_out.append(line_out)
     return 1
 
