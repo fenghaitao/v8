@@ -107,10 +107,6 @@ def HandleMovQ(line, key, lines, line_number):
 
 operator_handlers = {
   "movq("       : ("movp(",     HandleMovQ),
-  "push("       : ("Push(",  HandlePushPop),
-  "pop("        : ("Pop(",   HandlePushPop),
-  "push_imm32(" : ("Push_imm32(",  Replace),
-  " cmovq("     : (" cmovl(",      Replace),
   " xchg("      : (" xchgl(",      Replace),
   " addq("      : (" addl(",       Replace),
   " sbbq("      : (" sbbl(",       Replace),
@@ -138,7 +134,6 @@ operator_handlers = {
   " xor_("      : (" xorl(",       Replace),
   " movzxbq("   : (" movzxbl(",    Replace),
   " repmovsq("  : (" repmovsl(",   Replace),
-  "->cmovq("    : ("->cmovl(",     Replace),
   "->xchg("     : ("->xchgl(",     Replace),
   "->addq("     : ("->addl(",      Replace),
   "->sbbq("     : ("->sbbl(",      Replace),
