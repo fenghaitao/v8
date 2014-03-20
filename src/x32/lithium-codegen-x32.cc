@@ -1043,10 +1043,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
     return;
   }
 
-  __ FlooringDiv(dividend, Abs(divisor));
-  __ movl(rax, dividend);
-  __ shrl(rax, Immediate(31));
-  __ addl(rdx, rax);
+  __ TruncatingDiv(dividend, Abs(divisor));
   __ imull(rdx, rdx, Immediate(Abs(divisor)));
   __ movl(rax, dividend);
   __ subl(rax, rdx);
@@ -1173,7 +1170,8 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
     DeoptimizeIf(zero, instr->environment());
   }
 
-  __ FlooringDiv(dividend, divisor);
+  // TODO(svenpanne) Add correction terms.
+  __ TruncatingDiv(dividend, divisor);
 }
 
 
@@ -1232,10 +1230,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
     DeoptimizeIf(zero, instr->environment());
   }
 
-  __ FlooringDiv(dividend, Abs(divisor));
-  __ movl(rax, dividend);
-  __ shrl(rax, Immediate(31));
-  __ addl(rdx, rax);
+  __ TruncatingDiv(dividend, Abs(divisor));
   if (divisor < 0) __ negl(rdx);
 
   if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
@@ -3813,9 +3808,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
   __ Set(rax, instr->arity());
   // No cell in ebx for construct type feedback in optimized code
-  Handle<Object> megamorphic_symbol =
-      TypeFeedbackInfo::MegamorphicSentinel(isolate());
-  __ Move(rbx, megamorphic_symbol);
+  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
   CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
 }
@@ -3827,7 +3820,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Set(rax, instr->arity());
-  __ Move(rbx, TypeFeedbackInfo::MegamorphicSentinel(isolate()));
+  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
