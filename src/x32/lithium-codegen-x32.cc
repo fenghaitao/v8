@@ -304,7 +304,7 @@ bool LCodeGen::GenerateJumpTable() {
       } else {
         __ bind(&needs_frame);
         __ movp(rsi, MemOperand(rbp, StandardFrameConstants::kContextOffset));
-        __ push(rbp);
+        __ pushq(rbp);
         __ movp(rbp, rsp);
         __ Push(rsi);
         // This variant of deopt can only be used with stubs. Since we don't
@@ -351,7 +351,7 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(info()->IsStub());
         frame_is_built_ = true;
         // Build the frame in such a way that esi isn't trashed.
-        __ push(rbp);  // Caller's frame pointer.
+        __ pushq(rbp);  // Caller's frame pointer.
         __ Push(Operand(rbp, StandardFrameConstants::kContextOffset));
         __ Push(Smi::FromInt(StackFrame::STUB));
         __ leal(rbp, Operand(rsp, 2 * kPointerSize));
@@ -364,7 +364,7 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(frame_is_built_);
         frame_is_built_ = false;
         __ movp(rsp, rbp);
-        __ pop(rbp);
+        __ popq(rbp);
       }
       __ jmp(code->exit());
     }
@@ -2604,7 +2604,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     int delta =
         masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
     ASSERT(delta >= 0);
-    __ Push_imm32(delta);
+    __ PushImm32(delta);
 
     // We are pushing three values on the stack but recording a
     // safepoint with two arguments because stub is going to
@@ -2669,7 +2669,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ movp(rsp, rbp);
-    __ pop(rbp);
+    __ popq(rbp);
     no_frame_start = masm_->pc_offset();
   }
   if (instr->has_constant_parameter_count()) {

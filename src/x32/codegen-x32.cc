@@ -66,13 +66,13 @@ UnaryMathFunction CreateExpFunction() {
   // xmm0: raw double input.
   XMMRegister input = xmm0;
   XMMRegister result = xmm1;
-  __ push(rax);
-  __ push(rbx);
+  __ pushq(rax);
+  __ pushq(rbx);
 
   MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
 
-  __ pop(rbx);
-  __ pop(rax);
+  __ popq(rbx);
+  __ popq(rax);
   __ movsd(xmm0, result);
   __ Ret();
 
@@ -639,7 +639,7 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
     // following boilerplate stack-building prologue that is found both in
     // FUNCTION and OPTIMIZED_FUNCTION code:
     CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->push(rbp);
+    patcher.masm()->pushq(rbp);
     patcher.masm()->movp(rbp, rsp);
     patcher.masm()->Push(rsi);
     patcher.masm()->Push(rdi);

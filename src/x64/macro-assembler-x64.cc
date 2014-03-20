@@ -2859,62 +2859,6 @@ void MacroAssembler::Push(Handle<Object> source) {
 }
 
 
-#ifdef V8_TARGET_ARCH_X32
-void MacroAssembler::Push(Immediate value) {
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), value);
-}
-
-
-void MacroAssembler::Push_imm32(int32_t imm32) {
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), Immediate(imm32));
-}
-
-
-void MacroAssembler::Push(Register src) {
-  // We use 64-bit push for rbp in the prologue
-  ASSERT(src.code() != rbp.code());
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), src);
-}
-
-
-void MacroAssembler::Push(const Operand& src) {
-  movl(kScratchRegister, src);
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), kScratchRegister);
-}
-
-
-void MacroAssembler::Pop(Register dst) {
-  // We use 64-bit push for rbp in the prologue
-  ASSERT(dst.code() != rbp.code());
-  movl(dst, Operand(rsp, 0));
-  leal(rsp, Operand(rsp, 4));
-}
-
-
-void MacroAssembler::Pop(const Operand& dst) {
-  Register scratch = kScratchRegister;
-  bool needExtraScratch = dst.AddressUsesRegister(kScratchRegister);
-  if (needExtraScratch) {
-    scratch = kSmiConstantRegister;
-  }
-  movl(scratch, Operand(rsp, 0));
-  movl(dst, scratch);
-  if (needExtraScratch) {
-    // Restore the value of kSmiConstantRegister.
-    // Should use InitializeSmiConstantRegister();
-    movp(kSmiConstantRegister,
-         reinterpret_cast<Address>(Smi::FromInt(kSmiConstantRegisterValue)),
-         RelocInfo::NONE32);
-  }
-  leal(rsp, Operand(rsp, 4));
-}
-#endif
-
-
 void MacroAssembler::MoveHeapObject(Register result,
                                     Handle<Object> object) {
   AllowDeferredHandleDereference using_raw_address;

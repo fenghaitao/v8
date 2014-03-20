@@ -49,10 +49,12 @@ static void ProbeTable(Isolate* isolate,
                        // The offset is scaled by 4, based on
                        // kHeapObjectTagSize, which is two bits
                        Register offset) {
-  // We need to scale up the pointer by 2 because the offset is scaled by less
+  // We need to scale up the pointer by 2 when the offset is scaled by less
   // than the pointer size.
-  ASSERT(kPointerSizeLog2 == kHeapObjectTagSize);
-  ScaleFactor scale_factor = times_1;
+  ASSERT(kPointerSize == kInt64Size
+      ? kPointerSizeLog2 == kHeapObjectTagSize + 1
+      : kPointerSizeLog2 == kHeapObjectTagSize);
+  ScaleFactor scale_factor = kPointerSize == kInt64Size ? times_2 : times_1;
 
   ASSERT_EQ(3 * kPointerSize, sizeof(StubCache::Entry));
   // The offset register holds the entry offset times four (due to masking

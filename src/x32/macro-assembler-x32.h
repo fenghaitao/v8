@@ -826,13 +826,6 @@ class MacroAssembler: public Assembler {
   void Cmp(const Operand& dst, Smi* src);
   void Push(Handle<Object> source);
 
-  void Push(Immediate value);
-  void Push_imm32(int32_t imm32);
-  void Push(Register src);
-  void Push(const Operand& src);
-  void Pop(Register dst);
-  void Pop(const Operand& dst);
-
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
   void MoveHeapObject(Register result, Handle<Object> object);
@@ -845,8 +838,14 @@ class MacroAssembler: public Assembler {
   void Drop(int stack_elements);
 
   void Call(Label* target) { call(target); }
-  void PushReturnAddressFrom(Register src) { push(src); }
-  void PopReturnAddressTo(Register dst) { pop(dst); }
+  void Push(Register src);
+  void Push(const Operand& src);
+  void Push(Immediate value);
+  void PushImm32(int32_t imm32);
+  void Pop(Register dst);
+  void Pop(const Operand& dst);
+  void PushReturnAddressFrom(Register src) { pushq(src); }
+  void PopReturnAddressTo(Register dst) { popq(dst); }
   void Move(Register dst, ExternalReference ext) {
     movp(dst, reinterpret_cast<Address>(ext.address()),
          RelocInfo::EXTERNAL_REFERENCE);

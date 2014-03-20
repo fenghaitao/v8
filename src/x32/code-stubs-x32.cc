@@ -561,14 +561,14 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     // is the return register, then save the temp register we use in its stead
     // for the result.
     Register save_reg = final_result_reg.is(rcx) ? rax : rcx;
-    __ push(scratch1);
-    __ push(save_reg);
+    __ pushq(scratch1);
+    __ pushq(save_reg);
 
     bool stash_exponent_copy = !input_reg.is(rsp);
     __ movl(scratch1, mantissa_operand);
     __ movsd(xmm0, mantissa_operand);
     __ movl(rcx, exponent_operand);
-    if (stash_exponent_copy) __ push(rcx);
+    if (stash_exponent_copy) __ pushq(rcx);
 
     __ andl(rcx, Immediate(HeapNumber::kExponentMask));
     __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
@@ -609,8 +609,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
         ASSERT(final_result_reg.is(rcx));
         __ movl(final_result_reg, result_reg);
     }
-    __ pop(save_reg);
-    __ pop(scratch1);
+    __ popq(save_reg);
+    __ popq(scratch1);
     __ ret(0);
 }
 
@@ -2633,7 +2633,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
     // Set up frame.
-    __ push(rbp);
+    __ pushq(rbp);
     __ movp(rbp, rsp);
 
     // Push the stack frame type marker twice.
@@ -2644,16 +2644,16 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ Move(kScratchRegister, Smi::FromInt(marker), Assembler::RelocInfoNone());
     __ Push(kScratchRegister);  // context slot
     __ Push(kScratchRegister);  // function slot
-    // Save callee-saved registers (X32/Win64 calling conventions).
-    __ push(r12);
-    __ push(r13);
-    __ push(r14);
-    __ push(r15);
+    // Save callee-saved registers (X32/X32/Win64 calling conventions).
+    __ pushq(r12);
+    __ pushq(r13);
+    __ pushq(r14);
+    __ pushq(r15);
 #ifdef _WIN64
-    __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
-    __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __ pushq(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __ pushq(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
 #endif
-    __ push(rbx);
+    __ pushq(rbx);
 
 #ifdef _WIN64
     // On Win64 XMM6-XMM15 are callee-save
@@ -2773,20 +2773,20 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ addl(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
 #endif
 
-  __ pop(rbx);
+  __ popq(rbx);
 #ifdef _WIN64
   // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
-  __ pop(rsi);
-  __ pop(rdi);
+  __ popq(rsi);
+  __ popq(rdi);
 #endif
-  __ pop(r15);
-  __ pop(r14);
-  __ pop(r13);
-  __ pop(r12);
+  __ popq(r15);
+  __ popq(r14);
+  __ popq(r13);
+  __ popq(r12);
   __ addl(rsp, Immediate(2 * kPointerSize));  // remove markers
 
   // Restore frame pointer and return.
-  __ pop(rbp);
+  __ popq(rbp);
   __ ret(0);
 }
 
@@ -4709,8 +4709,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // This stub can be called from essentially anywhere, so it needs to save
   // all volatile and callee-save registers.
   const size_t kNumSavedRegisters = 2;
-  __ push(arg_reg_1);
-  __ push(arg_reg_2);
+  __ pushq(arg_reg_1);
+  __ pushq(arg_reg_2);
 
   // Calculate the original stack pointer and store it in the second arg.
   __ leal(arg_reg_2,
@@ -4735,8 +4735,9 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Restore volatile regs.
   masm->PopCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
-  __ pop(arg_reg_2);
-  __ pop(arg_reg_1);
+  __ popq(arg_reg_2);
+  __ popq(arg_reg_1);
+
   __ Ret();
 }
 

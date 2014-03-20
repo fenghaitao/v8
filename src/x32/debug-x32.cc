@@ -125,7 +125,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       }
       if ((non_object_regs & (1 << r)) != 0) {
         __ Integer32ToSmi(reg, reg);
-        __ push(reg);
+        __ pushq(reg);
       }
     }
 
@@ -150,7 +150,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       }
       // Reconstruct the 64-bit value from two smis.
       if ((non_object_regs & (1 << r)) != 0) {
-        __ pop(reg);
+        __ popq(reg);
         __ SmiToInteger32(reg, reg);
       }
     }
@@ -332,7 +332,7 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ leal(rsp, Operand(rbp, -1 * kPointerSize));
 
   __ Pop(rdi);  // Function.
-  __ pop(rbp);
+  __ popq(rbp);
 
   // Load context from the function.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));

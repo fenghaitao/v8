@@ -882,7 +882,7 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   for (int i = 0; i < kNumberOfSavedRegs; i++) {
     Register reg = saved_regs[i];
     if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
-      push(reg);
+      pushq(reg);
     }
   }
   // R12 to r15 are callee save on all platforms.
@@ -910,7 +910,7 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
   for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
     Register reg = saved_regs[i];
     if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
-      pop(reg);
+      popq(reg);
     }
   }
 }
@@ -2560,60 +2560,6 @@ void MacroAssembler::Push(Handle<Object> source) {
 }
 
 
-void MacroAssembler::Push(Immediate value) {
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), value);
-}
-
-
-void MacroAssembler::Push_imm32(int32_t imm32) {
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), Immediate(imm32));
-}
-
-
-void MacroAssembler::Push(Register src) {
-  // We use 64-bit push for rbp in the prologue
-  ASSERT(src.code() != rbp.code());
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), src);
-}
-
-
-void MacroAssembler::Push(const Operand& src) {
-  movl(kScratchRegister, src);
-  leal(rsp, Operand(rsp, -4));
-  movl(Operand(rsp, 0), kScratchRegister);
-}
-
-
-void MacroAssembler::Pop(Register dst) {
-  // We use 64-bit push for rbp in the prologue
-  ASSERT(dst.code() != rbp.code());
-  movl(dst, Operand(rsp, 0));
-  leal(rsp, Operand(rsp, 4));
-}
-
-
-void MacroAssembler::Pop(const Operand& dst) {
-  Register scratch = kScratchRegister;
-  bool needExtraScratch = dst.AddressUsesRegister(kScratchRegister);
-  if (needExtraScratch) {
-    scratch = kSmiConstantRegister;
-  }
-  movl(scratch, Operand(rsp, 0));
-  movl(dst, scratch);
-  if (needExtraScratch) {
-    // Restore the value of kSmiConstantRegister.
-    // Should use InitializeSmiConstantRegister();
-    movp(kSmiConstantRegister,
-         reinterpret_cast<Address>(Smi::FromInt(kSmiConstantRegisterValue)),
-         RelocInfo::NONE32);
-  }
-  leal(rsp, Operand(rsp, 4));
-}
-
-
 void MacroAssembler::MoveHeapObject(Register result,
                                     Handle<Object> object) {
   AllowDeferredHandleDereference using_raw_address;
@@ -2642,6 +2588,85 @@ void MacroAssembler::LoadGlobalCell(Register dst, Handle<Cell> cell) {
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
     addl(rsp, Immediate(stack_elements * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::Push(Register src) {
+  if (kPointerSize == kInt64Size) {
+    pushq(src);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    // x32 uses 64-bit push for rbp in the prologue.
+    ASSERT(src.code() != rbp.code());
+    leal(rsp, Operand(rsp, -4));
+    movp(Operand(rsp, 0), src);
+  }
+}
+
+
+void MacroAssembler::Push(const Operand& src) {
+  if (kPointerSize == kInt64Size) {
+    pushq(src);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(kScratchRegister, src);
+    leal(rsp, Operand(rsp, -4));
+    movp(Operand(rsp, 0), kScratchRegister);
+  }
+}
+
+
+void MacroAssembler::Push(Immediate value) {
+  if (kPointerSize == kInt64Size) {
+    pushq(value);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    leal(rsp, Operand(rsp, -4));
+    movp(Operand(rsp, 0), value);
+  }
+}
+
+
+void MacroAssembler::PushImm32(int32_t imm32) {
+  if (kPointerSize == kInt64Size) {
+    pushq_imm32(imm32);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    leal(rsp, Operand(rsp, -4));
+    movp(Operand(rsp, 0), Immediate(imm32));
+  }
+}
+
+
+void MacroAssembler::Pop(Register dst) {
+  if (kPointerSize == kInt64Size) {
+    popq(dst);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    // x32 uses 64-bit pop for rbp in the epilogue.
+    ASSERT(dst.code() != rbp.code());
+    movp(dst, Operand(rsp, 0));
+    leal(rsp, Operand(rsp, 4));
+  }
+}
+
+
+void MacroAssembler::Pop(const Operand& dst) {
+  if (kPointerSize == kInt64Size) {
+    popq(dst);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    Register scratch = dst.AddressUsesRegister(kScratchRegister)
+        ? kSmiConstantRegister : kScratchRegister;
+    movp(scratch, Operand(rsp, 0));
+    movp(dst, scratch);
+    leal(rsp, Operand(rsp, 4));
+    if (scratch.is(kSmiConstantRegister)) {
+      // Restore kSmiConstantRegister.
+      movp(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
+           Assembler::RelocInfoNone());
+    }
   }
 }
 
@@ -2850,10 +2875,10 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
     // The frame pointer does not point to a JS frame so we save NULL for
     // rbp. We expect the code throwing an exception to check rbp before
     // dereferencing it to restore the context.
-    push(Immediate(0));  // NULL frame pointer.
+    pushq(Immediate(0));  // NULL frame pointer.
     Push(Smi::FromInt(0));  // No context.
   } else {
-    push(rbp);
+    pushq(rbp);
     Push(rsi);
   }
 
@@ -2920,7 +2945,7 @@ void MacroAssembler::Throw(Register value) {
 
   // Restore the context and frame pointer.
   Pop(rsi);  // Context.
-  pop(rbp);  // Frame pointer.
+  popq(rbp);  // Frame pointer.
 
   // If the handler is a JS frame, restore the context to the frame.
   // (kind == ENTRY) == (rbp == 0) == (rsi == 0), so we could test either
@@ -2974,7 +2999,7 @@ void MacroAssembler::ThrowUncatchable(Register value) {
 
   // Clear the context pointer and frame pointer (0 was saved in the handler).
   Pop(rsi);
-  pop(rbp);
+  popq(rbp);
 
   JumpToHandlerEntry();
 }
@@ -3736,7 +3761,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   if (frame_mode == BUILD_STUB_FRAME) {
-    push(rbp);  // Caller's frame pointer.
+    pushq(rbp);  // Caller's frame pointer.
     movp(rbp, rsp);
     Push(rsi);  // Callee's context.
     Push(Smi::FromInt(StackFrame::STUB));
@@ -3749,7 +3774,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
            RelocInfo::CODE_AGE_SEQUENCE);
       Nop(kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
     } else {
-      push(rbp);  // Caller's frame pointer.
+      pushq(rbp);  // Caller's frame pointer.
       movp(rbp, rsp);
       Push(rsi);  // Callee's context.
       Push(rdi);  // Callee's JS function.
@@ -3759,7 +3784,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
 
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  push(rbp);
+  pushq(rbp);
   movp(rbp, rsp);
   Push(rsi);  // Context.
   Push(Smi::FromInt(type));
@@ -3782,7 +3807,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
     Check(equal, kStackFrameTypesMustMatch);
   }
   movp(rsp, rbp);
-  pop(rbp);
+  popq(rbp);
 }
 
 
@@ -3793,13 +3818,14 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
          kFPOnStackSize + kPCOnStackSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == kFPOnStackSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset == 0 * kPointerSize);
-  push(rbp);
+  pushq(rbp);
   movp(rbp, rsp);
 
   // Reserve room for entry stack pointer and push the code object.
   ASSERT(ExitFrameConstants::kSPOffset == -1 * kPointerSize);
+  Push(Immediate(0));  // Saved entry sp, patched before call.
   Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
-  push(kScratchRegister);  // Accessed from EditFrame::code_slot.
+  Push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   if (save_rax) {
@@ -3888,7 +3914,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
 void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
   movp(rsp, rbp);
-  pop(rbp);
+  popq(rbp);
 
   LeaveExitFrameEpilogue(restore_context);
 }

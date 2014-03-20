@@ -655,7 +655,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
 
   // Perform prologue operations usually performed by the young code stub.
   __ PopReturnAddressTo(kScratchRegister);
-  __ push(rbp);  // Caller's frame pointer.
+  __ pushq(rbp);  // Caller's frame pointer.
   __ movp(rbp, rsp);
   __ Push(rsi);  // Callee's context.
   __ Push(rdi);  // Callee's JS Function.
@@ -686,9 +686,9 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // Tear down internal frame.
   }
 
-  __ pop(kScratchRegister);  // Pop return address
+  __ popq(kScratchRegister);  // Pop return address
   __ leal(rsp, Operand(rsp, 4));  // Pop state
-  __ push(kScratchRegister);  // Push return address
+  __ pushq(kScratchRegister);  // Push return address
   __ ret(0);  // Return to IC Miss stub, continuation still on stack.
 }
 
@@ -1268,7 +1268,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ push(rbp);
+  __ pushq(rbp);
   __ movp(rbp, rsp);
 
   // Store the arguments adaptor context sentinel.
@@ -1291,7 +1291,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 
   // Leave the frame.
   __ movp(rsp, rbp);
-  __ pop(rbp);
+  __ popq(rbp);
 
   // Remove caller arguments from the stack.
   __ PopReturnAddressTo(rcx);

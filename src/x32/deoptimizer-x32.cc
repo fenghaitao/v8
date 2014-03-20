@@ -179,7 +179,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // to restore all later.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     Register r = Register::from_code(i);
-    __ push(r);
+    __ pushq(r);
   }
 
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
@@ -230,7 +230,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ pop(kScratchRegister);
+    __ popq(kScratchRegister);
     __ movl(Operand(rbx, offset), kScratchRegister);
   }
 
@@ -238,7 +238,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   int double_regs_offset = FrameDescription::double_registers_offset();
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
     int dst_offset = i * kDoubleSize + double_regs_offset;
-    __ pop(Operand(rbx, dst_offset));
+    __ popq(Operand(rbx, dst_offset));
   }
 
   // Remove the bailout id and return address from the stack.
@@ -264,7 +264,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ j(not_equal, &pop_loop);
 
   // Compute the output frame in the deoptimizer.
-  __ push(rax);
+  __ pushq(rax);
   __ PrepareCallCFunction(2);
   __ movp(arg_reg_1, rax);
   __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
@@ -273,7 +273,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ CallCFunction(
         ExternalReference::compute_output_frames_function(isolate()), 2);
   }
-  __ pop(rax);
+  __ popq(rax);
 
   // Replace the current frame with the output frames.
   Label outer_push_loop, inner_push_loop,
@@ -317,7 +317,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ movl(kScratchRegister, Operand(rbx, offset));
-    __ push(kScratchRegister);
+    __ pushq(kScratchRegister);
   }
 
   // Restore the registers from the stack.
@@ -329,7 +329,7 @@ void Deoptimizer::EntryGenerator::Generate() {
       ASSERT(i > 0);
       r = Register::from_code(i - 1);
     }
-    __ pop(r);
+    __ popq(r);
   }
 
   // Set up the roots register.
@@ -347,7 +347,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   for (int i = 0; i < count(); i++) {
     int start = masm()->pc_offset();
     USE(start);
-    __ push_imm32(i);
+    __ pushq_imm32(i);
     __ jmp(&done);
     ASSERT(masm()->pc_offset() - start == table_entry_size_);
   }

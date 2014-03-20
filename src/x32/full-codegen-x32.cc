@@ -394,7 +394,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.
     __ movp(rsp, rbp);
-    __ pop(rbp);
+    __ popq(rbp);
     int no_frame_start = masm_->pc_offset();
 
     int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
@@ -2151,7 +2151,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ call(&resume_frame);
   __ jmp(&done);
   __ bind(&resume_frame);
-  __ push(rbp);  // Caller's frame pointer.
+  __ pushq(rbp);  // Caller's frame pointer.
   __ movp(rbp, rsp);
   __ Push(rsi);  // Callee's context.
   __ Push(rdi);  // Callee's JS Function.
