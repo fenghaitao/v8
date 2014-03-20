@@ -124,10 +124,14 @@ def HandleMovQ(line, key, lines, line_number):
   return result
 
 operator_handlers = {
-  "movq("       : ("movp(",     HandleMovQ),
-  "push("       : ("pushp(", HandlePushPop),
-  "pop("        : ("popp(",  HandlePushPop),
-  "push_imm32(" : ("pushp_imm32(", Replace),
+  " addq("      : (" addp(",       Replace),
+  " idivq("     : (" idivp(",      Replace),
+  " imul("      : (" imulp(",      Replace),
+  " subq("      : (" subp(",       Replace),
+  "->addq("     : ("->addp(",      Replace),
+  "->idivq("    : ("->idivp(",     Replace),
+  "->imul("     : ("->imulp(",     Replace),
+  "->subq("     : ("->subp(",      Replace),
 }
 
 def HandleAnnotations(line, debug):
