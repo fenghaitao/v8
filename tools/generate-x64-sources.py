@@ -132,6 +132,18 @@ operator_handlers = {
   "->idivq("    : ("->idivp(",     Replace),
   "->imul("     : ("->imulp(",     Replace),
   "->subq("     : ("->subp(",      Replace),
+  " sbbq("      : (" sbbp(",       Replace),
+  " cmpq("      : (" cmpp(",       Replace),
+  " decq("      : (" decp(",       Replace),
+  " incq("      : (" incp(",       Replace),
+  " neg("       : (" negp(",       Replace),
+  " testq("     : (" testp(",      Replace),
+  "->sbbq("     : ("->sbbp(",      Replace),
+  "->cmpq("     : ("->cmpp(",      Replace),
+  "->decq("     : ("->decp(",      Replace),
+  "->incq("     : ("->incp(",      Replace),
+  "->neg("      : ("->negp(",      Replace),
+  "->testq("    : ("->testp(",     Replace),
 }
 
 def HandleAnnotations(line, debug):
