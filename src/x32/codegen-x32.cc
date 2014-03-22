@@ -352,7 +352,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
   __ bind(&entry);
-  __ decl(r9);
+  __ decp(r9);
   __ j(not_sign, &loop);
 
   __ bind(&done);
@@ -445,7 +445,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
           rdi);
 
   __ bind(&entry);
-  __ decl(r9);
+  __ decp(r9);
   __ j(not_sign, &loop);
 
   // Replace receiver's backing store with newly created and filled FixedArray.

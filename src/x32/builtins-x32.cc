@@ -167,7 +167,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(masm->isolate());
       __ Move(kScratchRegister, debug_step_in_fp);
-      __ cmpl(Operand(kScratchRegister, 0), Immediate(0));
+      __ cmpp(Operand(kScratchRegister, 0), Immediate(0));
       __ j(not_equal, &rt_call);
 #endif
 
@@ -247,7 +247,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                Operand(rbx, rsi, times_pointer_size, JSObject::kHeaderSize));
         // rsi: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
-          __ cmpl(rsi, rdi);
+          __ cmpp(rsi, rdi);
           __ Assert(less_equal,
                     kUnexpectedNumberOfPreAllocatedPropertyFields);
         }
@@ -334,7 +334,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ movp(Operand(rcx, 0), rdx);
         __ addp(rcx, Immediate(kPointerSize));
         __ bind(&entry);
-        __ cmpl(rcx, rax);
+        __ cmpp(rcx, rax);
         __ j(below, &loop);
       }
 
@@ -426,7 +426,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&loop);
     __ Push(Operand(rbx, rcx, times_pointer_size, 0));
     __ bind(&entry);
-    __ decl(rcx);
+    __ decp(rcx);
     __ j(greater_equal, &loop);
 
     // Call the function.
@@ -592,7 +592,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(Operand(kScratchRegister, 0));  // dereference handle
     __ addp(rcx, Immediate(1));
     __ bind(&entry);
-    __ cmpl(rcx, rax);
+    __ cmpp(rcx, rax);
     __ j(not_equal, &loop);
 
     // Invoke the code.
@@ -784,13 +784,13 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
 
   // Switch on the state.
   Label not_no_registers, not_tos_rax;
-  __ cmpl(kScratchRegister, Immediate(FullCodeGenerator::NO_REGISTERS));
+  __ cmpp(kScratchRegister, Immediate(FullCodeGenerator::NO_REGISTERS));
   __ j(not_equal, &not_no_registers, Label::kNear);
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
   __ movp(rax, Operand(rsp, kPCOnStackSize + kPointerSize));
-  __ cmpl(kScratchRegister, Immediate(FullCodeGenerator::TOS_REG));
+  __ cmpp(kScratchRegister, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, rax.
 
@@ -827,12 +827,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //
   // 1. Make sure we have at least one argument.
   { Label done;
-    __ testl(rax, rax);
+    __ testp(rax, rax);
     __ j(not_zero, &done);
     __ PopReturnAddressTo(rbx);
     __ Push(masm->isolate()->factory()->undefined_value());
     __ PushReturnAddressFrom(rbx);
-    __ incl(rax);
+    __ incp(rax);
     __ bind(&done);
   }
 
@@ -932,25 +932,25 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&loop);
     __ movp(rbx, Operand(rsp, rcx, times_pointer_size, 0));
     __ movp(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
-    __ decl(rcx);
+    __ decp(rcx);
     __ j(not_sign, &loop);  // While non-negative (to copy return address).
     __ leal(rsp, Operand(rsp, 4));  // Discard bottom-half of return address
-    __ decl(rax);  // One fewer argument (first argument is new receiver).
+    __ decp(rax);  // One fewer argument (first argument is new receiver).
   }
 
   // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin,
   //     or a function proxy via CALL_FUNCTION_PROXY.
   { Label function, non_proxy;
-    __ testl(rdx, rdx);
+    __ testp(rdx, rdx);
     __ j(zero, &function);
     __ Set(rbx, 0);
-    __ cmpl(rdx, Immediate(1));
+    __ cmpp(rdx, Immediate(1));
     __ j(not_equal, &non_proxy);
 
     __ PopReturnAddressTo(rdx);
     __ Push(rdi);  // re-add proxy object as additional argument
     __ PushReturnAddressFrom(rdx);
-    __ incl(rax);
+    __ incp(rax);
     __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
            RelocInfo::CODE_TARGET);
@@ -972,7 +972,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
                        SharedFunctionInfo::kFormalParameterCountOffset));
   __ SmiToInteger32(rbx, rbx);
   __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  __ cmpl(rax, rbx);
+  __ cmpp(rax, rbx);
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
        RelocInfo::CODE_TARGET);
@@ -1017,7 +1017,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // stack.
     __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
     // Check if the arguments will overflow the stack.
-    __ cmpl(rcx, rdx);
+    __ cmpp(rcx, rdx);
     __ j(greater, &okay);  // Signed comparison.
 
     // Out of stack space.
@@ -1112,7 +1112,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ movp(Operand(rbp, kIndexOffset), rax);
 
     __ bind(&entry);
-    __ cmpl(rax, Operand(rbp, kLimitOffset));
+    __ cmpp(rax, Operand(rbp, kLimitOffset));
     __ j(not_equal, &loop);
 
     // Call the function.
@@ -1130,7 +1130,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Call the function proxy.
     __ bind(&call_proxy);
     __ Push(rdi);  // add function proxy as last argument
-    __ incl(rax);
+    __ incp(rax);
     __ Set(rbx, 0);
     __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
     __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -1215,7 +1215,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, rcx);
-    __ cmpl(rdi, rcx);
+    __ cmpp(rdi, rcx);
     __ Assert(equal, kUnexpectedStringFunction);
   }
 
@@ -1223,7 +1223,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // (including the receiver).
   StackArgumentsAccessor args(rsp, rax);
   Label no_arguments;
-  __ testl(rax, rax);
+  __ testp(rax, rax);
   __ j(zero, &no_arguments);
   __ movp(rbx, args.GetArgumentOperand(1));
   __ PopReturnAddressTo(rcx);
@@ -1375,9 +1375,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   Label enough, too_few;
   __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  __ cmpl(rax, rbx);
+  __ cmpp(rax, rbx);
   __ j(less, &too_few);
-  __ cmpl(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ cmpp(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ j(equal, &dont_adapt_arguments);
 
   {  // Enough parameters: Actual >= expected.
@@ -1391,10 +1391,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     Label copy;
     __ bind(&copy);
-    __ incl(r8);
+    __ incp(r8);
     __ Push(Operand(rax, 0));
     __ subp(rax, Immediate(kPointerSize));
-    __ cmpl(r8, rbx);
+    __ cmpp(r8, rbx);
     __ j(less, &copy);
     __ jmp(&invoke);
   }
@@ -1410,19 +1410,19 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     Label copy;
     __ bind(&copy);
-    __ incl(r8);
+    __ incp(r8);
     __ Push(Operand(rdi, 0));
     __ subp(rdi, Immediate(kPointerSize));
-    __ cmpl(r8, rax);
+    __ cmpp(r8, rax);
     __ j(less, &copy);
 
     // Fill remaining expected arguments with undefined values.
     Label fill;
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ bind(&fill);
-    __ incl(r8);
+    __ incp(r8);
     __ Push(kScratchRegister);
-    __ cmpl(r8, rbx);
+    __ cmpp(r8, rbx);
     __ j(less, &fill);
 
     // Restore function pointer.
@@ -1460,7 +1460,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   Label skip;
   // If the code object is null, just return to the unoptimized code.
-  __ cmpl(rax, Immediate(0));
+  __ cmpp(rax, Immediate(0));
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
