@@ -69,7 +69,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
   // JumpToExternalReference expects rax to contain the number of arguments
   // including the receiver and the extra arguments.
-  __ addl(rax, Immediate(num_extra_args + 1));
+  __ addp(rax, Immediate(num_extra_args + 1));
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()), 1);
 }
 
@@ -216,7 +216,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ movzxbl(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
       __ shll(rdi, Immediate(kPointerSizeLog2));
       if (create_memento) {
-        __ addl(rdi, Immediate(AllocationMemento::kSize));
+        __ addp(rdi, Immediate(AllocationMemento::kSize));
       }
       // rdi: size of new object
       __ Allocate(rdi,
@@ -289,10 +289,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ movzxbl(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
       __ movzxbl(rcx,
                  FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
-      __ addl(rdx, rcx);
+      __ addp(rdx, rcx);
       // Calculate unused properties past the end of the in-object properties.
       __ movzxbl(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
-      __ subl(rdx, rcx);
+      __ subp(rdx, rcx);
       // Done if no extra properties are to be allocated.
       __ j(zero, &allocated);
       __ Assert(positive, kPropertyAllocationCountFailed);
@@ -332,7 +332,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ jmp(&entry);
         __ bind(&loop);
         __ movp(Operand(rcx, 0), rdx);
-        __ addl(rcx, Immediate(kPointerSize));
+        __ addp(rcx, Immediate(kPointerSize));
         __ bind(&entry);
         __ cmpl(rcx, rax);
         __ j(below, &loop);
@@ -590,7 +590,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ bind(&loop);
     __ movp(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
     __ Push(Operand(kScratchRegister, 0));  // dereference handle
-    __ addl(rcx, Immediate(1));
+    __ addp(rcx, Immediate(1));
     __ bind(&entry);
     __ cmpl(rcx, rax);
     __ j(not_equal, &loop);
@@ -670,7 +670,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
 
   // Re-execute the code that was patched back to the young age when
   // the stub returns.
-  __ subl(Operand(rsp, 0), Immediate(5));
+  __ subp(Operand(rsp, 0), Immediate(5));
   __ Pushad();
   __ Move(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
   __ movp(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
@@ -706,7 +706,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ Pushad();
   __ Move(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
   __ movp(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
-  __ subl(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
+  __ subp(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(2);
@@ -1012,7 +1012,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ movp(rcx, rsp);
     // Make rcx the space we have left. The stack might already be overflowed
     // here which will cause rcx to become negative.
-    __ subl(rcx, kScratchRegister);
+    __ subp(rcx, kScratchRegister);
     // Make rdx the space we need for the array when it is unrolled onto the
     // stack.
     __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
@@ -1393,7 +1393,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&copy);
     __ incl(r8);
     __ Push(Operand(rax, 0));
-    __ subl(rax, Immediate(kPointerSize));
+    __ subp(rax, Immediate(kPointerSize));
     __ cmpl(r8, rbx);
     __ j(less, &copy);
     __ jmp(&invoke);
@@ -1412,7 +1412,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&copy);
     __ incl(r8);
     __ Push(Operand(rdi, 0));
-    __ subl(rdi, Immediate(kPointerSize));
+    __ subp(rdi, Immediate(kPointerSize));
     __ cmpl(r8, rax);
     __ j(less, &copy);
 

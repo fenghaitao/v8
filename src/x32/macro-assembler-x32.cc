@@ -238,7 +238,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   // Store pointer to buffer.
   movp(Operand(scratch, 0), addr);
   // Increment buffer top.
-  addl(scratch, Immediate(kPointerSize));
+  addp(scratch, Immediate(kPointerSize));
   // Write back new top of buffer.
   StoreRoot(scratch, Heap::kStoreBufferTopRootIndex);
   // Call stub on end of buffer.
@@ -292,7 +292,7 @@ void MacroAssembler::InNewSpace(Register object,
     Move(kScratchRegister, reinterpret_cast<Address>(-new_space_start),
          Assembler::RelocInfoNone());
     if (scratch.is(object)) {
-      addl(scratch, kScratchRegister);
+      addp(scratch, kScratchRegister);
     } else {
       leal(scratch, Operand(object, kScratchRegister, times_1, 0));
     }
@@ -561,7 +561,7 @@ bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
 
 void MacroAssembler::IllegalOperation(int num_arguments) {
   if (num_arguments > 0) {
-    addl(rsp, Immediate(num_arguments * kPointerSize));
+    addp(rsp, Immediate(num_arguments * kPointerSize));
   }
   LoadRoot(rax, Heap::kUndefinedValueRootIndex);
 }
@@ -887,7 +887,7 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   }
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
-    subl(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    subp(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(rsp, i * kDoubleSize), reg);
@@ -905,7 +905,7 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(reg, Operand(rsp, i * kDoubleSize));
     }
-    addl(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    addp(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
   }
   for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
     Register reg = saved_regs[i];
@@ -1450,7 +1450,7 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
     ASSERT(!dst.is(kScratchRegister));
     switch (constant->value()) {
       case 1:
-        addl(dst, kSmiConstantRegister);
+        addp(dst, kSmiConstantRegister);
         return;
       case 2:
         leal(dst, Operand(src, kSmiConstantRegister, times_2, 0));
@@ -1463,7 +1463,7 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
         return;
       default:
         Register constant_reg = GetSmiConstant(constant);
-        addl(dst, constant_reg);
+        addp(dst, constant_reg);
         return;
     }
   } else {
@@ -1482,7 +1482,7 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
         return;
       default:
         LoadSmiConstant(dst, constant);
-        addl(dst, src);
+        addp(dst, src);
         return;
     }
   }
@@ -1509,16 +1509,16 @@ void MacroAssembler::SmiAddConstant(Register dst,
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
     LoadSmiConstant(kScratchRegister, constant);
-    addl(dst, kScratchRegister);
+    addp(dst, kScratchRegister);
     if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
       j(no_overflow, bailout_label, near_jump);
       ASSERT(mode.Contains(PRESERVE_SOURCE_REGISTER));
-      subl(dst, kScratchRegister);
+      subp(dst, kScratchRegister);
     } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
       if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
         Label done;
         j(no_overflow, &done, Label::kNear);
-        subl(dst, kScratchRegister);
+        subp(dst, kScratchRegister);
         jmp(bailout_label, near_jump);
         bind(&done);
       } else {
@@ -1532,7 +1532,7 @@ void MacroAssembler::SmiAddConstant(Register dst,
     ASSERT(mode.Contains(PRESERVE_SOURCE_REGISTER));
     ASSERT(mode.Contains(BAILOUT_ON_OVERFLOW));
     LoadSmiConstant(dst, constant);
-    addl(dst, src);
+    addp(dst, src);
     j(overflow, bailout_label, near_jump);
   }
 }
@@ -1546,17 +1546,17 @@ void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
     Register constant_reg = GetSmiConstant(constant);
-    subl(dst, constant_reg);
+    subp(dst, constant_reg);
   } else {
     if (constant->value() == Smi::kMinValue) {
       LoadSmiConstant(dst, constant);
       // Adding and subtracting the min-value gives the same result, it only
       // differs on the overflow bit, which we don't check here.
-      addl(dst, src);
+      addp(dst, src);
     } else {
       // Subtract by adding the negation.
       LoadSmiConstant(dst, Smi::FromInt(-constant->value()));
-      addl(dst, src);
+      addp(dst, src);
     }
   }
 }
@@ -1575,16 +1575,16 @@ void MacroAssembler::SmiSubConstant(Register dst,
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
     LoadSmiConstant(kScratchRegister, constant);
-    subl(dst, kScratchRegister);
+    subp(dst, kScratchRegister);
     if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
       j(no_overflow, bailout_label, near_jump);
       ASSERT(mode.Contains(PRESERVE_SOURCE_REGISTER));
-      addl(dst, kScratchRegister);
+      addp(dst, kScratchRegister);
     } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
       if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
         Label done;
         j(no_overflow, &done, Label::kNear);
-        addl(dst, kScratchRegister);
+        addp(dst, kScratchRegister);
         jmp(bailout_label, near_jump);
         bind(&done);
       } else {
@@ -1601,12 +1601,12 @@ void MacroAssembler::SmiSubConstant(Register dst,
       ASSERT(!dst.is(kScratchRegister));
       movp(dst, src);
       LoadSmiConstant(kScratchRegister, constant);
-      subl(dst, kScratchRegister);
+      subp(dst, kScratchRegister);
       j(overflow, bailout_label, near_jump);
     } else {
       // Subtract by adding the negation.
       LoadSmiConstant(dst, Smi::FromInt(-(constant->value())));
-      addl(dst, src);
+      addp(dst, src);
       j(overflow, bailout_label, near_jump);
     }
   }
@@ -1644,15 +1644,15 @@ static void SmiAddHelper(MacroAssembler* masm,
                          Label::Distance near_jump) {
   if (dst.is(src1)) {
     Label done;
-    masm->addl(dst, src2);
+    masm->addp(dst, src2);
     masm->j(no_overflow, &done, Label::kNear);
     // Restore src1.
-    masm->subl(dst, src2);
+    masm->subp(dst, src2);
     masm->jmp(on_not_smi_result, near_jump);
     masm->bind(&done);
   } else {
     masm->movp(dst, src1);
-    masm->addl(dst, src2);
+    masm->addp(dst, src2);
     masm->j(overflow, on_not_smi_result, near_jump);
   }
 }
@@ -1688,12 +1688,12 @@ void MacroAssembler::SmiAdd(Register dst,
   if (!dst.is(src1)) {
     if (emit_debug_code()) {
       movp(kScratchRegister, src1);
-      addl(kScratchRegister, src2);
+      addp(kScratchRegister, src2);
       Check(no_overflow, kSmiAdditionOverflow);
     }
     leal(dst, Operand(src1, src2, times_1, 0));
   } else {
-    addl(dst, src2);
+    addp(dst, src2);
     Assert(no_overflow, kSmiAdditionOverflow);
   }
 }
@@ -1708,15 +1708,15 @@ static void SmiSubHelper(MacroAssembler* masm,
                          Label::Distance near_jump) {
   if (dst.is(src1)) {
     Label done;
-    masm->subl(dst, src2);
+    masm->subp(dst, src2);
     masm->j(no_overflow, &done, Label::kNear);
     // Restore src1.
-    masm->addl(dst, src2);
+    masm->addp(dst, src2);
     masm->jmp(on_not_smi_result, near_jump);
     masm->bind(&done);
   } else {
     masm->movp(dst, src1);
-    masm->subl(dst, src2);
+    masm->subp(dst, src2);
     masm->j(overflow, on_not_smi_result, near_jump);
   }
 }
@@ -1754,7 +1754,7 @@ static void SmiSubNoOverflowHelper(MacroAssembler* masm,
   if (!dst.is(src1)) {
     masm->movp(dst, src1);
   }
-  masm->subl(dst, src2);
+  masm->subp(dst, src2);
   masm->Assert(no_overflow, kSmiSubtractionOverflow);
 }
 
@@ -1786,7 +1786,7 @@ void MacroAssembler::SmiMul(Register dst,
     Label failure, zero_correct_result;
     movp(kScratchRegister, src1);  // Create backup for later testing.
     SmiToInteger64(dst, src1);
-    imull(dst, src2);
+    imulp(dst, src2);
     j(overflow, &failure, Label::kNear);
 
     // Check for negative zero result.  If product is zero, and one
@@ -1810,7 +1810,7 @@ void MacroAssembler::SmiMul(Register dst,
     bind(&correct_result);
   } else {
     SmiToInteger64(dst, src1);
-    imull(dst, src2);
+    imulp(dst, src2);
     j(overflow, on_not_smi_result, near_jump);
     // Check for negative zero result.  If product is zero, and one
     // argument is negative, go to slow case.
@@ -2200,7 +2200,7 @@ void MacroAssembler::SelectNonSmi(Register dst,
   // Exactly one operand is a smi.
   ASSERT_EQ(1, static_cast<int>(kSmiTagMask));
   // kScratchRegister still holds src1 & kSmiTag, which is either zero or one.
-  subl(kScratchRegister, Immediate(1));
+  subp(kScratchRegister, Immediate(1));
   // If src1 is a smi, then scratch register all 1s, else it is all 0s.
   movp(dst, src1);
   xorl(dst, src2);
@@ -2309,7 +2309,7 @@ void MacroAssembler::LookupNumberStringCache(Register object,
   SmiToInteger32(
       mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
   shrl(mask, Immediate(1));
-  subl(mask, Immediate(1));  // Make mask.
+  subp(mask, Immediate(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
   // number string cache for smis is just the smi value, and the hash for
@@ -2587,7 +2587,7 @@ void MacroAssembler::LoadGlobalCell(Register dst, Handle<Cell> cell) {
 
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
-    addl(rsp, Immediate(stack_elements * kPointerSize));
+    addp(rsp, Immediate(stack_elements * kPointerSize));
   }
 }
 
@@ -2664,7 +2664,8 @@ void MacroAssembler::Pop(const Operand& dst) {
     leal(rsp, Operand(rsp, 4));
     if (scratch.is(kSmiConstantRegister)) {
       // Restore kSmiConstantRegister.
-      movp(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
+      movp(kSmiConstantRegister,
+           reinterpret_cast<void*>(Smi::FromInt(kSmiConstantRegisterValue)),
            Assembler::RelocInfoNone());
     }
   }
@@ -2810,7 +2811,7 @@ void MacroAssembler::Popad() {
 
 
 void MacroAssembler::Dropad() {
-  addl(rsp, Immediate(kNumSafepointRegisters * kPointerSize));
+  addp(rsp, Immediate(kNumSafepointRegisters * kPointerSize));
 }
 
 
@@ -2901,7 +2902,7 @@ void MacroAssembler::PopTryHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
   Pop(ExternalOperand(handler_address));
-  addl(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+  addp(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 
 
@@ -3015,7 +3016,7 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
     ret(bytes_dropped);
   } else {
     PopReturnAddressTo(scratch);
-    addl(rsp, Immediate(bytes_dropped));
+    addp(rsp, Immediate(bytes_dropped));
     PushReturnAddressFrom(scratch);
     ret(0);
   }
@@ -3221,10 +3222,10 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
 
   // Slow case.
   if (input_reg.is(result_reg)) {
-    subl(rsp, Immediate(kDoubleSize));
+    subp(rsp, Immediate(kDoubleSize));
     movsd(MemOperand(rsp, 0), xmm0);
     SlowTruncateToI(result_reg, rsp, 0);
-    addl(rsp, Immediate(kDoubleSize));
+    addp(rsp, Immediate(kDoubleSize));
   } else {
     SlowTruncateToI(result_reg, input_reg);
   }
@@ -3241,10 +3242,10 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
   cmpq(result_reg, kScratchRegister);
   j(not_equal, &done, Label::kNear);
 
-  subl(rsp, Immediate(kDoubleSize));
+  subp(rsp, Immediate(kDoubleSize));
   movsd(MemOperand(rsp, 0), input_reg);
   SlowTruncateToI(result_reg, rsp, 0);
-  addl(rsp, Immediate(kDoubleSize));
+  addp(rsp, Immediate(kDoubleSize));
 
   bind(&done);
 }
@@ -3739,7 +3740,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (!code_constant.is_null()) {
       Move(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
-      addl(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      addp(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
     } else if (!code_register.is(rdx)) {
       movp(rdx, code_register);
     }
@@ -3847,14 +3848,14 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   if (save_doubles) {
     int space = XMMRegister::kMaxNumAllocatableRegisters * kDoubleSize +
         arg_stack_space * kRegisterSize;
-    subl(rsp, Immediate(space));
+    subp(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
       XMMRegister reg = XMMRegister::FromAllocationIndex(i);
       movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
-    subl(rsp, Immediate(arg_stack_space * kRegisterSize));
+    subp(rsp, Immediate(arg_stack_space * kRegisterSize));
   }
 
   // Get the required frame alignment for the OS.
@@ -4223,7 +4224,7 @@ void MacroAssembler::Allocate(int object_size,
   if (!top_reg.is(result)) {
     movp(top_reg, result);
   }
-  addl(top_reg, Immediate(object_size));
+  addp(top_reg, Immediate(object_size));
   j(carry, gc_required);
   Operand limit_operand = ExternalOperand(allocation_limit);
   cmpl(top_reg, limit_operand);
@@ -4235,9 +4236,9 @@ void MacroAssembler::Allocate(int object_size,
   bool tag_result = (flags & TAG_OBJECT) != 0;
   if (top_reg.is(result)) {
     if (tag_result) {
-      subl(result, Immediate(object_size - kHeapObjectTag));
+      subp(result, Immediate(object_size - kHeapObjectTag));
     } else {
-      subl(result, Immediate(object_size));
+      subp(result, Immediate(object_size));
     }
   } else if (tag_result) {
     // Tag the result if requested.
@@ -4306,7 +4307,7 @@ void MacroAssembler::Allocate(Register object_size,
   if (!object_size.is(result_end)) {
     movp(result_end, object_size);
   }
-  addl(result_end, result);
+  addp(result_end, result);
   j(carry, gc_required);
   Operand limit_operand = ExternalOperand(allocation_limit);
   cmpl(result_end, limit_operand);
@@ -4317,7 +4318,7 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Tag the result if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    addl(result, Immediate(kHeapObjectTag));
+    addp(result, Immediate(kHeapObjectTag));
   }
 }
 
@@ -4365,7 +4366,7 @@ void MacroAssembler::AllocateTwoByteString(Register result,
                 kHeaderAlignment));
   andl(scratch1, Immediate(~kObjectAlignmentMask));
   if (kHeaderAlignment > 0) {
-    subl(scratch1, Immediate(kHeaderAlignment));
+    subp(scratch1, Immediate(kHeaderAlignment));
   }
 
   // Allocate two byte string in new space.
@@ -4400,10 +4401,10 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                kObjectAlignmentMask;
   movl(scratch1, length);
   ASSERT(kCharSize == 1);
-  addl(scratch1, Immediate(kObjectAlignmentMask + kHeaderAlignment));
+  addp(scratch1, Immediate(kObjectAlignmentMask + kHeaderAlignment));
   andl(scratch1, Immediate(~kObjectAlignmentMask));
   if (kHeaderAlignment > 0) {
-    subl(scratch1, Immediate(kHeaderAlignment));
+    subp(scratch1, Immediate(kHeaderAlignment));
   }
 
   // Allocate ASCII string in new space.
@@ -4554,7 +4555,7 @@ void MacroAssembler::CopyBytes(Register destination,
   andl(scratch, Immediate(kPointerSize - 1));
   movp(length, Operand(source, scratch, times_1, -kPointerSize));
   movp(Operand(destination, scratch, times_1, -kPointerSize), length);
-  addl(destination, scratch);
+  addp(destination, scratch);
 
   if (min_length <= kLongStringLimit) {
     jmp(&done, Label::kNear);
@@ -4570,7 +4571,7 @@ void MacroAssembler::CopyBytes(Register destination,
     // Move remaining bytes of length.
     movp(scratch, Operand(source, length, times_1, -kPointerSize));
     movp(Operand(destination, length, times_1, -kPointerSize), scratch);
-    addl(destination, length);
+    addp(destination, length);
     jmp(&done, Label::kNear);
 
     bind(&short_string);
@@ -4599,7 +4600,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   jmp(&entry);
   bind(&loop);
   movp(Operand(start_offset, 0), filler);
-  addl(start_offset, Immediate(kPointerSize));
+  addp(start_offset, Immediate(kPointerSize));
   bind(&entry);
   cmpl(start_offset, end_offset);
   j(less, &loop);
@@ -4753,7 +4754,7 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   ASSERT(IsPowerOf2(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  subl(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
+  subp(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
   andl(rsp, Immediate(-frame_alignment));
   movp(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
 }
@@ -4911,7 +4912,7 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
        Immediate((Page::kPageAlignmentMask >> shift) &
                  ~(Bitmap::kBytesPerCell - 1)));
 
-  addl(bitmap_reg, rcx);
+  addp(bitmap_reg, rcx);
   movp(rcx, addr_reg);
   shrl(rcx, Immediate(kPointerSizeLog2));
   andl(rcx, Immediate((1 << Bitmap::kBitsPerCellLog2) - 1));
@@ -4947,7 +4948,7 @@ void MacroAssembler::EnsureNotWhite(
     Label ok;
     Push(mask_scratch);
     // shl.  May overflow making the check conservative.
-    addl(mask_scratch, mask_scratch);
+    addp(mask_scratch, mask_scratch);
     testl(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
     j(zero, &ok, Label::kNear);
     int3();
@@ -4997,11 +4998,11 @@ void MacroAssembler::EnsureNotWhite(
   ASSERT(kOneByteStringTag == 0x04);
   andl(length, Immediate(kStringEncodingMask));
   xorl(length, Immediate(kStringEncodingMask));
-  addl(length, Immediate(0x04));
+  addp(length, Immediate(0x04));
   // Value now either 4 (if ASCII) or 8 (if UC16), i.e. char-size shifted by 2.
-  imull(length, FieldOperand(value, String::kLengthOffset));
+  imulp(length, FieldOperand(value, String::kLengthOffset));
   shrl(length, Immediate(2 + kSmiTagSize + kSmiShiftSize));
-  addl(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
+  addp(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
   andl(length, Immediate(~kObjectAlignmentMask));
 
   bind(&is_data_object);

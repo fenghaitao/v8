@@ -725,7 +725,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Load input position.
   __ movp(rdi, Operand(rbp, kInputStart));
   // Set up rdi to be negative offset from string end.
-  __ subq(rdi, rsi);
+  __k subq(rdi, rsi);
   // Set rax to address of char before start of the string
   // (effectively string position -1).
   __ movp(rbx, Operand(rbp, kStartIndex));

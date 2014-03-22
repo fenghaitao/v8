@@ -188,7 +188,7 @@ bool LCodeGen::GeneratePrologue() {
   int slots = GetStackSlotCount();
   if (slots > 0) {
     if (FLAG_debug_code) {
-      __ subl(rsp, Immediate(slots * kPointerSize));
+      __ subp(rsp, Immediate(slots * kPointerSize));
 #ifdef _MSC_VER
       MakeSureStackPagesMapped(slots * kPointerSize);
 #endif
@@ -203,7 +203,7 @@ bool LCodeGen::GeneratePrologue() {
       __ j(not_zero, &loop);
       __ Pop(rax);
     } else {
-      __ subl(rsp, Immediate(slots * kPointerSize));
+      __ subp(rsp, Immediate(slots * kPointerSize));
 #ifdef _MSC_VER
       MakeSureStackPagesMapped(slots * kPointerSize);
 #endif
@@ -270,7 +270,7 @@ void LCodeGen::GenerateOsrPrologue() {
   // optimized frame.
   int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
   ASSERT(slots >= 0);
-  __ subl(rsp, Immediate(slots * kPointerSize));
+  __ subp(rsp, Immediate(slots * kPointerSize));
 }
 
 
@@ -1381,14 +1381,14 @@ void LCodeGen::DoMulI(LMulI* instr) {
   } else if (right->IsStackSlot()) {
     if (instr->hydrogen_value()->representation().IsSmi()) {
       __ SmiToInteger64(left, left);
-      __ imull(left, ToOperand(right));
+      __ imulp(left, ToOperand(right));
     } else {
       __ imull(left, ToOperand(right));
     }
   } else {
     if (instr->hydrogen_value()->representation().IsSmi()) {
       __ SmiToInteger64(left, left);
-      __ imull(left, ToRegister(right));
+      __ imulp(left, ToRegister(right));
     } else {
       __ imull(left, ToRegister(right));
     }
@@ -1583,13 +1583,13 @@ void LCodeGen::DoSubI(LSubI* instr) {
                                        instr->hydrogen()->representation())));
   } else if (right->IsRegister()) {
     if (instr->hydrogen_value()->representation().IsSmi()) {
-      __ subl(ToRegister(left), ToRegister(right));
+      __ subp(ToRegister(left), ToRegister(right));
     } else {
       __ subl(ToRegister(left), ToRegister(right));
     }
   } else {
     if (instr->hydrogen_value()->representation().IsSmi()) {
-      __ subl(ToRegister(left), ToOperand(right));
+      __ subp(ToRegister(left), ToOperand(right));
     } else {
       __ subl(ToRegister(left), ToOperand(right));
     }
@@ -1771,7 +1771,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
   LOperand* right = instr->right();
 
   Representation target_rep = instr->hydrogen()->representation();
-  bool is_q = target_rep.IsSmi() || target_rep.IsExternal();
+  bool is_p = target_rep.IsSmi() || target_rep.IsExternal();
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
@@ -1781,7 +1781,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
               MemOperand(ToRegister(left), offset));
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
-      if (is_q) {
+      if (is_p) {
         __ leal(ToRegister(instr->result()), address);
       } else {
         __ leal(ToRegister(instr->result()), address);
@@ -1793,14 +1793,14 @@ void LCodeGen::DoAddI(LAddI* instr) {
               Immediate(ToRepresentation(LConstantOperand::cast(right),
                                          instr->hydrogen()->representation())));
     } else if (right->IsRegister()) {
-      if (is_q) {
-        __ addl(ToRegister(left), ToRegister(right));
+      if (is_p) {
+        __ addp(ToRegister(left), ToRegister(right));
       } else {
         __ addl(ToRegister(left), ToRegister(right));
       }
     } else {
-      if (is_q) {
-        __ addl(ToRegister(left), ToOperand(right));
+      if (is_p) {
+        __ addp(ToRegister(left), ToOperand(right));
       } else {
         __ addl(ToRegister(left), ToOperand(right));
       }
@@ -2239,9 +2239,9 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   __ ucomisd(input_reg, input_reg);
   EmitFalseBranch(instr, parity_odd);
 
-  __ subl(rsp, Immediate(kDoubleSize));
+  __ subp(rsp, Immediate(kDoubleSize));
   __ movsd(MemOperand(rsp, 0), input_reg);
-  __ addl(rsp, Immediate(kDoubleSize));
+  __ addp(rsp, Immediate(kDoubleSize));
 
   int offset = sizeof(kHoleNanUpper32);
   __ cmpl(MemOperand(rsp, -offset), Immediate(kHoleNanUpper32));
@@ -2468,7 +2468,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // actual type and do a signed compare with the width of the type range.
     __ movp(temp, FieldOperand(input, HeapObject::kMapOffset));
     __ movzxbl(temp2, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ subl(temp2, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    __ subp(temp2, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ cmpl(temp2, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
                              FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ j(above, is_false);
@@ -2700,7 +2700,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     Register return_addr_reg = reg.is(rcx) ? rbx : rcx;
     __ PopReturnAddressTo(return_addr_reg);
     __ shll(reg, Immediate(kPointerSizeLog2));
-    __ addl(rsp, reg);
+    __ addp(rsp, reg);
     __ jmp(return_addr_reg);
   }
   if (no_frame_start != -1) {
@@ -3397,7 +3397,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     ASSERT(instr->target()->IsRegister());
     Register target = ToRegister(instr->target());
     generator.BeforeCall(__ CallSize(target));
-    __ addl(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ addp(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
     __ call(target);
   }
   generator.AfterCall();
@@ -3767,13 +3767,13 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ jmp(&done, Label::kNear);
   __ bind(&positive);
   __ fldln2();
-  __ subl(rsp, Immediate(kDoubleSize));
+  __ subp(rsp, Immediate(kDoubleSize));
   __ movsd(Operand(rsp, 0), input_reg);
   __ fld_d(Operand(rsp, 0));
   __ fyl2x();
   __ fstp_d(Operand(rsp, 0));
   __ movsd(input_reg, Operand(rsp, 0));
-  __ addl(rsp, Immediate(kDoubleSize));
+  __ addp(rsp, Immediate(kDoubleSize));
   __ bind(&done);
 }
 

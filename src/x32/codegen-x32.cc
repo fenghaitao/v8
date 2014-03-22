@@ -495,7 +495,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Handle slices.
   Label indirect_string_loaded;
   __ SmiToInteger32(result, FieldOperand(string, SlicedString::kOffsetOffset));
-  __ addl(index, result);
+  __ addp(index, result);
   __ movp(string, FieldOperand(string, SlicedString::kParentOffset));
   __ jmp(&indirect_string_loaded, Label::kNear);
 

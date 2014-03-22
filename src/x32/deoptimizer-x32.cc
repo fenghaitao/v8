@@ -167,7 +167,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   const int kDoubleRegsSize = kDoubleSize *
       XMMRegister::NumAllocatableRegisters();
-  __ subl(rsp, Immediate(kDoubleRegsSize));
+  __ subp(rsp, Immediate(kDoubleRegsSize));
 
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
     XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
@@ -199,7 +199,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ leal(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize +
                             kPCOnStackSize));
 
-  __ subl(arg5, rbp);
+  __ subp(arg5, rbp);
   __ negl(arg5);
 
   // Allocate a new deoptimizer object.
@@ -242,12 +242,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Remove the bailout id and return address from the stack.
-  __ addl(rsp, Immediate(1 * kRegisterSize + kPCOnStackSize));
+  __ addp(rsp, Immediate(1 * kRegisterSize + kPCOnStackSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
   __ movp(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
-  __ addl(rcx, rsp);
+  __ addp(rcx, rsp);
 
   // Unwind the stack down to - but not including - the unwinding
   // limit and copy the contents of the activation frame to the input
@@ -258,7 +258,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   Label pop_loop;
   __ bind(&pop_loop);
   __ Pop(Operand(rdx, 0));
-  __ addl(rdx, Immediate(sizeof(intptr_t)));
+  __ addp(rdx, Immediate(sizeof(intptr_t)));
   __ bind(&pop_loop_header);
   __ cmpl(rcx, rsp);
   __ j(not_equal, &pop_loop);
@@ -290,12 +290,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ movp(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
   __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
-  __ subl(rcx, Immediate(sizeof(intptr_t)));
+  __ subp(rcx, Immediate(sizeof(intptr_t)));
   __ Push(Operand(rbx, rcx, times_1, FrameDescription::frame_content_offset()));
   __ bind(&inner_loop_header);
   __ testl(rcx, rcx);
   __ j(not_zero, &inner_push_loop);
-  __ addl(rax, Immediate(kPointerSize));
+  __ addp(rax, Immediate(kPointerSize));
   __ bind(&outer_loop_header);
   __ cmpl(rax, rdx);
   __ j(below, &outer_push_loop);
