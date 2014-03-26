@@ -144,6 +144,16 @@ operator_handlers = {
   "->incq("     : ("->incp(",      Replace),
   "->neg("      : ("->negp(",      Replace),
   "->testq("    : ("->testp(",     Replace),
+  " xchg("      : (" xchgp(",      Replace),
+  " lea("       : (" leap(",       Replace),
+  " movzxbq("   : (" movzxbp(",    Replace),
+  " movzxwq("   : (" movzxwp(",    Replace),
+  " repmovsq("  : (" repmovsp(",   Replace),
+  "->xchg("     : ("->xchgp(",     Replace),
+  "->lea("      : ("->leap(",      Replace),
+  "->movzxbq("  : ("->movzxbp(",   Replace),
+  "->movzxwq("  : ("->movzxwp(",   Replace),
+  "->repmovsq(" : ("->repmovsp(",  Replace),
 }
 
 def HandleAnnotations(line, debug):
