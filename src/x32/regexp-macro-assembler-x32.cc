@@ -203,7 +203,7 @@ void RegExpMacroAssemblerX32::CheckAtStart(Label* on_at_start) {
   __ cmpl(Operand(rbp, kStartIndex), Immediate(0));
   BranchOrBacktrack(not_equal, &not_at_start);
   // If we did, are we still at the start of the input?
-  __ leal(rax, Operand(rsi, rdi, times_1, 0));
+  __ leap(rax, Operand(rsi, rdi, times_1, 0));
   __ cmpp(rax, Operand(rbp, kInputStart));
   BranchOrBacktrack(equal, on_at_start);
   __ bind(&not_at_start);
@@ -215,7 +215,7 @@ void RegExpMacroAssemblerX32::CheckNotAtStart(Label* on_not_at_start) {
   __ cmpl(Operand(rbp, kStartIndex), Immediate(0));
   BranchOrBacktrack(not_equal, on_not_at_start);
   // If we did, are we still at the start of the input?
-  __ leal(rax, Operand(rsi, rdi, times_1, 0));
+  __ leap(rax, Operand(rsi, rdi, times_1, 0));
   __ cmpp(rax, Operand(rbp, kInputStart));
   BranchOrBacktrack(not_equal, on_not_at_start);
 }
@@ -274,8 +274,8 @@ void RegExpMacroAssemblerX32::CheckNotBackReferenceIgnoreCase(
       on_no_match = &backtrack_label_;
     }
 
-    __ leal(r9, Operand(rsi, rdx, times_1, 0));
-    __ leal(r11, Operand(rsi, rdi, times_1, 0));
+    __ leap(r9, Operand(rsi, rdx, times_1, 0));
+    __ leap(r11, Operand(rsi, rdi, times_1, 0));
     __ addp(rbx, r9);  // End of capture
     // ---------------------
     // r11 - current input character address
@@ -338,18 +338,18 @@ void RegExpMacroAssemblerX32::CheckNotBackReferenceIgnoreCase(
     //   Isolate* isolate
 #ifdef _WIN64
     // Compute and set byte_offset1 (start of capture).
-    __ leal(rcx, Operand(rsi, rdx, times_1, 0));
+    __ leap(rcx, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
-    __ leal(rdx, Operand(rsi, rdi, times_1, 0));
+    __ leap(rdx, Operand(rsi, rdi, times_1, 0));
     // Set byte_length.
     __ movp(r8, rbx);
     // Isolate.
     __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));
 #else  // AMD64 calling convention
     // Compute byte_offset2 (current position = rsi+rdi).
-    __ leal(rax, Operand(rsi, rdi, times_1, 0));
+    __ leap(rax, Operand(rsi, rdi, times_1, 0));
     // Compute and set byte_offset1 (start of capture).
-    __ leal(rdi, Operand(rsi, rdx, times_1, 0));
+    __ leap(rdi, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
     __ movp(rsi, rax);
     // Set byte_length.
@@ -413,9 +413,9 @@ void RegExpMacroAssemblerX32::CheckNotBackReference(
   BranchOrBacktrack(greater, on_no_match);
 
   // Compute pointers to match string and capture string
-  __ leal(rbx, Operand(rsi, rdi, times_1, 0));  // Start of match.
+  __ leap(rbx, Operand(rsi, rdi, times_1, 0));  // Start of match.
   __ addp(rdx, rsi);  // Start of capture.
-  __ leal(r9, Operand(rdx, rax, times_1, 0));  // End of capture
+  __ leap(r9, Operand(rdx, rax, times_1, 0));  // End of capture
 
   // -----------------------
   // rbx - current capture character address.
@@ -490,7 +490,7 @@ void RegExpMacroAssemblerX32::CheckNotCharacterAfterMinusAnd(
     uc16 mask,
     Label* on_not_equal) {
   ASSERT(minus < String::kMaxUtf16CodeUnit);
-  __ leal(rax, Operand(current_character(), -minus));
+  __ leap(rax, Operand(current_character(), -minus));
   __ andl(rax, Immediate(mask));
   __ cmpl(rax, Immediate(c));
   BranchOrBacktrack(not_equal, on_not_equal);
@@ -537,7 +537,7 @@ bool RegExpMacroAssemblerX32::CheckSpecialCharacterClass(uc16 type,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check, using the sequence:
-  //   leal(rax, Operand(current_character(), -min)) or sub(rax, Immediate(min))
+  //   leap(rax, Operand(current_character(), -min)) or sub(rax, Immediate(min))
   //   cmp(rax, Immediate(max - min))
   switch (type) {
   case 's':
@@ -548,7 +548,7 @@ bool RegExpMacroAssemblerX32::CheckSpecialCharacterClass(uc16 type,
       __ cmpl(current_character(), Immediate(' '));
       __ j(equal, &success, Label::kNear);
       // Check range 0x09..0x0d
-      __ leal(rax, Operand(current_character(), -'\t'));
+      __ leap(rax, Operand(current_character(), -'\t'));
       __ cmpl(rax, Immediate('\r' - '\t'));
       __ j(below_equal, &success, Label::kNear);
       // \u00a0 (NBSP).
@@ -563,13 +563,13 @@ bool RegExpMacroAssemblerX32::CheckSpecialCharacterClass(uc16 type,
     return false;
   case 'd':
     // Match ASCII digits ('0'..'9')
-    __ leal(rax, Operand(current_character(), -'0'));
+    __ leap(rax, Operand(current_character(), -'0'));
     __ cmpl(rax, Immediate('9' - '0'));
     BranchOrBacktrack(above, on_no_match);
     return true;
   case 'D':
     // Match non ASCII-digits
-    __ leal(rax, Operand(current_character(), -'0'));
+    __ leap(rax, Operand(current_character(), -'0'));
     __ cmpl(rax, Immediate('9' - '0'));
     BranchOrBacktrack(below_equal, on_no_match);
     return true;
@@ -754,9 +754,9 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   __ movp(rbx, Operand(rbp, kStartIndex));
   __ negq(rbx);
   if (mode_ == UC16) {
-    __ leal(rax, Operand(rdi, rbx, times_2, -char_size()));
+    __ leap(rax, Operand(rdi, rbx, times_2, -char_size()));
   } else {
-    __ leal(rax, Operand(rdi, rbx, times_1, -char_size()));
+    __ leap(rax, Operand(rdi, rbx, times_1, -char_size()));
   }
   // Store this value in a local variable, for use when clearing
   // position registers.
@@ -827,7 +827,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
       __ movp(rcx, Operand(rbp, kInputEnd));
       __ subp(rcx, Operand(rbp, kInputStart));
       if (mode_ == UC16) {
-        __ leal(rcx, Operand(rcx, rdx, times_2, 0));
+        __ leap(rcx, Operand(rcx, rdx, times_2, 0));
       } else {
         __ addp(rcx, rdx);
       }
@@ -897,7 +897,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   __ bind(&return_rax);
 #ifdef _WIN64
   // Restore callee save registers.
-  __ leal(rsp, Operand(rbp, kLastCalleeSaveRegister));
+  __ leap(rsp, Operand(rbp, kLastCalleeSaveRegister));
   __ popq(rbx);
   __ popq(rdi);
   __ popq(rsi);
@@ -961,12 +961,12 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
 #ifdef _WIN64
     // Microsoft passes parameters in rcx, rdx, r8.
     // First argument, backtrack stackpointer, is already in rcx.
-    __ leal(rdx, Operand(rbp, kStackHighEnd));  // Second argument
+    __ leap(rdx, Operand(rbp, kStackHighEnd));  // Second argument
     __ LoadAddress(r8, ExternalReference::isolate_address(isolate()));
 #else
     // AMD64 ABI passes parameters in rdi, rsi, rdx.
     __ movp(rdi, backtrack_stackpointer());   // First argument.
-    __ leal(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
+    __ leap(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
     __ LoadAddress(rdx, ExternalReference::isolate_address(isolate()));
 #endif
     ExternalReference grow_stack =
@@ -1126,7 +1126,7 @@ void RegExpMacroAssemblerX32::WriteCurrentPositionToRegister(int reg,
   if (cp_offset == 0) {
     __ movp(register_location(reg), rdi);
   } else {
-    __ leal(rax, Operand(rdi, cp_offset * char_size()));
+    __ leap(rax, Operand(rdi, cp_offset * char_size()));
     __ movp(register_location(reg), rax);
   }
 }
@@ -1162,7 +1162,7 @@ void RegExpMacroAssemblerX32::CallCheckStackGuardState() {
   __ movp(r8, rbp);
   // First argument: Next address on the stack (will be address of
   // return address).
-  __ leal(rcx, Operand(rsp, -kPointerSize));
+  __ leap(rcx, Operand(rsp, -kPointerSize));
 #else
   // Third argument: RegExp code frame pointer.
   __ movp(rdx, rbp);
@@ -1170,7 +1170,7 @@ void RegExpMacroAssemblerX32::CallCheckStackGuardState() {
   __ movp(rsi, code_object_pointer());
   // First argument: Next address on the stack (will be address of
   // return address).
-  __ leal(rdi, Operand(rsp, -kRegisterSize));
+  __ leap(rdi, Operand(rsp, -kRegisterSize));
 #endif
   ExternalReference stack_check =
       ExternalReference::re_check_stack_guard_state(isolate());
