@@ -424,9 +424,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ shrl(rcx, Immediate(KeyedLookupCache::kMapHashShift));
   __ movl(rdi, FieldOperand(rax, String::kHashFieldOffset));
   __ shrl(rdi, Immediate(String::kHashShift));
-  __ xorl(rcx, rdi);
+  __ xorp(rcx, rdi);
   int mask = (KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
-  __ andl(rcx, Immediate(mask));
+  __ andp(rcx, Immediate(mask));
 
   // Load the key (consisting of map and internalized string) from the cache and
   // check for match.

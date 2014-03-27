@@ -1411,7 +1411,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
       }
     } else if (right->IsStackSlot()) {
       if (instr->hydrogen_value()->representation().IsSmi()) {
-        __ orl(kScratchRegister, ToOperand(right));
+        __ orp(kScratchRegister, ToOperand(right));
       } else {
         __ orl(kScratchRegister, ToOperand(right));
       }
@@ -1419,7 +1419,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
     } else {
       // Test the non-zero operand for negative sign.
       if (instr->hydrogen_value()->representation().IsSmi()) {
-        __ orl(kScratchRegister, ToRegister(right));
+        __ orp(kScratchRegister, ToRegister(right));
       } else {
         __ orl(kScratchRegister, ToRegister(right));
       }
@@ -1460,13 +1460,13 @@ void LCodeGen::DoBitI(LBitI* instr) {
   } else if (right->IsStackSlot()) {
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andl(ToRegister(left), ToOperand(right));
+        __ andp(ToRegister(left), ToOperand(right));
         break;
       case Token::BIT_OR:
-        __ orl(ToRegister(left), ToOperand(right));
+        __ orp(ToRegister(left), ToOperand(right));
         break;
       case Token::BIT_XOR:
-        __ xorl(ToRegister(left), ToOperand(right));
+        __ xorp(ToRegister(left), ToOperand(right));
         break;
       default:
         UNREACHABLE();
@@ -1476,13 +1476,13 @@ void LCodeGen::DoBitI(LBitI* instr) {
     ASSERT(right->IsRegister());
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andl(ToRegister(left), ToRegister(right));
+        __ andp(ToRegister(left), ToRegister(right));
         break;
       case Token::BIT_OR:
-        __ orl(ToRegister(left), ToRegister(right));
+        __ orp(ToRegister(left), ToRegister(right));
         break;
       case Token::BIT_XOR:
-        __ xorl(ToRegister(left), ToRegister(right));
+        __ xorp(ToRegister(left), ToRegister(right));
         break;
       default:
         UNREACHABLE();

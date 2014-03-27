@@ -278,7 +278,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rax: initial map
       // rbx: JSObject
       // rdi: start of next object
-      __ orl(rbx, Immediate(kHeapObjectTag));
+      __ orp(rbx, Immediate(kHeapObjectTag));
 
       // Check if a non-empty properties array is needed.
       // Allocate and initialize a FixedArray if it is.
@@ -342,7 +342,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // the JSObject
       // rbx: JSObject
       // rdi: FixedArray
-      __ orl(rdi, Immediate(kHeapObjectTag));  // add the heap tag
+      __ orp(rdi, Immediate(kHeapObjectTag));  // add the heap tag
       __ movp(FieldOperand(rbx, JSObject::kPropertiesOffset), rdi);
 
 

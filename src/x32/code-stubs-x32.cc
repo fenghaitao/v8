@@ -1040,7 +1040,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   const int kParameterMapHeaderSize =
       FixedArray::kHeaderSize + 2 * kPointerSize;
   Label no_parameter_map;
-  __ xorl(r8, r8);
+  __ xorp(r8, r8);
   __ testp(rbx, rbx);
   __ j(zero, &no_parameter_map, Label::kNear);
   __ leap(r8, Operand(rbx, times_pointer_size, kParameterMapHeaderSize));
@@ -1839,7 +1839,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   __ JumpIfNotBothSmi(rax, rdx, &non_smi);
   __ subp(rdx, rax);
   __ j(no_overflow, &smi_done);
-  __ notl(rdx);  // Correct sign in case of overflow. rdx cannot be 0 here.
+  __ notp(rdx);  // Correct sign in case of overflow. rdx cannot be 0 here.
   __ bind(&smi_done);
   __ movp(rax, rdx);
   __ ret(0);
@@ -3120,7 +3120,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Find number of bytes left.
   __ movl(count, kScratchRegister);
-  __ andl(count, Immediate(kPointerSize - 1));
+  __ andp(count, Immediate(kPointerSize - 1));
 
   // Check if there are more bytes to copy.
   __ bind(&last_bytes);
@@ -3849,7 +3849,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
     __ subp(rdx, rax);
     __ j(no_overflow, &done, Label::kNear);
     // Correct sign of result in case of overflow.
-    __ notl(rdx);
+    __ notp(rdx);
     __ bind(&done);
     __ movp(rax, rdx);
   }
@@ -3958,7 +3958,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ movzxbp(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzxbp(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
-  __ orl(tmp1, tmp2);
+  __ orp(tmp1, tmp2);
   __ testb(tmp1, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
   __ j(not_zero, &miss, Label::kNear);
 
@@ -4048,7 +4048,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   __ movzxbp(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
   __ movp(tmp3, tmp1);
   STATIC_ASSERT(kNotStringTag != 0);
-  __ orl(tmp3, tmp2);
+  __ orp(tmp3, tmp2);
   __ testb(tmp3, Immediate(kIsNotStringMask));
   __ j(not_zero, &miss);
 
@@ -4070,7 +4070,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   if (equality) {
     Label do_compare;
     STATIC_ASSERT(kInternalizedTag == 0);
-    __ orl(tmp1, tmp2);
+    __ orp(tmp1, tmp2);
     __ testb(tmp1, Immediate(kIsNotInternalizedMask));
     __ j(not_zero, &do_compare, Label::kNear);
     // Make sure rax is non-zero. At this point input operands are
@@ -4194,7 +4194,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     // Capacity is smi 2^n.
     __ SmiToInteger32(index, FieldOperand(properties, kCapacityOffset));
     __ decl(index);
-    __ andl(index,
+    __ andp(index,
             Immediate(name->Hash() + NameDictionary::GetProbeOffset(i)));
 
     // Scale the index by multiplying by the entry size.
@@ -4265,7 +4265,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
     if (i > 0) {
       __ addl(r1, Immediate(NameDictionary::GetProbeOffset(i)));
     }
-    __ andl(r1, r0);
+    __ andp(r1, r0);
 
     // Scale the index by multiplying by the entry size.
     ASSERT(NameDictionary::kEntrySize == 3);
@@ -4326,7 +4326,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     if (i > 0) {
       __ addl(scratch, Immediate(NameDictionary::GetProbeOffset(i)));
     }
-    __ andl(scratch, Operand(rsp, 0));
+    __ andp(scratch, Operand(rsp, 0));
 
     // Scale the index by multiplying by the entry size.
     ASSERT(NameDictionary::kEntrySize == 3);
@@ -4505,7 +4505,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   Label need_incremental_pop_object;
 
   __ movp(regs_.scratch0(), Immediate(~Page::kPageAlignmentMask));
-  __ andl(regs_.scratch0(), regs_.object());
+  __ andp(regs_.scratch0(), regs_.object());
   __ movp(regs_.scratch1(),
          Operand(regs_.scratch0(),
                  MemoryChunk::kWriteBarrierCounterOffset));
@@ -4943,7 +4943,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ movp(rdx, FieldOperand(rbx, AllocationSite::kTransitionInfoOffset));
   __ SmiToInteger32(rdx, rdx);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-  __ andl(rdx, Immediate(AllocationSite::ElementsKindBits::kMask));
+  __ andp(rdx, Immediate(AllocationSite::ElementsKindBits::kMask));
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 
   __ bind(&no_info);
@@ -5017,7 +5017,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   // but the following masking takes care of that anyway.
   __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
-  __ andl(rcx, Immediate(Map::kElementsKindMask));
+  __ andp(rcx, Immediate(Map::kElementsKindMask));
   __ shrl(rcx, Immediate(Map::kElementsKindShift));
 
   if (FLAG_debug_code) {
