@@ -491,7 +491,7 @@ void RegExpMacroAssemblerX32::CheckNotCharacterAfterMinusAnd(
     Label* on_not_equal) {
   ASSERT(minus < String::kMaxUtf16CodeUnit);
   __ leap(rax, Operand(current_character(), -minus));
-  __ andl(rax, Immediate(mask));
+  __ andp(rax, Immediate(mask));
   __ cmpl(rax, Immediate(c));
   BranchOrBacktrack(not_equal, on_not_equal);
 }
