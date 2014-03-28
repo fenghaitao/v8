@@ -58,10 +58,9 @@ class EntryFrameConstants : public AllStatic {
   static const int kCallerFPOffset =
       -3 * kPointerSize + -7 * kRegisterSize - kXMMRegistersBlockSize;
 #else
-  static const int kCallerFPOffset      = -3 * kPointerSize +
-                                          -5 * kRegisterSize;
+  static const int kCallerFPOffset = -3 * kPointerSize + -5 * kRegisterSize;
 #endif
-  static const int kArgvOffset          = 6 * kPointerSize;
+  static const int kArgvOffset     = 6 * kPointerSize;
 };
 
 
