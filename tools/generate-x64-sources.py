@@ -124,6 +124,7 @@ def HandleMovQ(line, key, lines, line_number):
   return result
 
 operator_handlers = {
+  " movq("      : (" movp(",    HandleMovQ),
   " addq("      : (" addp(",       Replace),
   " idivq("     : (" idivp(",      Replace),
   " imul("      : (" imulp(",      Replace),
@@ -154,6 +155,30 @@ operator_handlers = {
   "->movzxbq("  : ("->movzxbp(",   Replace),
   "->movzxwq("  : ("->movzxwp(",   Replace),
   "->repmovsq(" : ("->repmovsp(",  Replace),
+  " and_("      : (" andp(",       Replace),
+  " or_("       : (" orp(",        Replace),
+  " not_("      : (" notp(",       Replace),
+  " xor_("      : (" xorp(",       Replace),
+  "->and_("     : ("->andp(",      Replace),
+  "->or_("      : ("->orp(",       Replace),
+  "->not_("     : ("->notp(",      Replace),
+  "->xor_("     : ("->xorp(",      Replace),
+  " rol("       : (" rolp(",       Replace),
+  " ror("       : (" rorp(",       Replace),
+  " sar("       : (" sarp(",       Replace),
+  " shl("       : (" shlp(",       Replace),
+  " shr("       : (" shrp(",       Replace),
+  " sar_cl("    : (" sarp_cl(",    Replace),
+  " shl_cl("    : (" shlp_cl(",    Replace),
+  " shr_cl("    : (" shrp_cl(",    Replace),
+  "->rol("      : ("->rolp(",      Replace),
+  "->ror("      : ("->rorp(",      Replace),
+  "->sar("      : ("->sarp(",      Replace),
+  "->shl("      : ("->shlp(",      Replace),
+  "->shr("      : ("->shrp(",      Replace),
+  "->sar_cl("   : ("->sarp_cl(",   Replace),
+  "->shl_cl("   : ("->shlp_cl(",   Replace),
+  "->shr_cl("   : ("->shrp_cl(",   Replace),
 }
 
 def HandleAnnotations(line, debug):
