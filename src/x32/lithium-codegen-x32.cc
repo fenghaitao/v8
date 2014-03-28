@@ -285,18 +285,6 @@ void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
 
 
 void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
-  if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
-    if (instr->result()->IsRegister()) {
-      Register result_reg = ToRegister(instr->result());
-      __ movsxlq(result_reg, result_reg);
-    } else {
-      // Sign extend the 32bit result in the stack slots.
-      ASSERT(instr->result()->IsStackSlot());
-      Operand src = ToOperand(instr->result());
-      __ movsxlq(kScratchRegister, src);
-      __ movp(src, kScratchRegister);
-    }
-  }
 }
 
 
@@ -2959,6 +2947,10 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
   int base_offset = instr->is_fixed_typed_array()
@@ -3039,6 +3031,10 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
 
@@ -3074,6 +3070,10 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
 
@@ -4105,6 +4105,10 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
 
@@ -4176,6 +4180,10 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
 
@@ -4211,6 +4219,10 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
 

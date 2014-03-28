@@ -276,6 +276,7 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
     __ AssertZeroExtended(ToRegister(instr->result()));
   }
 
+#ifndef V8_TARGET_ARCH_X32
   if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
     // We sign extend the dehoisted key at the definition point when the pointer
     // size is 64-bit. For x32 port, we sign extend the dehoisted key at the use
@@ -293,6 +294,7 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       __ movq(src, kScratchRegister);
     }
   }
+#endif
 }
 
 
@@ -3239,6 +3241,10 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
 #endif
@@ -4417,6 +4423,10 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     Register key_reg = ToRegister(key);
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
+    } else if (instr->hydrogen()->IsDehoisted()) {
+      // Sign extend key because it could be a 32 bit negative value
+      // and the dehoisted address computation happens in 64 bits
+      __ movsxlq(key_reg, key_reg);
     }
   }
 #endif
