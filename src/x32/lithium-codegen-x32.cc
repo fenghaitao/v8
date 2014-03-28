@@ -284,6 +284,22 @@ void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
 }
 
 
+void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
+  if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
+    if (instr->result()->IsRegister()) {
+      Register result_reg = ToRegister(instr->result());
+      __ movsxlq(result_reg, result_reg);
+    } else {
+      // Sign extend the 32bit result in the stack slots.
+      ASSERT(instr->result()->IsStackSlot());
+      Operand src = ToOperand(instr->result());
+      __ movsxlq(kScratchRegister, src);
+      __ movp(src, kScratchRegister);
+    }
+  }
+}
+
+
 bool LCodeGen::GenerateJumpTable() {
   Label needs_frame;
   if (jump_table_.length() > 0) {
@@ -411,6 +427,12 @@ XMMRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 
 bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
   return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
+}
+
+
+bool LCodeGen::IsDehoistedKeyConstant(LConstantOperand* op) const {
+  return op->IsConstantOperand() &&
+      chunk_->IsDehoistedKey(chunk_->LookupConstant(op));
 }
 
 
@@ -2932,19 +2954,11 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
+
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    // Even though the HLoad/StoreKeyed (in this case) instructions force
-    // the input representation for the key to be an integer, the input
-    // gets replaced during bound check elimination with the index argument
-    // to the bounds check, which can be tagged, so that case must be
-    // handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
     }
   }
   int base_offset = instr->is_fixed_typed_array()
@@ -3020,18 +3034,11 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
 void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   XMMRegister result(ToDoubleRegister(instr->result()));
   LOperand* key = instr->key();
+
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    // Even though the HLoad/StoreKeyed instructions force the input
-    // representation for the key to be an integer, the input gets replaced
-    // during bound check elimination with the index argument to the bounds
-    // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
     }
   }
 
@@ -3062,19 +3069,11 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   HLoadKeyed* hinstr = instr->hydrogen();
   Register result = ToRegister(instr->result());
   LOperand* key = instr->key();
+
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    // Even though the HLoad/StoreKeyedFastElement instructions force
-    // the input representation for the key to be an integer, the input
-    // gets replaced during bound check elimination with the index
-    // argument to the bounds check, which can be tagged, so that
-    // case must be handled here, too.
-    if (hinstr->key()->representation().IsSmi()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
     }
   }
 
@@ -4101,21 +4100,14 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
+
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    // Even though the HLoad/StoreKeyedFastElement instructions force
-    // the input representation for the key to be an integer, the input
-    // gets replaced during bound check elimination with the index
-    // argument to the bounds check, which can be tagged, so that case
-    // must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
     }
   }
+
   int base_offset = instr->is_fixed_typed_array()
     ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
     : 0;
@@ -4179,19 +4171,11 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
   LOperand* key = instr->key();
+
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    // Even though the HLoad/StoreKeyedFastElement instructions force
-    // the input representation for the key to be an integer, the
-    // input gets replaced during bound check elimination with the index
-    // argument to the bounds check, which can be tagged, so that case
-    // must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
     }
   }
 
@@ -4222,19 +4206,11 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   HStoreKeyed* hinstr = instr->hydrogen();
   LOperand* key = instr->key();
+
   if (!key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    // Even though the HLoad/StoreKeyedFastElement instructions force
-    // the input representation for the key to be an integer, the
-    // input gets replaced during bound check elimination with the index
-    // argument to the bounds check, which can be tagged, so that case
-    // must be handled here, too.
-    if (hinstr->key()->representation().IsSmi()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
-    } else if (hinstr->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
     }
   }
 

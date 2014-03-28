@@ -175,6 +175,19 @@ bool LGoto::HasInterestingComment(LCodeGen* gen) const {
 }
 
 
+template<int R>
+bool LTemplateResultInstruction<R>::MustSignExtendResult(
+    LPlatformChunk* chunk) const {
+  HValue* hvalue = this->hydrogen_value();
+
+  if (hvalue == NULL) return false;
+  if (!hvalue->representation().IsInteger32()) return false;
+  if (hvalue->HasRange() && !hvalue->range()->CanBeNegative()) return false;
+
+  return chunk->GetDehoistedKeyIds()->Contains(hvalue->id());
+}
+
+
 void LGoto::PrintDataTo(StringStream* stream) {
   stream->Add("B%d", block_id());
 }
@@ -2103,6 +2116,17 @@ LInstruction* LChunkBuilder::DoLoadRoot(HLoadRoot* instr) {
 }
 
 
+void LChunkBuilder::FindDehoistedKeyDefinitions(HValue* candidate) {
+  BitVector* dehoisted_key_ids = chunk_->GetDehoistedKeyIds();
+  if (dehoisted_key_ids->Contains(candidate->id())) return;
+  dehoisted_key_ids->Add(candidate->id());
+  if (!candidate->IsPhi()) return;
+  for (int i = 0; i < candidate->OperandCount(); ++i) {
+    FindDehoistedKeyDefinitions(candidate->OperandAt(i));
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   ASSERT(instr->key()->representation().IsSmiOrInteger32());
   ElementsKind elements_kind = instr->elements_kind();
@@ -2111,6 +2135,10 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
       ? UseTempRegister(instr->key())
       : UseRegisterOrConstantAtStart(instr->key());
   LInstruction* result = NULL;
+
+  if (instr->IsDehoisted()) {
+    FindDehoistedKeyDefinitions(instr->key());
+  }
 
   if (!instr->is_typed_elements()) {
     LOperand* obj = UseRegisterAtStart(instr->elements());
@@ -2154,6 +2182,10 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   bool clobbers_key = instr->key()->representation().IsSmi();
 
+  if (instr->IsDehoisted()) {
+    FindDehoistedKeyDefinitions(instr->key());
+  }
+
   if (!instr->is_typed_elements()) {
     ASSERT(instr->elements()->representation().IsTagged());
     bool needs_write_barrier = instr->NeedsWriteBarrier();
@@ -2164,7 +2196,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     Representation value_representation = instr->value()->representation();
     if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
-      val = UseTempRegister(instr->value());
+      val = UseRegisterAtStart(instr->value());
       key = clobbers_key ? UseTempRegister(instr->key())
           : UseRegisterOrConstantAtStart(instr->key());
     } else {
