@@ -35,12 +35,6 @@ import os
 #   ./generate-x32-source.py {debug|release} output_file_names input_file_names
 #
 # The annotations include:
-#   __a (argument) : Replace (n + 1) * kPointerSize with 1 * kRegisterSize +
-#                    n * kPointerSize and __a with __ or remove "__a ".
-#   The size of return address is kRegisterSize for X32, the current X64 codes
-#   assume return address size is kPointerSize, so we replace the argument
-#   access offset with the right value.
-#
 #   __k (keep) : Keep the current line unchanged and replace __k with __
 #                or remove "__k ".
 #   We need to use 64-bit instructions for X32 when:
@@ -49,34 +43,8 @@ import os
 #     3) Use push/pop for return address and FP register
 #     4) Get signed index register for SIB access
 #
-#   __q (quad) : Replace kPointerSize with kRegisterSize and __q with __
-#                or remove "__q ".
-#   We need to use quadword for X32 when:
-#     1) Pass arguments to the C++ runtime, we need 8-byte in the stack
-#         according to X32 ABI (https://sites.google.com/site/x32abi/)
-#     2) Access a stack slot when skipping return address or FP
-#     3) Compute size of state in the deoptimization process as we store state
-#        as quadword in the stack
-#
-#   __s (quad, keep) : Combine __k and __q. It is used when storing a register
-#     to the runtime stack for RegExp.
-#
-# After handling the annotations, if not __k or __s, the rest of the line will
+# After handling the annotations, if not __k,  the rest of the line will
 # be processed according to the operator_handlers (see below).
-
-argument_replacements = {
-  "1 * kPointerSize" : "1 * kRegisterSize",
-  "2 * kPointerSize" : "1 * kRegisterSize + 1 * kPointerSize",
-  "3 * kPointerSize" : "1 * kRegisterSize + 2 * kPointerSize",
-  "4 * kPointerSize" : "1 * kRegisterSize + 3 * kPointerSize",
-  "5 * kPointerSize" : "1 * kRegisterSize + 4 * kPointerSize",
-  "6 * kPointerSize" : "1 * kRegisterSize + 5 * kPointerSize",
-  "i * kPointerSize" : "1 * kRegisterSize + (i - 1) * kPointerSize",
-  "argc * kPointerSize" : "1 * kRegisterSize + (argc - 1) * kPointerSize",
-  "(argc - 0) * kPointerSize"  : "1 * kRegisterSize + (argc - 1) * kPointerSize",
-  "(argc + 1) * kPointerSize"  : "1 * kRegisterSize + argc * kPointerSize",
-  "(argc_ + 1) * kPointerSize" : "1 * kRegisterSize + argc_ * kPointerSize",
-}
 
 def HandleKeep(line):
   return (False, line)
@@ -204,30 +172,6 @@ def HandleAnnotations(line, debug):
       break
 
   return (cont, result)
-
-comment_replacements = {
-  "rbp[24]"   : "rbp[20]",
-  "rbp[32]"   : "rbp[24]",
-  "rbp[-n-8]" : "rbp[-n-4]",
-  "rsp[16]"   : "rsp[12]",
-  "rsp[24]"   : "rsp[16]",
-  "rsp[32]"   : "rsp[20]",
-  "rsp[40]"   : "rsp[24]",
-  "rsp[48]"   : "rsp[28]",
-  "rsp[56]"   : "rsp[32]",
-  "rsp[argc * 8]"                  : "rsp[(argc - 1) * 4 + 8]",
-  "rsp[kFastApiCallArguments * 8]" : "rsp[(kFastApiCallArguments - 1) * 4 + 8]",
-  "rsp[8 * argc]"                  : "rsp[(argc - 1) * 4 + 8]",
-  "rsp[8 * n]"                     : "rsp[(n - 1) * 4 + 8]",
-  "rsp[8 * num_arguments]"         : "rsp[(num_arguments - 1) * 4 + 8]",
-  "rsp[8 * (argc + 1)]"            : "rsp[argc * 4 + 8]",
-  "rsp[kFastApiCallArguments * 8 + 8]" : "rsp[kFastApiCallArguments * 4 + 8]",
-  "rsp[8 * (n + 1)]"               : "rsp[n * 4 + 8]",
-  "rsp[(argc + 1) * 8]"            : "rsp[argc * 4 + 8]",
-  "rsp[(argc + 6) * 8]"            : "rsp[(argc + 5) * 4 + 8]",
-  "rsp[(argc + 7) * 8]"            : "rsp[(argc + 6) * 4 + 8]",
-  "rsp[(argc - n) * 8]"            : "rsp[(argc - n - 1) * 4 + 8]",
-}
 
 def ProcessLine(lines, line_number, is_assembler, debug):
   result = lines[line_number]
