@@ -358,6 +358,7 @@ class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
   explicit Immediate(Smi* value) {
+    ASSERT(SmiValuesAre31Bits());   // Only available for 31-bit SMI.
     value_ = reinterpret_cast<intptr_t>(value);
   }
 

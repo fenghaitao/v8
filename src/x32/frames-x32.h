@@ -133,7 +133,9 @@ inline Object* JavaScriptFrame::function_slot_object() const {
 
 
 inline void StackHandler::SetFp(Address slot, Address fp) {
-  Memory::Address_at(slot + kPointerSize) = 0;
+  if (kFPOnStackSize == 2 * kPointerSize) {
+    Memory::Address_at(slot + kPointerSize) = 0;
+  }
   Memory::Address_at(slot) = fp;
 }
 

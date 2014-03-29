@@ -749,9 +749,15 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // Tear down internal frame.
   }
 
-  __ popq(kScratchRegister);  // Pop return address
-  __ leal(rsp, Operand(rsp, 4));  // Pop state
-  __ pushq(kScratchRegister);  // Push return address
+  if (kPointerSize == kRegisterSize) {
+    __ Pop(MemOperand(rsp, 0));  // Ignore state offset
+  } else {
+    ASSERT(kRegisterSize == 2 * kPointerSize);
+    __ PopReturnAddressTo(kScratchRegister);
+    __ leap(rsp, Operand(rsp, 4));  // Drop state
+    __ PushReturnAddressFrom(kScratchRegister);
+  }
+
   __ ret(0);  // Return to IC Miss stub, continuation still on stack.
 }
 

@@ -230,8 +230,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ popq(kScratchRegister);
-    __ movl(Operand(rbx, offset), kScratchRegister);
+    if (kPointerSize == kRegisterSize) {
+      __ Pop(Operand(rbx, offset));
+    } else {
+      ASSERT(kRegisterSize == 2 * kPointerSize);
+      __ popq(kScratchRegister);
+      __ movp(Operand(rbx, offset), kScratchRegister);
+    }
   }
 
   // Fill in the double input registers.
@@ -308,16 +313,25 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Push state, pc, and continuation from the last output frame.
   __ Push(Operand(rbx, FrameDescription::state_offset()));
-  __ Push(Immediate(0));
+  if (kPCOnStackSize == 2 * kPointerSize) {
+    __ Push(Immediate(0));
+  }
   __ Push(Operand(rbx, FrameDescription::pc_offset()));
-  __ Push(Immediate(0));
+  if (kFPOnStackSize == 2 * kPointerSize) {
+    __ Push(Immediate(0));
+  }
   __ Push(Operand(rbx, FrameDescription::continuation_offset()));
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ movl(kScratchRegister, Operand(rbx, offset));
-    __ pushq(kScratchRegister);
+    if (kPointerSize == kRegisterSize) {
+      __ Push(Operand(rbx, offset));
+    } else {
+      ASSERT(kRegisterSize == 2 * kPointerSize);
+      __ movp(kScratchRegister, Operand(rbx, offset));
+      __ pushq(kScratchRegister);
+    }
   }
 
   // Restore the registers from the stack.
@@ -356,13 +370,17 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
-  SetFrameSlot(offset + kPointerSize, 0);
+  if (kPCOnStackSize == 2 * kPointerSize) {
+    SetFrameSlot(offset + kPointerSize, 0);
+  }
   SetFrameSlot(offset, value);
 }
 
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
-  SetFrameSlot(offset + kPointerSize, 0);
+  if (kFPOnStackSize == 2 * kPointerSize) {
+    SetFrameSlot(offset + kPointerSize, 0);
+  }
   SetFrameSlot(offset, value);
 }
 
