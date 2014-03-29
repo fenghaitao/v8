@@ -439,7 +439,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   for (int i = 0; i < kEntriesPerBucket - 1; i++) {
     Label try_next_entry;
     __ movp(rdi, rcx);
-    __ shll(rdi, Immediate(kPointerSizeLog2 + 1));
+    __ shlp(rdi, Immediate(kPointerSizeLog2 + 1));
     __ LoadAddress(kScratchRegister, cache_keys);
     int off = kPointerSize * i * 2;
     __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));

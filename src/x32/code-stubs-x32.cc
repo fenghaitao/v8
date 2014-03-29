@@ -5025,7 +5025,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
   __ andp(rcx, Immediate(Map::kElementsKindMask));
-  __ shrl(rcx, Immediate(Map::kElementsKindShift));
+  __ shrp(rcx, Immediate(Map::kElementsKindShift));
 
   if (FLAG_debug_code) {
     Label done;
