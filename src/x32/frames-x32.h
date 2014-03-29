@@ -58,6 +58,7 @@ class EntryFrameConstants : public AllStatic {
   static const int kCallerFPOffset =
       -3 * kPointerSize + -7 * kRegisterSize - kXMMRegistersBlockSize;
 #else
+  // We have 3 Push and 5 pushq in the JSEntryStub::GenerateBody.
   static const int kCallerFPOffset = -3 * kPointerSize + -5 * kRegisterSize;
 #endif
   static const int kArgvOffset     = 6 * kPointerSize;

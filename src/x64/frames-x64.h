@@ -30,7 +30,6 @@ class EntryFrameConstants : public AllStatic {
   static const int kXMMRegisterSize = 16;
   static const int kXMMRegistersBlockSize =
       kXMMRegisterSize * kCalleeSaveXMMRegisters;
-#ifndef V8_TARGET_ARCH_X32
   static const int kCallerFPOffset =
       -3 * kPointerSize + -7 * kRegisterSize - kXMMRegistersBlockSize;
 #else
