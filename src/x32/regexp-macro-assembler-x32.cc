@@ -1084,9 +1084,12 @@ void RegExpMacroAssemblerX32::PushRegister(int register_index,
 }
 
 
+STATIC_ASSERT(kPointerSize == kInt64Size || kPointerSize == kInt32Size);
+
+
 void RegExpMacroAssemblerX32::ReadCurrentPositionFromRegister(int reg) {
   if (kPointerSize == kInt64Size) {
-    __ movp(rdi, register_location(reg));
+    __ movq(rdi, register_location(reg));
   } else {
     // Need sign extension for x32 as rdi might be used as an index register.
     __ movsxlq(rdi, register_location(reg));
@@ -1096,7 +1099,7 @@ void RegExpMacroAssemblerX32::ReadCurrentPositionFromRegister(int reg) {
 
 void RegExpMacroAssemblerX32::ReadPositionFromRegister(Register dst, int reg) {
   if (kPointerSize == kInt64Size) {
-    __ movp(dst, register_location(reg));
+    __ movq(dst, register_location(reg));
   } else {
     // Need sign extension for x32 as dst might be used as an index register.
     __ movsxlq(dst, register_location(reg));

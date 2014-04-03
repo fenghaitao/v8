@@ -2249,7 +2249,6 @@ void MacroAssembler::SmiShiftLogicalRightConstant(
 }
 
 
-#ifndef V8_TARGET_ARCH_X32
 void MacroAssembler::SmiShiftLeft(Register dst,
                                   Register src1,
                                   Register src2,
@@ -2299,43 +2298,6 @@ void MacroAssembler::SmiShiftLeft(Register dst,
     }
   }
 }
-#else
-void MacroAssembler::SmiShiftLeft(Register dst,
-                                  Register src1,
-                                  Register src2,
-                                  Label* on_not_smi_result) {
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src1.is(kScratchRegister));
-  ASSERT(!src2.is(kScratchRegister));
-  ASSERT(!dst.is(rcx));
-  Label result_ok;
-
-  if (src1.is(rcx) || src2.is(rcx)) {
-    movl(kScratchRegister, rcx);
-  }
-  // Untag shift amount.
-  if (!dst.is(src1)) {
-    movl(dst, src1);
-  }
-  SmiToInteger32(dst, dst);
-  SmiToInteger32(rcx, src2);
-  // Shift amount specified by lower 5 bits, not six as the shl opcode.
-  andl(rcx, Immediate(0x1f));
-  shll_cl(dst);
-  cmpl(dst, Immediate(0xc0000000));
-  j(not_sign, &result_ok);
-  if (src1.is(rcx) || src2.is(rcx)) {
-    if (src1.is(rcx)) {
-      movl(src1, kScratchRegister);
-    } else {
-      movl(src2, kScratchRegister);
-    }
-  }
-  jmp(on_not_smi_result);
-  bind(&result_ok);
-  Integer32ToSmi(dst, dst);
-}
-#endif
 
 
 void MacroAssembler::SmiShiftLogicalRight(Register dst,

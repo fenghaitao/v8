@@ -2076,7 +2076,8 @@ void MacroAssembler::SmiShiftLogicalRightConstant(
 void MacroAssembler::SmiShiftLeft(Register dst,
                                   Register src1,
                                   Register src2,
-                                  Label* on_not_smi_result) {
+                                  Label* on_not_smi_result,
+                                  Label::Distance near_jump) {
   ASSERT(!dst.is(kScratchRegister));
   ASSERT(!src1.is(kScratchRegister));
   ASSERT(!src2.is(kScratchRegister));
@@ -2104,7 +2105,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
       movl(src2, kScratchRegister);
     }
   }
-  jmp(on_not_smi_result);
+  jmp(on_not_smi_result, near_jump);
   bind(&result_ok);
   Integer32ToSmi(dst, dst);
 }

@@ -343,7 +343,7 @@ def ProcessFile(name, debug):
     os.makedirs(os.path.dirname(out_filename))
 
 # Process lines of the input file
-  is_assembler = name.find("assembler-x64") == 14
+  is_assembler = name.find("assembler-x64") == 14 or name.find("regexp-macro-assembler-x64") == 14
   lines_out = []
   line_number = 0
   total_lines = len(lines_in)

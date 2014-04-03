@@ -439,7 +439,7 @@ void FullCodeGenerator::EmitReturnSequence() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Add padding that will be overwritten by a debugger breakpoint.  We
     // have just generated at least 7 bytes: "movp rsp, rbp; pop rbp; ret k"
-    // (3 + 1 + 3) for x64 and at least 6 bytes for x32.
+    // (3 + 1 + 3) for x64 and at least 6 (2 + 1 + 3) bytes for x32.
     const int kPadding = Assembler::kJSReturnSequenceLength -
                          kPointerSize == kInt64Size ? 7 : 6;
     for (int i = 0; i < kPadding; ++i) {

@@ -92,7 +92,6 @@ namespace internal {
  */
 
 #define __ ACCESS_MASM((&masm_))
-#define __k __
 
 RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
     Mode mode,
@@ -135,7 +134,7 @@ int RegExpMacroAssemblerX64::stack_limit_slack()  {
 
 void RegExpMacroAssemblerX64::AdvanceCurrentPosition(int by) {
   if (by != 0) {
-    __k addq(rdi, Immediate(by * char_size()));
+    __ addq(rdi, Immediate(by * char_size()));
   }
 }
 
@@ -294,7 +293,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 
     // Compute new value of character position after the matched part.
     __ movp(rdi, r11);
-    __k subq(rdi, rsi);
+    __ subq(rdi, rsi);
   } else {
     ASSERT(mode_ == UC16);
     // Save important/volatile registers before calling C function.
@@ -356,7 +355,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     BranchOrBacktrack(zero, on_no_match);
     // On success, increment position by length of capture.
     // Requires that rbx is callee save (true for both Win64 and AMD64 ABIs).
-    __k addq(rdi, rbx);
+    __ addq(rdi, rbx);
   }
   __ bind(&fallthrough);
 }
@@ -420,7 +419,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReference(
   // Success.
   // Set current character position to position after match.
   __ movp(rdi, rbx);
-  __k subq(rdi, rsi);
+  __ subq(rdi, rsi);
 
   __ bind(&fallthrough);
 }
@@ -659,10 +658,10 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #ifdef _WIN64
   // MSVC passes arguments in rcx, rdx, r8, r9, with backing stack slots.
   // Store register parameters in pre-allocated stack slots,
-  __k movq(Operand(rbp, kInputString), rcx);
-  __k movq(Operand(rbp, kStartIndex), rdx);  // Passed as int32 in edx.
-  __k movq(Operand(rbp, kInputStart), r8);
-  __k movq(Operand(rbp, kInputEnd), r9);
+  __ movq(Operand(rbp, kInputString), rcx);
+  __ movq(Operand(rbp, kStartIndex), rdx);  // Passed as int32 in edx.
+  __ movq(Operand(rbp, kInputStart), r8);
+  __ movq(Operand(rbp, kInputEnd), r9);
   // Callee-save on Win64.
   __ pushq(rsi);
   __ pushq(rdi);
@@ -725,11 +724,11 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Load input position.
   __ movp(rdi, Operand(rbp, kInputStart));
   // Set up rdi to be negative offset from string end.
-  __k subq(rdi, rsi);
+  __ subq(rdi, rsi);
   // Set rax to address of char before start of the string
   // (effectively string position -1).
   __ movp(rbx, Operand(rbp, kStartIndex));
-  __k negq(rbx);
+  __ negq(rbx);
   if (mode_ == UC16) {
     __ leap(rax, Operand(rdi, rbx, times_2, -char_size()));
   } else {
@@ -777,8 +776,8 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
       Label init_loop;
       __ bind(&init_loop);
       __ movp(Operand(rbp, rcx, times_1, 0), rax);
-      __k subq(rcx, Immediate(kPointerSize));
-      __k cmpq(rcx,
+      __ subq(rcx, Immediate(kPointerSize));
+      __ cmpq(rcx,
               Immediate(kRegisterZero - num_saved_registers_ * kPointerSize));
       __ j(greater, &init_loop);
     } else {  // Unroll the loop.
@@ -853,9 +852,9 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
         __ j(zero, &exit_label_, Label::kNear);
         // Advance current position after a zero-length match.
         if (mode_ == UC16) {
-          __k addq(rdi, Immediate(2));
+          __ addq(rdi, Immediate(2));
         } else {
-          __k incq(rdi);
+          __ incq(rdi);
         }
       }
 
@@ -1095,7 +1094,7 @@ void RegExpMacroAssemblerX64::SetCurrentPositionFromEnd(int by) {
   Label after_position;
   __ cmpp(rdi, Immediate(-by * char_size()));
   __ j(greater_equal, &after_position, Label::kNear);
-  __k movq(rdi, Immediate(-by * char_size()));
+  __ movq(rdi, Immediate(-by * char_size()));
   // On RegExp code entry (where this operation is used), the character before
   // the current position is expected to be already loaded.
   // We have advanced the position, so it's safe to read backwards.
@@ -1436,7 +1435,6 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacterUnchecked(int cp_offset,
   }
 }
 
-#undef __k
 #undef __
 
 #endif  // V8_INTERPRETED_REGEXP

@@ -670,7 +670,9 @@ class MacroAssembler: public Assembler {
   void SmiShiftLeft(Register dst,
                     Register src1,
                     Register src2,
-                    Label* on_not_smi_result);
+                    Label* on_not_smi_result = NULL,
+                    Label::Distance near_jump = Label::kFar);
+
   // Shifts a smi value to the right, shifting in zero bits at the top, and
   // returns the unsigned intepretation of the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.
