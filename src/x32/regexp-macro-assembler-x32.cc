@@ -751,7 +751,7 @@ Handle<HeapObject> RegExpMacroAssemblerX32::GetCode(Handle<String> source) {
   // Set rax to address of char before start of the string
   // (effectively string position -1).
   __ movp(rbx, Operand(rbp, kStartIndex));
-  __ negp(rbx);
+  __ negq(rbx);
   if (mode_ == UC16) {
     __ leap(rax, Operand(rdi, rbx, times_2, -char_size()));
   } else {
