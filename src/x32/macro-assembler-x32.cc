@@ -1102,8 +1102,15 @@ void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
     Abort(kInteger32ToSmiFieldWritingToNonSmiLocation);
     bind(&ok);
   }
-  Integer32ToSmi(kScratchRegister, src);
-  movl(dst, kScratchRegister);
+
+  if (SmiValuesAre32Bits()) {
+    ASSERT(kSmiShift % kBitsPerByte == 0);
+    movl(Operand(dst, kSmiShift / kBitsPerByte), src);
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    Integer32ToSmi(kScratchRegister, src);
+    movp(dst, kScratchRegister);
+  }
 }
 
 
@@ -1124,13 +1131,24 @@ void MacroAssembler::SmiToInteger32(Register dst, Register src) {
   if (!dst.is(src)) {
     movp(dst, src);
   }
-  sarl(dst, Immediate(kSmiShift));
+
+  if (SmiValuesAre32Bits()) {
+    shrp(dst, Immediate(kSmiShift));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    sarl(dst, Immediate(kSmiShift));
+  }
 }
 
 
 void MacroAssembler::SmiToInteger32(Register dst, const Operand& src) {
-  movl(dst, src);
-  sarl(dst, Immediate(kSmiShift));
+  if (SmiValuesAre32Bits()) {
+    movl(dst, Operand(src, kSmiShift / kBitsPerByte));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movl(dst, src);
+    sarl(dst, Immediate(kSmiShift));
+  }
 }
 
 
@@ -1139,14 +1157,22 @@ void MacroAssembler::SmiToInteger64(Register dst, Register src) {
   if (!dst.is(src)) {
     movp(dst, src);
   }
-  shlq(dst, Immediate(32));
-  sarq(dst, Immediate(32 + kSmiShift));
+  sarp(dst, Immediate(kSmiShift));
+  if (kPointerSize == kInt32Size) {
+    // Sign extend to 64-bit.
+    movsxlq(dst, dst);
+  }
 }
 
 
 void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
-  movl(dst, src);
-  SmiToInteger64(dst, dst);
+  if (SmiValuesAre32Bits()) {
+    movsxlq(dst, Operand(src, kSmiShift / kBitsPerByte));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movp(dst, src);
+    SmiToInteger64(dst, dst);
+  }
 }
 
 
@@ -1196,7 +1222,12 @@ void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
   AssertSmi(dst);
-  cmpl(dst, Immediate(src));
+  if (SmiValuesAre32Bits()) {
+    cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    cmpl(dst, Immediate(src));
+  }
 }
 
 
@@ -1209,8 +1240,13 @@ void MacroAssembler::Cmp(const Operand& dst, Smi* src) {
 
 
 void MacroAssembler::SmiCompareInteger32(const Operand& dst, Register src) {
-  SmiToInteger32(kScratchRegister, dst);
-  cmpl(kScratchRegister, src);
+  if (SmiValuesAre32Bits()) {
+    cmpl(Operand(dst, kSmiShift / kBitsPerByte), src);
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    SmiToInteger32(kScratchRegister, dst);
+    cmpl(kScratchRegister, src);
+  }
 }
 
 
@@ -2673,12 +2709,34 @@ void MacroAssembler::Pop(const Operand& dst) {
 }
 
 
-void MacroAssembler::TestBit(const Operand& src, int bits) {
-  // Pointer fields in SharedFunctionInfo are SMI.
-  bits +=  kSmiTagSize + kSmiShiftSize;
+void MacroAssembler::LoadSharedFunctionInfoSpecialField(Register dst,
+                                                        Register base,
+                                                        int offset) {
+  ASSERT(offset > SharedFunctionInfo::kLengthOffset &&
+         offset <= SharedFunctionInfo::kSize &&
+         (((offset - SharedFunctionInfo::kLengthOffset) / kIntSize) % 2 == 1));
+  if (kPointerSize == kInt64Size) {
+    movsxlq(dst, FieldOperand(base, offset));
+  } else {
+    movp(dst, FieldOperand(base, offset));
+    SmiToInteger32(dst, dst);
+  }
+}
+
+
+void MacroAssembler::TestBitSharedFunctionInfoSpecialField(Register base,
+                                                           int offset,
+                                                           int bits) {
+  ASSERT(offset > SharedFunctionInfo::kLengthOffset &&
+         offset <= SharedFunctionInfo::kSize &&
+         (((offset - SharedFunctionInfo::kLengthOffset) / kIntSize) % 2 == 1));
+  if (kPointerSize == kInt32Size) {
+    // On x32, this field is represented by SMI.
+    bits += kSmiShift;
+  }
   int byte_offset = bits / kBitsPerByte;
   int bit_in_byte = bits & (kBitsPerByte - 1);
-  testb(Operand(src, byte_offset), Immediate(1 << bit_in_byte));
+  testb(FieldOperand(base, offset + byte_offset), Immediate(1 << bit_in_byte));
 }
 
 
@@ -3517,9 +3575,9 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
          FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
     // It's not smi-tagged (stored in the top half of a smi-tagged 8-byte
     // field).
-    TestBit(FieldOperand(kScratchRegister,
-                         SharedFunctionInfo::kCompilerHintsOffset),
-            SharedFunctionInfo::kBoundFunction);
+    TestBitSharedFunctionInfoSpecialField(kScratchRegister,
+        SharedFunctionInfo::kCompilerHintsOffset,
+        SharedFunctionInfo::kBoundFunction);
     j(not_zero, miss);
   }
 
@@ -3646,9 +3704,8 @@ void MacroAssembler::InvokeFunction(Register function,
   ASSERT(function.is(rdi));
   movp(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movp(rsi, FieldOperand(function, JSFunction::kContextOffset));
-  movp(rbx,
-       FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
-  SmiToInteger32(rbx, rbx);
+  LoadSharedFunctionInfoSpecialField(rbx, rdx,
+      SharedFunctionInfo::kFormalParameterCountOffset);
   // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
   movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));

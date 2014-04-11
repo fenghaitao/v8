@@ -2898,6 +2898,20 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Representation representation = access.representation();
+  if (representation.IsSmi() && SmiValuesAre32Bits() &&
+      instr->hydrogen()->representation().IsInteger32()) {
+#ifdef DEBUG
+    Register scratch = kScratchRegister;
+    __ Load(scratch, FieldOperand(object, offset), representation);
+    __ AssertSmi(scratch);
+#endif
+
+    // Read int value directly from upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+    representation = Representation::Integer32();
+  }
   __ Load(result, FieldOperand(object, offset), representation);
 }
 
@@ -3133,6 +3147,25 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   int offset = FixedArray::kHeaderSize - kHeapObjectTag;
   Representation representation = hinstr->representation();
 
+  if (representation.IsInteger32() && SmiValuesAre32Bits() &&
+      hinstr->elements_kind() == FAST_SMI_ELEMENTS) {
+    ASSERT(!requires_hole_check);
+#ifdef DEBUG
+    Register scratch = kScratchRegister;
+    __ Load(scratch,
+            BuildFastArrayOperand(instr->elements(),
+                                  key,
+                                  FAST_ELEMENTS,
+                                  offset,
+                                  instr->additional_index()),
+            Representation::Smi());
+    __ AssertSmi(scratch);
+#endif
+    // Read int value directly from upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
 
   __ Load(result,
           BuildFastArrayOperand(instr->elements(),
@@ -4036,6 +4069,20 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ movp(write_register, FieldOperand(object, JSObject::kPropertiesOffset));
   }
 
+  if (representation.IsSmi() && SmiValuesAre32Bits() &&
+      hinstr->value()->representation().IsInteger32()) {
+    ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+#ifdef DEBUG
+    Register scratch = kScratchRegister;
+    __ Load(scratch, FieldOperand(write_register, offset), representation);
+    __ AssertSmi(scratch);
+#endif
+    // Store int value directly to upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+    representation = Representation::Integer32();
+  }
 
   Operand operand = FieldOperand(write_register, offset);
 
@@ -4281,6 +4328,25 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   int offset = FixedArray::kHeaderSize - kHeapObjectTag;
   Representation representation = hinstr->value()->representation();
 
+  if (representation.IsInteger32() && SmiValuesAre32Bits()) {
+    ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    ASSERT(hinstr->elements_kind() == FAST_SMI_ELEMENTS);
+#ifdef DEBUG
+    Register scratch = kScratchRegister;
+    __ Load(scratch,
+            BuildFastArrayOperand(instr->elements(),
+                                  key,
+                                  FAST_ELEMENTS,
+                                  offset,
+                                  instr->additional_index()),
+            Representation::Smi());
+    __ AssertSmi(scratch);
+#endif
+    // Store int value directly to upper half of the smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+    offset += kPointerSize / 2;
+  }
 
   Operand operand =
       BuildFastArrayOperand(instr->elements(),
