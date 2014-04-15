@@ -275,7 +275,6 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       instr->result()->IsRegister()) {
     __ AssertZeroExtended(ToRegister(instr->result()));
   }
-
 #ifndef V8_TARGET_ARCH_X32
   if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
     // We sign extend the dehoisted key at the definition point when the pointer

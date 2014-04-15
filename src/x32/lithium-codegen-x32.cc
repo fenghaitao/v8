@@ -285,6 +285,11 @@ void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
 
 
 void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
+  if (FLAG_debug_code && FLAG_enable_slow_asserts && instr->HasResult() &&
+      instr->hydrogen_value()->representation().IsInteger32() &&
+      instr->result()->IsRegister()) {
+    __ AssertZeroExtended(ToRegister(instr->result()));
+  }
 }
 
 
@@ -1319,7 +1324,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
   }
 
   __ TruncatingDiv(dividend, Abs(divisor));
-  if (divisor < 0) __ negp(rdx);
+  if (divisor < 0) __ negl(rdx);
 
   if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
     __ movl(rax, rdx);
@@ -1522,13 +1527,25 @@ void LCodeGen::DoBitI(LBitI* instr) {
   } else if (right->IsStackSlot()) {
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andp(ToRegister(left), ToOperand(right));
+        if (instr->IsInteger32()) {
+          __ andl(ToRegister(left), ToOperand(right));
+        } else {
+          __ andp(ToRegister(left), ToOperand(right));
+        }
         break;
       case Token::BIT_OR:
-        __ orp(ToRegister(left), ToOperand(right));
+        if (instr->IsInteger32()) {
+          __ orl(ToRegister(left), ToOperand(right));
+        } else {
+          __ orp(ToRegister(left), ToOperand(right));
+        }
         break;
       case Token::BIT_XOR:
-        __ xorp(ToRegister(left), ToOperand(right));
+        if (instr->IsInteger32()) {
+          __ xorl(ToRegister(left), ToOperand(right));
+        } else {
+          __ xorp(ToRegister(left), ToOperand(right));
+        }
         break;
       default:
         UNREACHABLE();
@@ -1538,13 +1555,25 @@ void LCodeGen::DoBitI(LBitI* instr) {
     ASSERT(right->IsRegister());
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andp(ToRegister(left), ToRegister(right));
+        if (instr->IsInteger32()) {
+          __ andl(ToRegister(left), ToRegister(right));
+        } else {
+          __ andp(ToRegister(left), ToRegister(right));
+        }
         break;
       case Token::BIT_OR:
-        __ orp(ToRegister(left), ToRegister(right));
+        if (instr->IsInteger32()) {
+          __ orl(ToRegister(left), ToRegister(right));
+        } else {
+          __ orp(ToRegister(left), ToRegister(right));
+        }
         break;
       case Token::BIT_XOR:
-        __ xorp(ToRegister(left), ToRegister(right));
+        if (instr->IsInteger32()) {
+          __ xorl(ToRegister(left), ToRegister(right));
+        } else {
+          __ xorp(ToRegister(left), ToRegister(right));
+        }
         break;
       default:
         UNREACHABLE();
@@ -1659,7 +1688,12 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  __ Set(ToRegister(instr->result()), instr->value());
+  Register dst = ToRegister(instr->result());
+  if (instr->value() == 0) {
+    __ xorl(dst, dst);
+  } else {
+    __ movl(dst, Immediate(instr->value()));
+  }
 }
 
 
@@ -2900,11 +2934,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   Representation representation = access.representation();
   if (representation.IsSmi() && SmiValuesAre32Bits() &&
       instr->hydrogen()->representation().IsInteger32()) {
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch, FieldOperand(object, offset), representation);
-    __ AssertSmi(scratch);
-#endif
+    if (FLAG_debug_code) {
+      Register scratch = kScratchRegister;
+      __ Load(scratch, FieldOperand(object, offset), representation);
+      __ AssertSmi(scratch);
+    }
 
     // Read int value directly from upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
@@ -3042,25 +3076,25 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     switch (elements_kind) {
       case EXTERNAL_INT8_ELEMENTS:
       case INT8_ELEMENTS:
-        __ movsxbq(result, operand);
+        __ movsxbl(result, operand);
         break;
       case EXTERNAL_UINT8_ELEMENTS:
       case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
-        __ movzxbp(result, operand);
+        __ movzxbl(result, operand);
         break;
       case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
-        __ movsxwq(result, operand);
+        __ movsxwl(result, operand);
         break;
       case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
-        __ movzxwp(result, operand);
+        __ movzxwl(result, operand);
         break;
       case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
-        __ movsxlq(result, operand);
+        __ movl(result, operand);
         break;
       case EXTERNAL_UINT32_ELEMENTS:
       case UINT32_ELEMENTS:
@@ -3150,17 +3184,17 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   if (representation.IsInteger32() && SmiValuesAre32Bits() &&
       hinstr->elements_kind() == FAST_SMI_ELEMENTS) {
     ASSERT(!requires_hole_check);
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch,
-            BuildFastArrayOperand(instr->elements(),
-                                  key,
-                                  FAST_ELEMENTS,
-                                  offset,
-                                  instr->additional_index()),
-            Representation::Smi());
-    __ AssertSmi(scratch);
-#endif
+    if (FLAG_debug_code) {
+      Register scratch = kScratchRegister;
+      __ Load(scratch,
+              BuildFastArrayOperand(instr->elements(),
+                                    key,
+                                    FAST_ELEMENTS,
+                                    offset,
+                                    instr->additional_index()),
+              Representation::Smi());
+      __ AssertSmi(scratch);
+    }
     // Read int value directly from upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     ASSERT(kSmiTagSize + kSmiShiftSize == 32);
@@ -4072,11 +4106,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (representation.IsSmi() && SmiValuesAre32Bits() &&
       hinstr->value()->representation().IsInteger32()) {
     ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch, FieldOperand(write_register, offset), representation);
-    __ AssertSmi(scratch);
-#endif
+    if (FLAG_debug_code) {
+      Register scratch = kScratchRegister;
+      __ Load(scratch, FieldOperand(write_register, offset), representation);
+      __ AssertSmi(scratch);
+    }
     // Store int value directly to upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     ASSERT(kSmiTagSize + kSmiShiftSize == 32);
@@ -4331,17 +4365,17 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   if (representation.IsInteger32() && SmiValuesAre32Bits()) {
     ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
     ASSERT(hinstr->elements_kind() == FAST_SMI_ELEMENTS);
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch,
-            BuildFastArrayOperand(instr->elements(),
-                                  key,
-                                  FAST_ELEMENTS,
-                                  offset,
-                                  instr->additional_index()),
-            Representation::Smi());
-    __ AssertSmi(scratch);
-#endif
+    if (FLAG_debug_code) {
+      Register scratch = kScratchRegister;
+      __ Load(scratch,
+              BuildFastArrayOperand(instr->elements(),
+                                    key,
+                                    FAST_ELEMENTS,
+                                    offset,
+                                    instr->additional_index()),
+              Representation::Smi());
+      __ AssertSmi(scratch);
+    }
     // Store int value directly to upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     ASSERT(kSmiTagSize + kSmiShiftSize == 32);
@@ -5466,14 +5500,15 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
   Label::Distance false_distance = right_block == next_block ? Label::kNear
                                                              : Label::kFar;
   Condition final_branch_condition = no_condition;
-  if (type_name->Equals(heap()->number_string())) {
+  Factory* factory = isolate()->factory();
+  if (String::Equals(type_name, factory->number_string())) {
     __ JumpIfSmi(input, true_label, true_distance);
     __ CompareRoot(FieldOperand(input, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
 
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->string_string())) {
+  } else if (String::Equals(type_name, factory->string_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
     __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
     __ j(above_equal, false_label, false_distance);
@@ -5481,22 +5516,23 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = zero;
 
-  } else if (type_name->Equals(heap()->symbol_string())) {
+  } else if (String::Equals(type_name, factory->symbol_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
     __ CmpObjectType(input, SYMBOL_TYPE, input);
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->boolean_string())) {
+  } else if (String::Equals(type_name, factory->boolean_string())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ j(equal, true_label, true_distance);
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = equal;
 
-  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_string())) {
+  } else if (FLAG_harmony_typeof &&
+             String::Equals(type_name, factory->null_string())) {
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->undefined_string())) {
+  } else if (String::Equals(type_name, factory->undefined_string())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ j(equal, true_label, true_distance);
     __ JumpIfSmi(input, false_label, false_distance);
@@ -5506,7 +5542,7 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = not_zero;
 
-  } else if (type_name->Equals(heap()->function_string())) {
+  } else if (String::Equals(type_name, factory->function_string())) {
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ JumpIfSmi(input, false_label, false_distance);
     __ CmpObjectType(input, JS_FUNCTION_TYPE, input);
@@ -5514,7 +5550,7 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     __ CmpInstanceType(input, JS_FUNCTION_PROXY_TYPE);
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->object_string())) {
+  } else if (String::Equals(type_name, factory->object_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
     if (!FLAG_harmony_typeof) {
       __ CompareRoot(input, Heap::kNullValueRootIndex);
