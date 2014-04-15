@@ -3211,18 +3211,12 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   Register result = ToRegister(instr->result());
   LOperand* key = instr->key();
 
-#ifdef V8_TARGET_ARCH_X32
-  if (!key->IsConstantOperand()) {
-    Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
-    }
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand() &&
+      instr->hydrogen()->IsDehoisted()) {
+    // Sign extend key because it could be a 32 bit negative value
+    // and the dehoisted address computation happens in 64 bits
+    __ movsxlq(ToRegister(key), ToRegister(key));
   }
-#endif
 
   bool requires_hole_check = hinstr->RequiresHoleCheck();
   Representation representation = hinstr->representation();
@@ -4393,18 +4387,12 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   LOperand* key = instr->key();
   int offset = instr->base_offset();
 
-#ifdef V8_TARGET_ARCH_X32
-  if (!key->IsConstantOperand()) {
-    Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
-    }
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand() &&
+      instr->hydrogen()->IsDehoisted()) {
+    // Sign extend key because it could be a 32 bit negative value
+    // and the dehoisted address computation happens in 64 bits
+    __ movsxlq(ToRegister(key), ToRegister(key));
   }
-#endif
 
   Representation representation = hinstr->value()->representation();
 

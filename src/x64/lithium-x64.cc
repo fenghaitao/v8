@@ -2204,9 +2204,6 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
-#ifdef V8_TARGET_ARCH_X32
-  bool clobbers_key = instr->key()->representation().IsSmi();
-#endif
 
   if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
     FindDehoistedKeyDefinitions(instr->key());
@@ -2223,12 +2220,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
       val = UseRegisterAtStart(instr->value());
-#ifndef V8_TARGET_ARCH_X32
       key = UseRegisterOrConstantAtStart(instr->key());
-#else
-      key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
-          : UseRegisterOrConstantAtStart(instr->key());
-#endif
     } else {
       ASSERT(value_representation.IsSmiOrTagged() ||
              value_representation.IsInteger32());
@@ -2239,12 +2231,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       } else {
         object = UseRegisterAtStart(instr->elements());
         val = UseRegisterOrConstantAtStart(instr->value());
-#ifndef V8_TARGET_ARCH_X32
         key = UseRegisterOrConstantAtStart(instr->key());
-#else
-        key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
-            : UseRegisterOrConstantAtStart(instr->key());
-#endif
       }
     }
 

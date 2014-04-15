@@ -2131,12 +2131,22 @@ void LChunkBuilder::FindDehoistedKeyDefinitions(HValue* candidate) {
 
 
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
-  ASSERT(instr->key()->representation().IsSmiOrInteger32());
+  ASSERT((kPointerSize == kInt64Size &&
+          instr->key()->representation().IsInteger32()) ||
+         (kPointerSize == kInt32Size &&
+          instr->key()->representation().IsSmiOrInteger32()));
   ElementsKind elements_kind = instr->elements_kind();
-  bool clobbers_key = instr->key()->representation().IsSmi();
-  LOperand* key = clobbers_key
-      ? UseTempRegisterOrConstant(instr->key())
-      : UseRegisterOrConstantAtStart(instr->key());
+  LOperand* key = NULL;
+  if (kPointerSize == kInt64Size) {
+    key = UseRegisterOrConstantAtStart(instr->key());
+  } else {
+    bool clobbers_key = ExternalArrayOpRequiresTemp(
+        instr->key()->representation(), elements_kind);
+    key = clobbers_key
+        ? UseTempRegister(instr->key())
+        : UseRegisterOrConstantAtStart(instr->key());
+  }
+
   LInstruction* result = NULL;
 
   if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
@@ -2183,7 +2193,6 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
-  bool clobbers_key = instr->key()->representation().IsSmi();
 
   if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
     FindDehoistedKeyDefinitions(instr->key());
@@ -2200,8 +2209,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
       val = UseRegisterAtStart(instr->value());
-      key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
-          : UseRegisterOrConstantAtStart(instr->key());
+      key = UseRegisterOrConstantAtStart(instr->key());
     } else {
       ASSERT(value_representation.IsSmiOrTagged() ||
              value_representation.IsInteger32());
@@ -2212,8 +2220,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       } else {
         object = UseRegisterAtStart(instr->elements());
         val = UseRegisterOrConstantAtStart(instr->value());
-        key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
-            : UseRegisterOrConstantAtStart(instr->key());
+        key = UseRegisterOrConstantAtStart(instr->key());
       }
     }
 
@@ -2235,8 +2242,16 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       elements_kind == FLOAT32_ELEMENTS;
   LOperand* val = val_is_temp_register ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
-  LOperand* key = clobbers_key ? UseTempRegister(instr->key())
-      : UseRegisterOrConstantAtStart(instr->key());
+  LOperand* key = NULL;
+  if (kPointerSize == kInt64Size) {
+    key = UseRegisterOrConstantAtStart(instr->key());
+  } else {
+    bool clobbers_key = ExternalArrayOpRequiresTemp(
+        instr->key()->representation(), elements_kind);
+    key = clobbers_key
+        ? UseTempRegister(instr->key())
+        : UseRegisterOrConstantAtStart(instr->key());
+  }
   LOperand* backing_store = UseRegister(instr->elements());
   return new(zone()) LStoreKeyed(backing_store, key, val);
 }

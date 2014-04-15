@@ -3040,9 +3040,10 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
 
-  if (!key->IsConstantOperand()) {
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
+    if (ExternalArrayOpRequiresTemp(instr->hydrogen()->key()->representation(),
+                                    elements_kind)) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -3050,9 +3051,11 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ movsxlq(key_reg, key_reg);
     }
   }
+
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
       key,
+      instr->hydrogen()->key()->representation(),
       elements_kind,
       instr->base_offset()));
 
@@ -3120,21 +3123,18 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   XMMRegister result(ToDoubleRegister(instr->result()));
   LOperand* key = instr->key();
 
-  if (!key->IsConstantOperand()) {
-    Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
-    }
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand() &&
+      instr->hydrogen()->IsDehoisted()) {
+    // Sign extend key because it could be a 32 bit negative value
+    // and the dehoisted address computation happens in 64 bits
+    __ movsxlq(ToRegister(key), ToRegister(key));
   }
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
     Operand hole_check_operand = BuildFastArrayOperand(
         instr->elements(),
         key,
+        instr->hydrogen()->key()->representation(),
         FAST_DOUBLE_ELEMENTS,
         instr->base_offset() + sizeof(kHoleNanLower32));
     __ cmpl(hole_check_operand, Immediate(kHoleNanUpper32));
@@ -3144,6 +3144,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   Operand double_load_operand = BuildFastArrayOperand(
       instr->elements(),
       key,
+      instr->hydrogen()->key()->representation(),
       FAST_DOUBLE_ELEMENTS,
       instr->base_offset());
   __ movsd(result, double_load_operand);
@@ -3155,15 +3156,11 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   Register result = ToRegister(instr->result());
   LOperand* key = instr->key();
 
-  if (!key->IsConstantOperand()) {
-    Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
-    }
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand() &&
+      instr->hydrogen()->IsDehoisted()) {
+    // Sign extend key because it could be a 32 bit negative value
+    // and the dehoisted address computation happens in 64 bits
+    __ movsxlq(ToRegister(key), ToRegister(key));
   }
 
   bool requires_hole_check = hinstr->RequiresHoleCheck();
@@ -3178,6 +3175,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       __ Load(scratch,
               BuildFastArrayOperand(instr->elements(),
                                     key,
+                                    instr->hydrogen()->key()->representation(),
                                     FAST_ELEMENTS,
                                     offset),
               Representation::Smi());
@@ -3192,6 +3190,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   __ Load(result,
           BuildFastArrayOperand(instr->elements(),
                                 key,
+                                instr->hydrogen()->key()->representation(),
                                 FAST_ELEMENTS,
                                 offset),
           representation);
@@ -3223,6 +3222,7 @@ void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
 Operand LCodeGen::BuildFastArrayOperand(
     LOperand* elements_pointer,
     LOperand* key,
+    Representation key_representation,
     ElementsKind elements_kind,
     uint32_t offset) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
@@ -3235,6 +3235,11 @@ Operand LCodeGen::BuildFastArrayOperand(
     return Operand(elements_pointer_reg,
                    (constant_value << shift_size) + offset);
   } else {
+    // Take the tag bit into account while computing the shift size.
+    if (key_representation.IsSmi() && (shift_size >= 1)) {
+      ASSERT(SmiValuesAre31Bits());
+      shift_size -= kSmiTagSize;
+    }
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
     return Operand(elements_pointer_reg,
                    ToRegister(key),
@@ -4204,9 +4209,10 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
 
-  if (!key->IsConstantOperand()) {
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand()) {
     Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
+    if (ExternalArrayOpRequiresTemp(instr->hydrogen()->key()->representation(),
+                                    elements_kind)) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -4218,6 +4224,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
       key,
+      instr->hydrogen()->key()->representation(),
       elements_kind,
       instr->base_offset()));
 
@@ -4275,15 +4282,11 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
   LOperand* key = instr->key();
 
-  if (!key->IsConstantOperand()) {
-    Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
-    }
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand() &&
+      instr->hydrogen()->IsDehoisted()) {
+    // Sign extend key because it could be a 32 bit negative value
+    // and the dehoisted address computation happens in 64 bits
+    __ movsxlq(ToRegister(key), ToRegister(key));
   }
 
   if (instr->NeedsCanonicalization()) {
@@ -4302,6 +4305,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   Operand double_store_operand = BuildFastArrayOperand(
       instr->elements(),
       key,
+      instr->hydrogen()->key()->representation(),
       FAST_DOUBLE_ELEMENTS,
       instr->base_offset());
 
@@ -4314,15 +4318,11 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   LOperand* key = instr->key();
   int offset = instr->base_offset();
 
-  if (!key->IsConstantOperand()) {
-    Register key_reg = ToRegister(key);
-    if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ SmiToInteger64(key_reg, key_reg);
-    } else if (instr->hydrogen()->IsDehoisted()) {
-      // Sign extend key because it could be a 32 bit negative value
-      // and the dehoisted address computation happens in 64 bits
-      __ movsxlq(key_reg, key_reg);
-    }
+  if (kPointerSize == kInt32Size && !key->IsConstantOperand() &&
+      instr->hydrogen()->IsDehoisted()) {
+    // Sign extend key because it could be a 32 bit negative value
+    // and the dehoisted address computation happens in 64 bits
+    __ movsxlq(ToRegister(key), ToRegister(key));
   }
 
   Representation representation = hinstr->value()->representation();
@@ -4335,6 +4335,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
       __ Load(scratch,
               BuildFastArrayOperand(instr->elements(),
                                     key,
+                                    instr->hydrogen()->key()->representation(),
                                     FAST_ELEMENTS,
                                     offset),
               Representation::Smi());
@@ -4349,6 +4350,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   Operand operand =
       BuildFastArrayOperand(instr->elements(),
                             key,
+                            instr->hydrogen()->key()->representation(),
                             FAST_ELEMENTS,
                             offset);
   if (instr->value()->IsRegister()) {
