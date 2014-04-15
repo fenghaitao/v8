@@ -2120,6 +2120,7 @@ LInstruction* LChunkBuilder::DoLoadRoot(HLoadRoot* instr) {
 
 
 void LChunkBuilder::FindDehoistedKeyDefinitions(HValue* candidate) {
+  ASSERT(kPointerSize == kInt64Size);
   BitVector* dehoisted_key_ids = chunk_->GetDehoistedKeyIds();
   if (dehoisted_key_ids->Contains(candidate->id())) return;
   dehoisted_key_ids->Add(candidate->id());
@@ -2139,7 +2140,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
       : UseRegisterOrConstantAtStart(instr->key());
   LInstruction* result = NULL;
 
-  if (instr->IsDehoisted()) {
+  if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
     FindDehoistedKeyDefinitions(instr->key());
   }
 
@@ -2185,7 +2186,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   bool clobbers_key = instr->key()->representation().IsSmi();
 
-  if (instr->IsDehoisted()) {
+  if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
     FindDehoistedKeyDefinitions(instr->key());
   }
 

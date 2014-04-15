@@ -290,6 +290,20 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       instr->result()->IsRegister()) {
     __ AssertZeroExtended(ToRegister(instr->result()));
   }
+
+  if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
+    ASSERT(kPointerSize == kInt64Size);
+    if (instr->result()->IsRegister()) {
+      Register result_reg = ToRegister(instr->result());
+      __ movsxlq(result_reg, result_reg);
+    } else {
+      // Sign extend the 32bit result in the stack slots.
+      ASSERT(instr->result()->IsStackSlot());
+      Operand src = ToOperand(instr->result());
+      __ movsxlq(kScratchRegister, src);
+      __ movp(src, kScratchRegister);
+    }
+  }
 }
 
 

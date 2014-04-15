@@ -275,7 +275,7 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       instr->result()->IsRegister()) {
     __ AssertZeroExtended(ToRegister(instr->result()));
   }
-#ifndef V8_TARGET_ARCH_X32
+
   if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
     // We sign extend the dehoisted key at the definition point when the pointer
     // size is 64-bit. For x32 port, we sign extend the dehoisted key at the use
@@ -293,7 +293,6 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       __ movq(src, kScratchRegister);
     }
   }
-#endif
 }
 
 
