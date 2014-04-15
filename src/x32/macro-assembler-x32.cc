@@ -1329,9 +1329,15 @@ Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
     return CheckSmi(first);
   }
   STATIC_ASSERT(kSmiTag == 0 && kHeapObjectTag == 1 && kHeapObjectTagMask == 3);
-  movl(kScratchRegister, first);
-  orl(kScratchRegister, second);
-  testb(kScratchRegister, Immediate(kSmiTagMask));
+  if (SmiValuesAre32Bits()) {
+    leal(kScratchRegister, Operand(first, second, times_1, 0));
+    testb(kScratchRegister, Immediate(0x03));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movl(kScratchRegister, first);
+    orl(kScratchRegister, second);
+    testb(kScratchRegister, Immediate(kSmiTagMask));
+  }
   return zero;
 }
 
@@ -1377,14 +1383,28 @@ Condition MacroAssembler::CheckIsMinSmi(Register src) {
 
 
 Condition MacroAssembler::CheckInteger32ValidSmiValue(Register src) {
-  cmpl(src, Immediate(0xc0000000));
-  return positive;
+  if (SmiValuesAre32Bits()) {
+    // A 32-bit integer value can always be converted to a smi.
+    return always;
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    cmpl(src, Immediate(0xc0000000));
+    return positive;
+  }
 }
 
 
 Condition MacroAssembler::CheckUInteger32ValidSmiValue(Register src) {
-  testl(src, Immediate(0xc0000000));
-  return zero;
+  if (SmiValuesAre32Bits()) {
+    // An unsigned 32-bit integer value is valid as long as the high bit
+    // is not set.
+    testl(src, src);
+    return positive;
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    testl(src, Immediate(0xc0000000));
+    return zero;
+  }
 }
 
 
@@ -1527,7 +1547,13 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
 
 void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
   if (constant->value() != 0) {
-    addl(dst, Immediate(constant));
+    if (SmiValuesAre32Bits()) {
+      addl(Operand(dst, kSmiShift / kBitsPerByte),
+           Immediate(constant->value()));
+    } else {
+      ASSERT(SmiValuesAre31Bits());
+      addp(dst, Immediate(constant));
+    }
   }
 }
 
@@ -1985,8 +2011,14 @@ void MacroAssembler::SmiMod(Register dst,
 void MacroAssembler::SmiNot(Register dst, Register src) {
   ASSERT(!dst.is(kScratchRegister));
   ASSERT(!src.is(kScratchRegister));
-  // Set tag and padding bits before negating, so that they are zero afterwards.
-  movl(kScratchRegister, Immediate(1));
+  if (SmiValuesAre32Bits()) {
+    // Set tag and padding bits before negating, so that they are zero
+    // afterwards.
+    movl(kScratchRegister, Immediate(~0));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movl(kScratchRegister, Immediate(1));
+  }
   if (dst.is(src)) {
     xorp(dst, kScratchRegister);
   } else {
@@ -2280,8 +2312,14 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
 
 
 void MacroAssembler::AddSmiField(Register dst, const Operand& src) {
-  SmiToInteger32(kScratchRegister, src);
-  addl(dst, kScratchRegister);
+  if (SmiValuesAre32Bits()) {
+    ASSERT_EQ(0, kSmiShift % kBitsPerByte);
+    addl(dst, Operand(src, kSmiShift / kBitsPerByte));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    SmiToInteger32(kScratchRegister, src);
+    addl(dst, kScratchRegister);
+  }
 }
 
 
@@ -2323,7 +2361,12 @@ void MacroAssembler::PopRegisterAsTwoSmis(Register dst, Register scratch) {
 
 
 void MacroAssembler::Test(const Operand& src, Smi* source) {
-  testl(src, Immediate(source));
+  if (SmiValuesAre32Bits()) {
+    testl(Operand(src, kIntSize), Immediate(source->value()));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    testl(src, Immediate(source));
+  }
 }
 
 
