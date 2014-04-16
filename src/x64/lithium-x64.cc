@@ -2226,7 +2226,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
 #ifndef V8_TARGET_ARCH_X32
       key = UseRegisterOrConstantAtStart(instr->key());
 #else
-      key = clobbers_key ? UseTempRegister(instr->key())
+      key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
           : UseRegisterOrConstantAtStart(instr->key());
 #endif
     } else {
@@ -2242,7 +2242,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
 #ifndef V8_TARGET_ARCH_X32
         key = UseRegisterOrConstantAtStart(instr->key());
 #else
-        key = clobbers_key ? UseTempRegister(instr->key())
+        key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
             : UseRegisterOrConstantAtStart(instr->key());
 #endif
       }

@@ -2136,7 +2136,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   bool clobbers_key = instr->key()->representation().IsSmi();
   LOperand* key = clobbers_key
-      ? UseTempRegister(instr->key())
+      ? UseTempRegisterOrConstant(instr->key())
       : UseRegisterOrConstantAtStart(instr->key());
   LInstruction* result = NULL;
 
@@ -2201,7 +2201,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
       val = UseRegisterAtStart(instr->value());
-      key = clobbers_key ? UseTempRegister(instr->key())
+      key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
           : UseRegisterOrConstantAtStart(instr->key());
     } else {
       ASSERT(value_representation.IsSmiOrTagged() ||
@@ -2213,7 +2213,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       } else {
         object = UseRegisterAtStart(instr->elements());
         val = UseRegisterOrConstantAtStart(instr->value());
-        key = clobbers_key ? UseTempRegister(instr->key())
+        key = clobbers_key ? UseTempRegisterOrConstant(instr->key())
             : UseRegisterOrConstantAtStart(instr->key());
       }
     }

@@ -2450,7 +2450,7 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
     // be negative.
     movsxlq(dst, dst);
     if (shift == times_1) {
-      sarq(dst, Immediate(kSmiShift));
+      __k sarq(dst, Immediate(kSmiShift));
       return SmiIndex(dst, times_1);
     }
     return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
@@ -2480,9 +2480,9 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
     if (!dst.is(src)) {
       movp(dst, src);
     }
-    negq(dst);
+    __k negq(dst);
     if (shift == times_1) {
-      sarq(dst, Immediate(kSmiShift));
+      __k sarq(dst, Immediate(kSmiShift));
       return SmiIndex(dst, times_1);
     }
     return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
