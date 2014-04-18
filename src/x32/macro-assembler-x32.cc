@@ -982,7 +982,6 @@ void MacroAssembler::Set(const Operand& dst, intptr_t x) {
       movp(dst, kScratchRegister);
     }
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(dst, Immediate(static_cast<int32_t>(x)));
   }
 }
@@ -2729,7 +2728,6 @@ void MacroAssembler::Push(Register src) {
   if (kPointerSize == kInt64Size) {
     pushq(src);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     // x32 uses 64-bit push for rbp in the prologue.
     ASSERT(src.code() != rbp.code());
     leal(rsp, Operand(rsp, -4));
@@ -2742,10 +2740,19 @@ void MacroAssembler::Push(const Operand& src) {
   if (kPointerSize == kInt64Size) {
     pushq(src);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(kScratchRegister, src);
     leal(rsp, Operand(rsp, -4));
     movp(Operand(rsp, 0), kScratchRegister);
+  }
+}
+
+
+void MacroAssembler::PushQuad(const Operand& src) {
+  if (kPointerSize == kInt64Size) {
+    pushq(src);
+  } else {
+    movp(kScratchRegister, src);
+    pushq(kScratchRegister);
   }
 }
 
@@ -2754,7 +2761,6 @@ void MacroAssembler::Push(Immediate value) {
   if (kPointerSize == kInt64Size) {
     pushq(value);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     leal(rsp, Operand(rsp, -4));
     movp(Operand(rsp, 0), value);
   }
@@ -2765,7 +2771,6 @@ void MacroAssembler::PushImm32(int32_t imm32) {
   if (kPointerSize == kInt64Size) {
     pushq_imm32(imm32);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     leal(rsp, Operand(rsp, -4));
     movp(Operand(rsp, 0), Immediate(imm32));
   }
@@ -2776,7 +2781,6 @@ void MacroAssembler::Pop(Register dst) {
   if (kPointerSize == kInt64Size) {
     popq(dst);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     // x32 uses 64-bit pop for rbp in the epilogue.
     ASSERT(dst.code() != rbp.code());
     movp(dst, Operand(rsp, 0));
@@ -2789,7 +2793,6 @@ void MacroAssembler::Pop(const Operand& dst) {
   if (kPointerSize == kInt64Size) {
     popq(dst);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     Register scratch = dst.AddressUsesRegister(kScratchRegister)
         ? kSmiConstantRegister : kScratchRegister;
     movp(scratch, Operand(rsp, 0));
@@ -2801,6 +2804,16 @@ void MacroAssembler::Pop(const Operand& dst) {
            reinterpret_cast<void*>(Smi::FromInt(kSmiConstantRegisterValue)),
            Assembler::RelocInfoNone());
     }
+  }
+}
+
+
+void MacroAssembler::PopQuad(const Operand& dst) {
+  if (kPointerSize == kInt64Size) {
+    popq(dst);
+  } else {
+    popq(kScratchRegister);
+    movp(dst, kScratchRegister);
   }
 }
 
@@ -2846,7 +2859,6 @@ void MacroAssembler::Jump(const Operand& op) {
   if (kPointerSize == kInt64Size) {
     jmp(op);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(kScratchRegister, op);
     jmp(kScratchRegister);
   }
@@ -2888,7 +2900,6 @@ void MacroAssembler::Call(const Operand& op) {
   if (kPointerSize == kInt64Size) {
     call(op);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(kScratchRegister, op);
     call(kScratchRegister);
   }
