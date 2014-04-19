@@ -1098,16 +1098,12 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
 
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
-#ifndef V8_TARGET_ARCH_X32
   if (emit_debug_code()) {
     Move(dst, Smi::FromInt(kSmiConstantRegisterValue),
          Assembler::RelocInfoNone());
     cmpp(dst, kSmiConstantRegister);
     Assert(equal, kUninitializedKSmiConstantRegister);
   }
-#else
-  // Disable check for Uninitialized kSmiConstantRegister for X32.
-#endif
   int value = source->value();
   if (value == 0) {
     xorl(dst, dst);
