@@ -749,15 +749,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // Tear down internal frame.
   }
 
-  if (kPointerSize == kRegisterSize) {
-    __ Pop(MemOperand(rsp, 0));  // Ignore state offset
-  } else {
-    ASSERT(kRegisterSize == 2 * kPointerSize);
-    __ PopReturnAddressTo(kScratchRegister);
-    __ leap(rsp, Operand(rsp, 4));  // Drop state
-    __ PushReturnAddressFrom(kScratchRegister);
-  }
-
+  __ DropUnderReturnAddress(1);  // Ignore state offset
   __ ret(0);  // Return to IC Miss stub, continuation still on stack.
 }
 
@@ -934,13 +926,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ bind(&shift_arguments);
   { Label loop;
     __ movp(rcx, rax);
-    __ incl(rcx);  // HWRegSize = kPointerSize + kPointerSize
+    StackArgumentsAccessor args(rsp, rcx);
     __ bind(&loop);
-    __ movp(rbx, Operand(rsp, rcx, times_pointer_size, 0));
-    __ movp(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
+    __ movp(rbx, args.GetArgumentOperand(1));
+    __ movp(args.GetArgumentOperand(0), rbx);
     __ decp(rcx);
-    __ j(not_sign, &loop);  // While non-negative (to copy return address).
-    __ leal(rsp, Operand(rsp, 4));  // Discard bottom-half of return address
+    __ j(not_zero, &loop);  // While non-zero.
+    __ DropUnderReturnAddress(1, rbx);  // Drop one slot under return address.
     __ decp(rax);  // One fewer argument (first argument is new receiver).
   }
 

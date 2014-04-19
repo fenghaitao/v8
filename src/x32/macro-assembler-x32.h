@@ -843,6 +843,11 @@ class MacroAssembler: public Assembler {
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the rsp register.
   void Drop(int stack_elements);
+  // Emit code to discard a positive number of pointer-sized elements
+  // from the stack under the return address which remains on the top,
+  // clobbering the rsp register.
+  void DropUnderReturnAddress(int stack_elements,
+                              Register scratch = kScratchRegister);
 
   void Call(Label* target) { call(target); }
   void Push(Register src);
@@ -855,6 +860,7 @@ class MacroAssembler: public Assembler {
   void PopQuad(const Operand& dst);
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
+
   void Move(Register dst, ExternalReference ext) {
     movp(dst, reinterpret_cast<void*>(ext.address()),
          RelocInfo::EXTERNAL_REFERENCE);
