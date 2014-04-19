@@ -54,7 +54,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
-static const int kInvalidRootRegisterDelta = -1;
+static const int64_t kInvalidRootRegisterDelta = -1;
 
 
 int64_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
@@ -65,9 +65,18 @@ int64_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
   }
   Address roots_register_value = kRootRegisterBias +
       reinterpret_cast<Address>(isolate()->heap()->roots_array_start());
-  uint64_t o = reinterpret_cast<uint32_t>(other.address());
-  uint64_t r = reinterpret_cast<uint32_t>(roots_register_value);
-  int64_t delta = o - r;
+
+  int64_t delta = kInvalidRootRegisterDelta;  // Bogus initialization.
+  if (kPointerSize == kInt64Size) {
+    delta = other.address() - roots_register_value;
+  } else {
+    // For x32, zero extend the address to 64-bit and calculate the delta.
+    uint64_t o = static_cast<uint32_t>(
+        reinterpret_cast<intptr_t>(other.address()));
+    uint64_t r = static_cast<uint32_t>(
+        reinterpret_cast<intptr_t>(roots_register_value));
+    delta = o - r;
+  }
   return delta;
 }
 
@@ -77,7 +86,6 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
   if (root_array_available_ && !Serializer::enabled()) {
     int64_t delta = RootRegisterDelta(target);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
   }
@@ -90,7 +98,6 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
     int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       movp(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
     }
@@ -109,7 +116,6 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (root_array_available_ && !Serializer::enabled()) {
     int64_t delta = RootRegisterDelta(destination);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       movp(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
       return;
     }
@@ -129,7 +135,6 @@ void MacroAssembler::LoadAddress(Register destination,
   if (root_array_available_ && !Serializer::enabled()) {
     int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       leap(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
     }
@@ -146,7 +151,6 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
     // instruction below.
     int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       // Operand is leap(scratch, Operand(kRootRegister, delta));
       // Opcodes : REX.W 8D ModRM Disp8/Disp32  - 4 or 7.
       int size = 4;
