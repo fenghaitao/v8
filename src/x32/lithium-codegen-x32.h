@@ -35,7 +35,7 @@
 #include "lithium-codegen.h"
 #include "safepoint-table.h"
 #include "scopes.h"
-#include "v8utils.h"
+#include "utils.h"
 #include "x32/lithium-gap-resolver-x32.h"
 
 namespace v8 {
