@@ -835,7 +835,6 @@ class MacroAssembler: public Assembler {
   void PopQuad(const Operand& dst);
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
-
   void Move(Register dst, ExternalReference ext) {
     movp(dst, reinterpret_cast<void*>(ext.address()),
          RelocInfo::EXTERNAL_REFERENCE);
