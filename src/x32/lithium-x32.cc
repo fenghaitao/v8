@@ -1880,8 +1880,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
         return AssignPointerMap(DefineSameAsFirst(result));
       } else {
         LOperand* value = UseRegister(val);
-        LOperand* temp = FixedTemp(xmm1);
-        LNumberTagI* result = new(zone()) LNumberTagI(value, temp);
+        LOperand* temp1 = SmiValuesAre32Bits() ? NULL : TempRegister();
+        LOperand* temp2 = SmiValuesAre32Bits() ? NULL : FixedTemp(xmm1);
+        LNumberTagI* result = new(zone()) LNumberTagI(value, temp1, temp2);
         return AssignPointerMap(DefineSameAsFirst(result));
       }
     } else if (to.IsSmi()) {

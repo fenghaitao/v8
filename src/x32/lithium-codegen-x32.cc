@@ -4622,14 +4622,15 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
 
 
 void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
-  class DeferredNumberTagI: public LDeferredCode {
+  class DeferredNumberTagI V8_FINAL : public LDeferredCode {
    public:
     DeferredNumberTagI(LCodeGen* codegen, LNumberTagI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() {
-      codegen()->DoDeferredNumberTagI(instr_);
+    virtual void Generate() V8_OVERRIDE {
+      codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp1(),
+                                       instr_->temp2(), SIGNED_INT32);
     }
-    virtual LInstruction* instr() { return instr_; }
+    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
     LNumberTagI* instr_;
   };
@@ -4638,60 +4639,15 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   Register reg = ToRegister(input);
 
-  DeferredNumberTagI* deferred = new(zone()) DeferredNumberTagI(this, instr);
-  __ Integer32ToSmi(reg, reg);
-  __ j(overflow, deferred->entry());
-  __ bind(deferred->exit());
-}
-
-
-void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
-  Label slow;
-  Register reg = ToRegister(instr->value());
-  Register tmp = reg.is(rax) ? kScratchRegister : rax;
-
-  // Preserve the value of all registers.
-  PushSafepointRegistersScope scope(this);
-
-  Label done;
-  // There was overflow, so bits 30 and 31 of the original integer
-  // disagree. Try to allocate a heap number in new space and store
-  // the value in there. If that fails, call the runtime system.
-  __ SmiToInteger32(reg, reg);
-  __ xorl(reg, Immediate(0x80000000));
-  __ cvtlsi2sd(xmm1, reg);
-
-  if (FLAG_inline_new) {
-    __ AllocateHeapNumber(reg, tmp, &slow);
-    __ jmp(&done, kPointerSize == kInt64Size ? Label::kNear : Label::kFar);
+  if (SmiValuesAre32Bits()) {
+    __ Integer32ToSmi(reg, reg);
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    DeferredNumberTagI* deferred = new(zone()) DeferredNumberTagI(this, instr);
+    __ Integer32ToSmi(reg, reg);
+    __ j(overflow, deferred->entry());
+    __ bind(deferred->exit());
   }
-
-  // Slow case: Call the runtime system to do the number allocation.
-  __ bind(&slow);
-
-  // Put a valid pointer value in the stack slot where the result
-  // register is stored, as this register is in the pointer map, but contains an
-  // integer value.
-  __ StoreToSafepointRegisterSlot(reg, Immediate(0));
-
-  // NumberTagI uses the context from the frame, rather than
-  // the environment's HContext or HInlinedContext value.
-  // They only call Runtime::kAllocateHeapNumber.
-  // The corresponding HChange instructions are added in a phase that does
-  // not have easy access to the local context.
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ CallRuntimeSaveDoubles(Runtime::kHiddenAllocateHeapNumber);
-  RecordSafepointWithRegisters(
-      instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-
-  // Set the pointer to the new heap number in tmp.
-  if (!reg.is(rax)) __ movl(reg, rax);
-
-  // Heap number allocated. Put the value in xmm0 into the value of the
-  // allocated heap number.
-  __ bind(&done);
-  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), xmm1);
-  __ StoreToSafepointRegisterSlot(reg, reg);
 }
 
 
@@ -4701,7 +4657,8 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
     DeferredNumberTagU(LCodeGen* codegen, LNumberTagU* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredNumberTagU(instr_);
+      codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp1(),
+                                       instr_->temp2(), UNSIGNED_INT32);
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
@@ -4720,17 +4677,32 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 }
 
 
-void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
+void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
+                                     LOperand* value,
+                                     LOperand* temp1,
+                                     LOperand* temp2,
+                                     IntegerSignedness signedness) {
   Label done, slow;
-  Register reg = ToRegister(instr->value());
-  Register tmp = ToRegister(instr->temp1());
-  XMMRegister temp_xmm = ToDoubleRegister(instr->temp2());
+  Register reg = ToRegister(value);
+  Register tmp = ToRegister(temp1);
+  XMMRegister temp_xmm = ToDoubleRegister(temp2);
 
   // Load value into temp_xmm which will be preserved across potential call to
   // runtime (MacroAssembler::EnterExitFrameEpilogue preserves only allocatable
   // XMM registers on x64).
-  XMMRegister xmm_scratch = double_scratch0();
-  __ LoadUint32(temp_xmm, reg, xmm_scratch);
+  if (signedness == SIGNED_INT32) {
+    ASSERT(SmiValuesAre31Bits());
+    // There was overflow, so bits 30 and 31 of the original integer
+    // disagree. Try to allocate a heap number in new space and store
+    // the value in there. If that fails, call the runtime system.
+    __ SmiToInteger32(reg, reg);
+    __ xorl(reg, Immediate(0x80000000));
+    __ cvtlsi2sd(temp_xmm, reg);
+  } else {
+    ASSERT(signedness == UNSIGNED_INT32);
+    XMMRegister xmm_scratch = double_scratch0();
+    __ LoadUint32(temp_xmm, reg, xmm_scratch);
+  }
 
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, &slow);
@@ -4748,7 +4720,7 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
     // Preserve the value of all registers.
     PushSafepointRegistersScope scope(this);
 
-    // NumberTagU uses the context from the frame, rather than
+    // NumberTagIU uses the context from the frame, rather than
     // the environment's HContext or HInlinedContext value.
     // They only call Runtime::kHiddenAllocateHeapNumber.
     // The corresponding HChange instructions are added in a phase that does
