@@ -2301,7 +2301,6 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
                                           Register src2,
                                           Label* on_not_smi_result,
                                           Label::Distance near_jump) {
-#ifndef V8_TARGET_ARCH_X32
   ASSERT(!dst.is(kScratchRegister));
   ASSERT(!src1.is(kScratchRegister));
   ASSERT(!src2.is(kScratchRegister));
@@ -2331,37 +2330,6 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
     bind(&valid_result);
     Integer32ToSmi(dst, dst);
   }
-#else
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src1.is(kScratchRegister));
-  ASSERT(!src2.is(kScratchRegister));
-  ASSERT(!dst.is(rcx));
-  Label result_ok;
-
-  // dst and src1 can be the same, because the one case that bails out
-  // is a shift by 0, which leaves dst, and therefore src1, unchanged.
-  if (src1.is(rcx) || src2.is(rcx)) {
-    movl(kScratchRegister, rcx);
-  }
-  if (!dst.is(src1)) {
-    movq(dst, src1);
-  }
-  SmiToInteger32(rcx, src2);
-  SmiToInteger32(dst, dst);
-  shrl_cl(dst);
-  testl(dst, Immediate(0xc0000000));
-  j(zero, &result_ok);
-  if (src1.is(rcx) || src2.is(rcx)) {
-    if (src1.is(rcx)) {
-      movl(src1, kScratchRegister);
-    } else {
-      movl(src2, kScratchRegister);
-    }
-  }
-  jmp(on_not_smi_result);
-  bind(&result_ok);
-  Integer32ToSmi(dst, dst);
-#endif
 }
 
 

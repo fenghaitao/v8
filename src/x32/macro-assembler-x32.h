@@ -469,9 +469,17 @@ class MacroAssembler: public Assembler {
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
 
+  // Jump if the value can be represented by a smi.
+  void JumpIfValidSmiValue(Register src, Label* on_valid,
+                           Label::Distance near_jump = Label::kFar);
+
   // Jump if the value cannot be represented by a smi.
   void JumpIfNotValidSmiValue(Register src, Label* on_invalid,
                               Label::Distance near_jump = Label::kFar);
+
+  // Jump if the unsigned integer value can be represented by a smi.
+  void JumpIfUIntValidSmiValue(Register src, Label* on_valid,
+                               Label::Distance near_jump = Label::kFar);
 
   // Jump if the unsigned integer value cannot be represented by a smi.
   void JumpIfUIntNotValidSmiValue(Register src, Label* on_invalid,
@@ -630,7 +638,9 @@ class MacroAssembler: public Assembler {
 
   void SmiShiftLeftConstant(Register dst,
                             Register src,
-                            int shift_value);
+                            int shift_value,
+                            Label* on_not_smi_result = NULL,
+                            Label::Distance near_jump = Label::kFar);
   void SmiShiftLogicalRightConstant(Register dst,
                                     Register src,
                                     int shift_value,
@@ -647,7 +657,6 @@ class MacroAssembler: public Assembler {
                     Register src2,
                     Label* on_not_smi_result = NULL,
                     Label::Distance near_jump = Label::kFar);
-
   // Shifts a smi value to the right, shifting in zero bits at the top, and
   // returns the unsigned intepretation of the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.
