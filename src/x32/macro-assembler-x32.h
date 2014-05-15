@@ -274,7 +274,7 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 
   // Generates function and stub prologue code.
-  void Prologue(PrologueFrameMode frame_mode);
+  void Prologue(CompilationInfo* info);
 
   // Enter specific kind of exit frame; either in normal or
   // debug mode. Expects the number of arguments in register rax and
@@ -1023,11 +1023,10 @@ class MacroAssembler: public Assembler {
 
   template<typename Field>
   void DecodeField(Register reg) {
-    static const int shift = Field::kShift + kSmiShift;
+    static const int shift = Field::kShift;
     static const int mask = Field::kMask >> Field::kShift;
     shrp(reg, Immediate(shift));
     andp(reg, Immediate(mask));
-    shlp(reg, Immediate(kSmiShift));
   }
 
   // Abort execution if argument is not a number, enabled via --debug-code.

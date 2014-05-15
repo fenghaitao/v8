@@ -150,7 +150,7 @@ bool LCodeGen::GeneratePrologue() {
   if (NeedsEagerFrame()) {
     ASSERT(!frame_is_built_);
     frame_is_built_ = true;
-    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
+    __ Prologue(info());
     info()->AddNoFrameRange(0, masm_->pc_offset());
   }
 
@@ -4475,6 +4475,15 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     RecordSafepointWithLazyDeopt(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
   }
   __ bind(&not_applicable);
+}
+
+
+void LCodeGen::DoArrayShift(LArrayShift* instr) {
+  ASSERT(ToRegister(instr->context()).is(rsi));
+  ASSERT(ToRegister(instr->object()).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+  ArrayShiftStub stub(isolate(), instr->hydrogen()->kind());
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
