@@ -1622,11 +1622,11 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         }
         break;
       case Token::SHR:
-        if (shift_count == 0 && instr->can_deopt()) {
+        if (shift_count != 0) {
+          __ shrl(ToRegister(left), Immediate(shift_count));
+        } else if (instr->can_deopt()) {
           __ testl(ToRegister(left), Immediate(0x80000000));
           DeoptimizeIf(negative, instr->environment());
-        } else {
-          __ shrl(ToRegister(left), Immediate(shift_count));
         }
         break;
       case Token::SHL:
@@ -2235,7 +2235,9 @@ inline Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
-  Condition cc = TokenToCondition(instr->op(), instr->is_double());
+  bool is_unsigned =
+      instr->is_double() || instr->hydrogen()->CheckFlag(HInstruction::kUint32);
+  Condition cc = TokenToCondition(instr->op(), is_unsigned);
 
   if (left->IsConstantOperand() && right->IsConstantOperand()) {
     // We can statically evaluate the comparison.
