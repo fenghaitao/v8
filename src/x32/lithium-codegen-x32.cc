@@ -150,7 +150,11 @@ bool LCodeGen::GeneratePrologue() {
   if (NeedsEagerFrame()) {
     ASSERT(!frame_is_built_);
     frame_is_built_ = true;
-    __ Prologue(info());
+    if (info()->IsStub()) {
+      __ StubPrologue();
+    } else {
+      __ Prologue(info()->IsCodePreAgingActive());
+    }
     info()->AddNoFrameRange(0, masm_->pc_offset());
   }
 
@@ -1711,13 +1715,6 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> object = instr->value(isolate());
   AllowDeferredHandleDereference smi_check;
-  if (instr->hydrogen()->HasObjectMap()) {
-    Handle<Map> object_map = instr->hydrogen()->ObjectMap().handle();
-    ASSERT(object->IsHeapObject());
-    ASSERT(!object_map->is_stable() ||
-           *object_map == Handle<HeapObject>::cast(object)->map());
-    USE(object_map);
-  }
   __ Move(ToRegister(instr->result()), object);
 }
 
