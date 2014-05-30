@@ -1620,12 +1620,6 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     switch (instr->op()) {
       case Token::ROR:
         __ rorl_cl(ToRegister(left));
-#ifdef V8_TARGET_ARCH_X32
-        if (instr->can_deopt()) {
-          __ testl(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
-        }
-#endif
         break;
       case Token::SAR:
         __ sarl_cl(ToRegister(left));
@@ -1633,11 +1627,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SHR:
         __ shrl_cl(ToRegister(left));
         if (instr->can_deopt()) {
-#ifndef V8_TARGET_ARCH_X32
           __ testl(ToRegister(left), ToRegister(left));
-#else
-          __ testl(ToRegister(left), Immediate(0x80000000));
-#endif
           DeoptimizeIf(negative, instr->environment());
         }
         break;
@@ -1653,18 +1643,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
       case Token::ROR:
-#ifndef V8_TARGET_ARCH_X32
         if (shift_count != 0) {
           __ rorl(ToRegister(left), Immediate(shift_count));
         }
-#else
-        if (shift_count == 0 && instr->can_deopt()) {
-          __ testl(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
-        } else {
-          __ rorl(ToRegister(left), Immediate(shift_count));
-        }
-#endif
         break;
       case Token::SAR:
         if (shift_count != 0) {
@@ -1675,11 +1656,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         if (shift_count != 0) {
           __ shrl(ToRegister(left), Immediate(shift_count));
         } else if (instr->can_deopt()) {
-#ifndef V8_TARGET_ARCH_X32
           __ testl(ToRegister(left), ToRegister(left));
-#else
-          __ testl(ToRegister(left), Immediate(0x80000000));
-#endif
           DeoptimizeIf(negative, instr->environment());
         }
         break;

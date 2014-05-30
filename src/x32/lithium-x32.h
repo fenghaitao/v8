@@ -1628,7 +1628,7 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
+  uint32_t base_offset() const { return hydrogen()->base_offset(); }
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
@@ -2188,7 +2188,7 @@ class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, 0> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
   bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
+  uint32_t base_offset() const { return hydrogen()->base_offset(); }
 };
 
 
@@ -2810,6 +2810,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
 
   void VisitInstruction(HInstruction* current);
+  void AddInstruction(LInstruction* instr, HInstruction* current);
 
   void DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block);
   LInstruction* DoShift(Token::Value op, HBitwiseBinaryOperation* instr);
