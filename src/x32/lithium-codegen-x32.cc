@@ -4775,14 +4775,8 @@ void LCodeGen::DoSmiTag(LSmiTag* instr) {
   Register output = ToRegister(instr->result());
   if (hchange->CheckFlag(HValue::kCanOverflow) &&
       hchange->value()->CheckFlag(HValue::kUint32)) {
-    if (SmiValuesAre32Bits()) {
-      __ testl(input, input);
-      DeoptimizeIf(sign, instr->environment());
-    } else {
-      ASSERT(SmiValuesAre31Bits());
-      __ testl(input, Immediate(0xc0000000));
-      DeoptimizeIf(not_zero, instr->environment());
-    }
+    Condition is_smi = __ CheckUInteger32ValidSmiValue(input);
+    DeoptimizeIf(NegateCondition(is_smi), instr->environment());
   }
   __ Integer32ToSmi(output, input);
   if (hchange->CheckFlag(HValue::kCanOverflow) &&
