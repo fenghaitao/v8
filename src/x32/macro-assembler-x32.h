@@ -1097,12 +1097,6 @@ class MacroAssembler: public Assembler {
   // Propagate an uncatchable exception out of the current JS stack.
   void ThrowUncatchable(Register value);
 
-  // Throw a message string as an exception.
-  void Throw(BailoutReason reason);
-
-  // Throw a message string as an exception if a condition is not true.
-  void ThrowIf(Condition cc, BailoutReason reason);
-
   // ---------------------------------------------------------------------------
   // Inline caching support
 

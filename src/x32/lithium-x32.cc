@@ -861,7 +861,14 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
       chunk_->AddInstruction(dummy, current_block_);
     }
   } else {
-    instr = current->CompileToLithium(this);
+    HBasicBlock* successor;
+    if (current->IsControlInstruction() &&
+        HControlInstruction::cast(current)->KnownSuccessorBlock(&successor) &&
+        successor != NULL) {
+      instr = new(zone()) LGoto(successor);
+    } else {
+      instr = current->CompileToLithium(this);
+    }
   }
 
   argument_count_ += current->argument_delta();
@@ -952,9 +959,6 @@ LInstruction* LChunkBuilder::DoDebugBreak(HDebugBreak* instr) {
 
 
 LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
-  LInstruction* goto_instr = CheckElideControlInstruction(instr);
-  if (goto_instr != NULL) return goto_instr;
-
   HValue* value = instr->value();
   Representation r = value->representation();
   HType type = value->type();
@@ -974,9 +978,6 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
-  LInstruction* goto_instr = CheckElideControlInstruction(instr);
-  if (goto_instr != NULL) return goto_instr;
-
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
   return new(zone()) LCmpMapAndBranch(value);
@@ -1616,8 +1617,6 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
-  LInstruction* goto_instr = CheckElideControlInstruction(instr);
-  if (goto_instr != NULL) return goto_instr;
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(r));
@@ -1645,8 +1644,6 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
 
 LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
     HCompareObjectEqAndBranch* instr) {
-  LInstruction* goto_instr = CheckElideControlInstruction(instr);
-  if (goto_instr != NULL) return goto_instr;
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseRegisterOrConstantAtStart(instr->right());
   return new(zone()) LCmpObjectEqAndBranch(left, right);
@@ -1662,8 +1659,6 @@ LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
 
 LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
     HCompareMinusZeroAndBranch* instr) {
-  LInstruction* goto_instr = CheckElideControlInstruction(instr);
-  if (goto_instr != NULL) return goto_instr;
   LOperand* value = UseRegister(instr->value());
   return new(zone()) LCompareMinusZeroAndBranch(value);
 }
@@ -2282,14 +2277,6 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
 }
 
 
-LInstruction* LChunkBuilder::DoArrayShift(HArrayShift* instr) {
-  LOperand* object = UseFixed(instr->object(), rax);
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LArrayShift* result = new(zone()) LArrayShift(context, object);
-  return MarkAsCall(DefineFixed(result, rax), instr, CANNOT_DEOPTIMIZE_EAGERLY);
-}
-
-
 LInstruction* LChunkBuilder::DoTrapAllocationMemento(
     HTrapAllocationMemento* instr) {
   LOperand* object = UseRegister(instr->object());
@@ -2515,9 +2502,6 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
-  LInstruction* goto_instr = CheckElideControlInstruction(instr);
-  if (goto_instr != NULL) return goto_instr;
-
   return new(zone()) LTypeofIsAndBranch(UseTempRegister(instr->value()));
 }
 
