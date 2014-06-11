@@ -5,11 +5,11 @@
 #ifndef V8_X32_REGEXP_MACRO_ASSEMBLER_X32_H_
 #define V8_X32_REGEXP_MACRO_ASSEMBLER_X32_H_
 
-#include "x32/assembler-x32.h"
-#include "x32/assembler-x32-inl.h"
-#include "macro-assembler.h"
-#include "code.h"
-#include "x32/macro-assembler-x32.h"
+#include "src/x32/assembler-x32.h"
+#include "src/x32/assembler-x32-inl.h"
+#include "src/macro-assembler.h"
+#include "src/code.h"
+#include "src/x32/macro-assembler-x32.h"
 
 namespace v8 {
 namespace internal {

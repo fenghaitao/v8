@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X32
 
-#include "x32/lithium-gap-resolver-x32.h"
-#include "x32/lithium-codegen-x32.h"
+#include "src/x32/lithium-gap-resolver-x32.h"
+#include "src/x32/lithium-codegen-x32.h"
 
 namespace v8 {
 namespace internal {

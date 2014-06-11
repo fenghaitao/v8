@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X32
 
-#include "x32/lithium-codegen-x32.h"
-#include "code-stubs.h"
-#include "stub-cache.h"
-#include "hydrogen-osr.h"
+#include "src/x32/lithium-codegen-x32.h"
+#include "src/code-stubs.h"
+#include "src/stub-cache.h"
+#include "src/hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {
@@ -192,10 +192,13 @@ bool LCodeGen::GeneratePrologue() {
   int heap_slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment(";;; Allocate local context");
+    bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in rdi.
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
+      // Result of FastNewContextStub is always in new space.
+      need_write_barrier = false;
     } else {
       __ Push(rdi);
       __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
@@ -219,7 +222,14 @@ bool LCodeGen::GeneratePrologue() {
         int context_offset = Context::SlotOffset(var->index());
         __ movp(Operand(rsi, context_offset), rax);
         // Update the write barrier. This clobbers rax and rbx.
-        __ RecordWriteContextSlot(rsi, context_offset, rax, rbx, kSaveFPRegs);
+        if (need_write_barrier) {
+          __ RecordWriteContextSlot(rsi, context_offset, rax, rbx, kSaveFPRegs);
+        } else if (FLAG_debug_code) {
+          Label done;
+          __ JumpIfInNewSpace(rsi, rax, &done, Label::kNear);
+          __ Abort(kExpectedNewSpaceObject);
+          __ bind(&done);
+        }
       }
     }
     Comment(";;; End allocate local context");
@@ -2280,8 +2290,8 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         } else {
           __ cmpl(ToOperand(right), Immediate(value));
         }
-        // We transposed the operands. Reverse the condition.
-        cc = ReverseCondition(cc);
+        // We commuted the operands, so commute the condition.
+        cc = CommuteCondition(cc);
       } else if (instr->hydrogen_value()->representation().IsSmi()) {
         if (right->IsRegister()) {
           __ cmpp(ToRegister(left), ToRegister(right));
@@ -3768,9 +3778,14 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
-  XMMRegister input_reg = ToDoubleRegister(instr->value());
-  ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
-  __ sqrtsd(input_reg, input_reg);
+  XMMRegister output = ToDoubleRegister(instr->result());
+  if (instr->value()->IsDoubleRegister()) {
+    XMMRegister input = ToDoubleRegister(instr->value());
+    __ sqrtsd(output, input);
+  } else {
+    Operand input = ToOperand(instr->value());
+    __ sqrtsd(output, input);
+  }
 }
 
 
@@ -4062,13 +4077,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ Move(kScratchRegister, transition);
       __ movp(FieldOperand(object, HeapObject::kMapOffset), kScratchRegister);
       // Update the write barrier for the map field.
-      __ RecordWriteField(object,
-                          HeapObject::kMapOffset,
-                          kScratchRegister,
-                          temp,
-                          kSaveFPRegs,
-                          OMIT_REMEMBERED_SET,
-                          OMIT_SMI_CHECK);
+      __ RecordWriteForMap(object,
+                           kScratchRegister,
+                           temp,
+                           kSaveFPRegs);
     }
   }
 
@@ -4128,7 +4140,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                         temp,
                         kSaveFPRegs,
                         EMIT_REMEMBERED_SET,
-                        hinstr->SmiCheckForWriteBarrier());
+                        hinstr->SmiCheckForWriteBarrier(),
+                        hinstr->PointersToHereCheckForValue());
   }
 }
 
@@ -4158,7 +4171,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     } else {
       __ cmpl(index, Immediate(length));
     }
-    cc = ReverseCondition(cc);
+    cc = CommuteCondition(cc);
   } else if (instr->index()->IsConstantOperand()) {
     int32_t index = ToInteger32(LConstantOperand::cast(instr->index()));
     if (instr->length()->IsRegister()) {
@@ -4386,7 +4399,8 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
                    value,
                    kSaveFPRegs,
                    EMIT_REMEMBERED_SET,
-                   check_needed);
+                   check_needed,
+                   hinstr->PointersToHereCheckForValue());
   }
 }
 
@@ -4431,9 +4445,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ Move(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movp(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
     // Write barrier.
-    ASSERT_NE(instr->temp(), NULL);
-    __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
-                        ToRegister(instr->temp()), kDontSaveFPRegs);
+    __ RecordWriteForMap(object_reg, new_map_reg, ToRegister(instr->temp()),
+                         kDontSaveFPRegs);
   } else {
     ASSERT(object_reg.is(rax));
     ASSERT(ToRegister(instr->context()).is(rsi));
@@ -4591,11 +4604,8 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
-  LOperand* temp = instr->temp();
 
-  __ LoadUint32(ToDoubleRegister(output),
-                ToRegister(input),
-                ToDoubleRegister(temp));
+  __ LoadUint32(ToDoubleRegister(output), ToRegister(input));
 }
 
 
@@ -4678,8 +4688,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
     __ cvtlsi2sd(temp_xmm, reg);
   } else {
     ASSERT(signedness == UNSIGNED_INT32);
-    XMMRegister xmm_scratch = double_scratch0();
-    __ LoadUint32(temp_xmm, reg, xmm_scratch);
+    __ LoadUint32(temp_xmm, reg);
   }
 
   if (FLAG_inline_new) {
@@ -5796,6 +5805,21 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
                                FixedArray::kHeaderSize - kPointerSize));
   __ bind(deferred->exit());
   __ bind(&done);
+}
+
+
+void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
+  Register context = ToRegister(instr->context());
+  __ movp(Operand(rbp, StandardFrameConstants::kContextOffset), context);
+}
+
+
+void LCodeGen::DoAllocateBlockContext(LAllocateBlockContext* instr) {
+  Handle<ScopeInfo> scope_info = instr->scope_info();
+  __ Push(scope_info);
+  __ Push(ToRegister(instr->function()));
+  CallRuntime(Runtime::kHiddenPushBlockContext, 2, instr);
+  RecordSafepoint(Safepoint::kNoLazyDeopt);
 }
 
 

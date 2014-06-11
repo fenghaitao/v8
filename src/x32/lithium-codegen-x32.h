@@ -5,15 +5,15 @@
 #ifndef V8_X32_LITHIUM_CODEGEN_X32_H_
 #define V8_X32_LITHIUM_CODEGEN_X32_H_
 
-#include "x32/lithium-x32.h"
+#include "src/x32/lithium-x32.h"
 
-#include "checks.h"
-#include "deoptimizer.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
-#include "x32/lithium-gap-resolver-x32.h"
+#include "src/checks.h"
+#include "src/deoptimizer.h"
+#include "src/lithium-codegen.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
+#include "src/x32/lithium-gap-resolver-x32.h"
 
 namespace v8 {
 namespace internal {

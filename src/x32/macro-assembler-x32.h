@@ -5,9 +5,9 @@
 #ifndef V8_X32_MACRO_ASSEMBLER_X32_H_
 #define V8_X32_MACRO_ASSEMBLER_X32_H_
 
-#include "assembler.h"
-#include "frames.h"
-#include "v8globals.h"
+#include "src/assembler.h"
+#include "src/frames.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -29,6 +29,10 @@ typedef Operand MemOperand;
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum PointersToHereCheck {
+  kPointersToHereMaybeInteresting,
+  kPointersToHereAreAlwaysInteresting
+};
 
 enum SmiOperationConstraint {
   PRESERVE_SOURCE_REGISTER,
@@ -220,7 +224,9 @@ class MacroAssembler: public Assembler {
       Register scratch,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // As above, but the offset has the tag presubtracted.  For use with
   // Operand(reg, off).
@@ -231,14 +237,17 @@ class MacroAssembler: public Assembler {
       Register scratch,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK) {
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
                      scratch,
                      save_fp,
                      remembered_set_action,
-                     smi_check);
+                     smi_check,
+                     pointers_to_here_check_for_value);
   }
 
   // Notify the garbage collector that we wrote a pointer into a fixed array.
@@ -253,7 +262,15 @@ class MacroAssembler: public Assembler {
       Register index,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
+
+  void RecordWriteForMap(
+      Register object,
+      Register map,
+      Register dst,
+      SaveFPRegsMode save_fp);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
@@ -266,7 +283,9 @@ class MacroAssembler: public Assembler {
       Register value,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // ---------------------------------------------------------------------------
   // Debugger Support
@@ -1016,7 +1035,7 @@ class MacroAssembler: public Assembler {
       MinusZeroMode minus_zero_mode, Label* lost_precision,
       Label::Distance dst = Label::kFar);
 
-  void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
+  void LoadUint32(XMMRegister dst, Register src);
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X32
 
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "cpu-profiler.h"
-#include "assembler-x32.h"
-#include "macro-assembler-x32.h"
-#include "serialize.h"
-#include "debug.h"
-#include "heap.h"
-#include "isolate-inl.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/cpu-profiler.h"
+#include "src/x32/assembler-x32.h"
+#include "src/x32/macro-assembler-x32.h"
+#include "src/serialize.h"
+#include "src/debug.h"
+#include "src/heap.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -294,7 +294,8 @@ void MacroAssembler::RecordWriteField(
     Register dst,
     SaveFPRegsMode save_fp,
     RememberedSetAction remembered_set_action,
-    SmiCheck smi_check) {
+    SmiCheck smi_check,
+    PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -317,8 +318,8 @@ void MacroAssembler::RecordWriteField(
     bind(&ok);
   }
 
-  RecordWrite(
-      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
@@ -331,12 +332,14 @@ void MacroAssembler::RecordWriteField(
 }
 
 
-void MacroAssembler::RecordWriteArray(Register object,
-                                      Register value,
-                                      Register index,
-                                      SaveFPRegsMode save_fp,
-                                      RememberedSetAction remembered_set_action,
-                                      SmiCheck smi_check) {
+void MacroAssembler::RecordWriteArray(
+    Register object,
+    Register value,
+    Register index,
+    SaveFPRegsMode save_fp,
+    RememberedSetAction remembered_set_action,
+    SmiCheck smi_check,
+    PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -351,8 +354,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   leap(dst, Operand(object, index, times_pointer_size,
                    FixedArray::kHeaderSize - kHeapObjectTag));
 
-  RecordWrite(
-      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
@@ -365,12 +368,85 @@ void MacroAssembler::RecordWriteArray(Register object,
 }
 
 
-void MacroAssembler::RecordWrite(Register object,
-                                 Register address,
-                                 Register value,
-                                 SaveFPRegsMode fp_mode,
-                                 RememberedSetAction remembered_set_action,
-                                 SmiCheck smi_check) {
+void MacroAssembler::RecordWriteForMap(Register object,
+                                       Register map,
+                                       Register dst,
+                                       SaveFPRegsMode fp_mode) {
+  ASSERT(!object.is(kScratchRegister));
+  ASSERT(!object.is(map));
+  ASSERT(!object.is(dst));
+  ASSERT(!map.is(dst));
+  AssertNotSmi(object);
+
+  if (emit_debug_code()) {
+    Label ok;
+    if (map.is(kScratchRegister)) pushq(map);
+    CompareMap(map, isolate()->factory()->meta_map());
+    if (map.is(kScratchRegister)) popq(map);
+    j(equal, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
+
+  if (!FLAG_incremental_marking) {
+    return;
+  }
+
+  if (emit_debug_code()) {
+    Label ok;
+    if (map.is(kScratchRegister)) pushq(map);
+    cmpp(map, FieldOperand(object, HeapObject::kMapOffset));
+    if (map.is(kScratchRegister)) popq(map);
+    j(equal, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
+
+  // Compute the address.
+  leap(dst, FieldOperand(object, HeapObject::kMapOffset));
+
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of smis and stores into the young generation.
+  Label done;
+
+  // A single check of the map's pages interesting flag suffices, since it is
+  // only set during incremental collection, and then it's also guaranteed that
+  // the from object's page's interesting flag is also set.  This optimization
+  // relies on the fact that maps can never be in new space.
+  CheckPageFlag(map,
+                map,  // Used as scratch.
+                MemoryChunk::kPointersToHereAreInterestingMask,
+                zero,
+                &done,
+                Label::kNear);
+
+  RecordWriteStub stub(isolate(), object, map, dst, OMIT_REMEMBERED_SET,
+                       fp_mode);
+  CallStub(&stub);
+
+  bind(&done);
+
+  // Clobber clobbered registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    Move(dst, kZapValue, Assembler::RelocInfoNone());
+    Move(map, kZapValue, Assembler::RelocInfoNone());
+  }
+}
+
+
+void MacroAssembler::RecordWrite(
+    Register object,
+    Register address,
+    Register value,
+    SaveFPRegsMode fp_mode,
+    RememberedSetAction remembered_set_action,
+    SmiCheck smi_check,
+    PointersToHereCheck pointers_to_here_check_for_value) {
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
   ASSERT(!value.is(address));
@@ -402,12 +478,14 @@ void MacroAssembler::RecordWrite(Register object,
     JumpIfSmi(value, &done);
   }
 
-  CheckPageFlag(value,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask,
-                zero,
-                &done,
-                Label::kNear);
+  if (pointers_to_here_check_for_value != kPointersToHereAreAlwaysInteresting) {
+    CheckPageFlag(value,
+                  value,  // Used as scratch.
+                  MemoryChunk::kPointersToHereAreInterestingMask,
+                  zero,
+                  &done,
+                  Label::kNear);
+  }
 
   CheckPageFlag(object,
                 value,  // Used as scratch.
@@ -2131,8 +2209,7 @@ void MacroAssembler::SmiShiftLeftConstant(Register dst,
     if (dst.is(src)) {
       UNIMPLEMENTED();  // Not used.
     } else {
-      movp(dst, src);
-      SmiToInteger32(dst, dst);
+      SmiToInteger32(dst, src);
       shll(dst, Immediate(shift_value));
       JumpIfNotValidSmiValue(dst, on_not_smi_result, near_jump);
       Integer32ToSmi(dst, dst);
@@ -2148,17 +2225,17 @@ void MacroAssembler::SmiShiftLogicalRightConstant(
   if (dst.is(src)) {
     UNIMPLEMENTED();  // Not used.
   } else {
-    movp(dst, src);
     if (shift_value == 0) {
-      testp(dst, dst);
+      testp(src, src);
       j(negative, on_not_smi_result, near_jump);
     }
     if (SmiValuesAre32Bits()) {
+      movp(dst, src);
       shrp(dst, Immediate(shift_value + kSmiShift));
       shlp(dst, Immediate(kSmiShift));
     } else {
       ASSERT(SmiValuesAre31Bits());
-      SmiToInteger32(dst, dst);
+      SmiToInteger32(dst, src);
       shrp(dst, Immediate(shift_value));
       JumpIfUIntNotValidSmiValue(dst, on_not_smi_result, near_jump);
       Integer32ToSmi(dst, dst);
@@ -2174,11 +2251,11 @@ void MacroAssembler::SmiShiftLeft(Register dst,
                                   Label::Distance near_jump) {
   if (SmiValuesAre32Bits()) {
     ASSERT(!dst.is(rcx));
-    // Untag shift amount.
-    SmiToInteger32(rcx, src2);
     if (!dst.is(src1)) {
       movp(dst, src1);
     }
+    // Untag shift amount.
+    SmiToInteger32(rcx, src2);
     // Shift amount specified by lower 5 bits, not six as the shl opcode.
     andp(rcx, Immediate(0x1f));
     shlp_cl(dst);
@@ -2197,8 +2274,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
       UNIMPLEMENTED();  // Not used.
     } else {
       Label valid_result;
-      movp(dst, src1);
-      SmiToInteger32(dst, dst);
+      SmiToInteger32(dst, src1);
       SmiToInteger32(rcx, src2);
       shll_cl(dst);
       JumpIfValidSmiValue(dst, &valid_result, Label::kNear);
@@ -2236,9 +2312,8 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
     UNIMPLEMENTED();  // Not used.
   } else {
     Label valid_result;
-    movp(dst, src1);
+    SmiToInteger32(dst, src1);
     SmiToInteger32(rcx, src2);
-    SmiToInteger32(dst, dst);
     shrl_cl(dst);
     JumpIfUIntValidSmiValue(dst, &valid_result, Label::kNear);
     // As src1 or src2 could not be dst, we do not need to restore them for
@@ -3390,8 +3465,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 
 
 void MacroAssembler::LoadUint32(XMMRegister dst,
-                                Register src,
-                                XMMRegister scratch) {
+                                Register src) {
   if (FLAG_debug_code) {
     cmpq(src, Immediate(0xffffffff));
     Assert(below_equal, kInputGPRIsExpectedToHaveUpper32Cleared);
@@ -4624,33 +4698,12 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
                                              Register scratch1,
                                              Register scratch2,
                                              Label* gc_required) {
-  Label allocate_new_space, install_map;
-  AllocationFlags flags = TAG_OBJECT;
-
-  ExternalReference high_promotion_mode = ExternalReference::
-      new_space_high_promotion_mode_active_address(isolate());
-
-  Load(scratch1, high_promotion_mode);
-  testb(scratch1, Immediate(1));
-  j(zero, &allocate_new_space);
   Allocate(ConsString::kSize,
            result,
            scratch1,
            scratch2,
            gc_required,
-           static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE));
-
-  jmp(&install_map);
-
-  bind(&allocate_new_space);
-  Allocate(ConsString::kSize,
-           result,
-           scratch1,
-           scratch2,
-           gc_required,
-           flags);
-
-  bind(&install_map);
+           TAG_OBJECT);
 
   // Set the map. The other fields are left uninitialized.
   LoadRoot(kScratchRegister, Heap::kConsAsciiStringMapRootIndex);
