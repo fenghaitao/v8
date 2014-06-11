@@ -473,8 +473,8 @@ int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
   HConstant* constant = chunk_->LookupConstant(op);
   int32_t value = constant->Integer32Value();
   if (r.IsInteger32()) return value;
-  ASSERT(r.IsSmiOrTagged());
-  return reinterpret_cast<int32_t>(Smi::FromInt(value));
+  ASSERT(SmiValuesAre31Bits() && r.IsSmiOrTagged());
+  return static_cast<int32_t>(reinterpret_cast<intptr_t>(Smi::FromInt(value)));
 }
 
 
@@ -1499,6 +1499,10 @@ void LCodeGen::DoMulI(LMulI* instr) {
     }
     __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
+      // Constant can't be represented as Smi due to immediate size limit.
+      ASSERT(SmiValuesAre32Bits()
+          ? !instr->hydrogen_value()->representation().IsSmi()
+          : SmiValuesAre31Bits());
       if (ToInteger32(LConstantOperand::cast(right)) < 0) {
         DeoptimizeIf(no_condition, instr->environment());
       } else if (ToInteger32(LConstantOperand::cast(right)) == 0) {
@@ -1533,8 +1537,9 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->IsRegister());
 
   if (right->IsConstantOperand()) {
-    int32_t right_operand = ToRepresentation(LConstantOperand::cast(right),
-                                          instr->hydrogen()->representation());
+    int32_t right_operand =
+        ToRepresentation(LConstantOperand::cast(right),
+                         instr->hydrogen()->right()->representation());
     switch (instr->op()) {
       case Token::BIT_AND:
         __ andl(ToRegister(left), Immediate(right_operand));
@@ -1699,9 +1704,9 @@ void LCodeGen::DoSubI(LSubI* instr) {
   ASSERT(left->Equals(instr->result()));
 
   if (right->IsConstantOperand()) {
-    __ subl(ToRegister(left),
-            Immediate(ToRepresentation(LConstantOperand::cast(right),
-                                       instr->hydrogen()->representation())));
+    __ subl(ToRegister(left), Immediate(
+        ToRepresentation(LConstantOperand::cast(right),
+                         instr->hydrogen()->right()->representation())));
   } else if (right->IsRegister()) {
     if (instr->hydrogen_value()->representation().IsSmi()) {
       __ subp(ToRegister(left), ToRegister(right));
@@ -1902,10 +1907,17 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
-      int32_t offset = ToRepresentation(LConstantOperand::cast(right),
-                                        instr->hydrogen()->representation());
-      __ leal(ToRegister(instr->result()),
-              MemOperand(ToRegister(left), offset));
+      ASSERT(SmiValuesAre32Bits() ? !target_rep.IsSmi() : SmiValuesAre31Bits());
+      int32_t offset =
+          ToRepresentation(LConstantOperand::cast(right),
+                           instr->hydrogen()->right()->representation());
+      if (is_p) {
+        __ leap(ToRegister(instr->result()),
+                MemOperand(ToRegister(left), offset));
+      } else {
+        __ leal(ToRegister(instr->result()),
+                MemOperand(ToRegister(left), offset));
+      }
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
       if (is_p) {
@@ -1916,9 +1928,15 @@ void LCodeGen::DoAddI(LAddI* instr) {
     }
   } else {
     if (right->IsConstantOperand()) {
-      __ addl(ToRegister(left),
-              Immediate(ToRepresentation(LConstantOperand::cast(right),
-                                         instr->hydrogen()->representation())));
+      ASSERT(SmiValuesAre32Bits() ? !target_rep.IsSmi() : SmiValuesAre31Bits());
+      int32_t right_value =
+          ToRepresentation(LConstantOperand::cast(right),
+                           instr->hydrogen()->right()->representation());
+      if (is_p) {
+        __ addp(ToRegister(left), Immediate(right_value));
+      } else {
+        __ addl(ToRegister(left), Immediate(right_value));
+      }
     } else if (right->IsRegister()) {
       if (is_p) {
         __ addp(ToRegister(left), ToRegister(right));
@@ -1951,9 +1969,12 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
         : greater_equal;
     Register left_reg = ToRegister(left);
     if (right->IsConstantOperand()) {
-      Immediate right_imm =
-          Immediate(ToRepresentation(LConstantOperand::cast(right),
-                                     instr->hydrogen()->representation()));
+      Immediate right_imm = Immediate(
+          ToRepresentation(LConstantOperand::cast(right),
+                           instr->hydrogen()->right()->representation()));
+      ASSERT(SmiValuesAre32Bits()
+          ? !instr->hydrogen()->representation().IsSmi()
+          : SmiValuesAre31Bits());
       __ cmpl(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
       __ movp(left_reg, right_imm);
@@ -2746,8 +2767,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     __ Push(ToRegister(instr->value()));
     __ Push(instr->function());
 
-    // Actual size for X32.
-    static const int kAdditionalDelta = 16;
+    static const int kAdditionalDelta = kPointerSize == kInt64Size ? 10 : 16;
     int delta =
         masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
     ASSERT(delta >= 0);
@@ -3645,8 +3665,10 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ andps(input_reg, scratch);
-  } else if (r.IsSmiOrInteger32()) {
+  } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
+  } else if (r.IsSmi()) {
+    EmitSmiMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
         new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);

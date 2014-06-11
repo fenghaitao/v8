@@ -331,9 +331,9 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 
 int LPlatformChunk::GetNextSpillIndex(RegisterKind kind) {
-  // Skip a slot if for a double-width slot.
-  // TODO(haitao): Support aligned spilled doubles.
-  if (kind == DOUBLE_REGISTERS) {
+  if (kind == DOUBLE_REGISTERS && kDoubleSize == kPointerSize * 2) {
+    // Skip a slot if for a double-width slot for x32 port.
+    // TODO(haitao): Support aligned spilled doubles for x32 port.
     spill_slot_count_++;
     spill_slot_count_ |= 1;
   }
@@ -1533,8 +1533,14 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     HValue* right_candidate = instr->BetterRightOperand();
     LOperand* right;
-    right = use_lea ? UseRegisterOrConstantAtStart(right_candidate)
-                    : UseOrConstantAtStart(right_candidate);
+    if (SmiValuesAre32Bits() && instr->representation().IsSmi()) {
+      // We cannot add a tagged immediate to a tagged value,
+      // so we request it in a register.
+      right = UseRegisterAtStart(right_candidate);
+    } else {
+      right = use_lea ? UseRegisterOrConstantAtStart(right_candidate)
+                      : UseOrConstantAtStart(right_candidate);
+    }
     LAddI* add = new(zone()) LAddI(left, right);
     bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
     LInstruction* result = use_lea ? DefineAsRegister(add)

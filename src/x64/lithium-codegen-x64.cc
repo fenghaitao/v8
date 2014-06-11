@@ -437,7 +437,6 @@ bool LCodeGen::IsSmiConstant(LConstantOperand* op) const {
 }
 
 
-#ifndef V8_TARGET_ARCH_X32
 int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
   return ToRepresentation(op, Representation::Integer32());
 }
@@ -451,21 +450,6 @@ int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
   ASSERT(SmiValuesAre31Bits() && r.IsSmiOrTagged());
   return static_cast<int32_t>(reinterpret_cast<intptr_t>(Smi::FromInt(value)));
 }
-#else
-int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
-  return ToRepresentation(op, Representation::Integer32());
-}
-
-
-int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
-                                   const Representation& r) const {
-  HConstant* constant = chunk_->LookupConstant(op);
-  int32_t value = constant->Integer32Value();
-  if (r.IsInteger32()) return value;
-  ASSERT(r.IsSmiOrTagged());
-  return reinterpret_cast<int32_t>(Smi::FromInt(value));
-}
-#endif
 
 
 Smi* LCodeGen::ToSmi(LConstantOperand* op) const {
@@ -3686,16 +3670,10 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ andps(input_reg, scratch);
-#ifndef V8_TARGET_ARCH_X32
   } else if (r.IsInteger32()) {
-#else
-  } else if (r.IsSmiOrInteger32()) {
-#endif
     EmitIntegerMathAbs(instr);
-#ifndef V8_TARGET_ARCH_X32
   } else if (r.IsSmi()) {
     EmitSmiMathAbs(instr);
-#endif
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
         new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);
