@@ -1057,10 +1057,11 @@ class MacroAssembler: public Assembler {
       andp(reg, Immediate(Field::kMask));
       shlp(reg, Immediate(kSmiShift - Field::kShift));
     } else {
-      ASSERT(SmiValuesAre31Bits());
       static const int shift = Field::kShift;
-      static const int mask = (Field::kMask >> Field::kShift) << kSmiShift;
-      ASSERT((mask & (0x80000000u >> (kSmiShift - 1))) == 0);
+      static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
+      ASSERT(SmiValuesAre31Bits());
+      ASSERT(kSmiShift == kSmiTagSize);
+      ASSERT((mask & 0x80000000u) == 0);
       if (shift < kSmiShift) {
         shlp(reg, Immediate(kSmiShift - shift));
       } else if (shift > kSmiShift) {
