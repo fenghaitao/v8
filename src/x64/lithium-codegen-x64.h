@@ -67,7 +67,6 @@ class LCodeGen: public LCodeGenBase {
   bool IsSmiConstant(LConstantOperand* op) const;
   int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
-  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   ExternalReference ToExternalReference(LConstantOperand* op) const;

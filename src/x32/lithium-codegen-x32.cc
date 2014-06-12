@@ -1499,7 +1499,8 @@ void LCodeGen::DoMulI(LMulI* instr) {
     }
     __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
-      // Constant can't be represented as Smi due to immediate size limit.
+      // Constant can't be represented as 32-bit Smi due to immediate size
+      // limit.
       ASSERT(SmiValuesAre32Bits()
           ? !instr->hydrogen_value()->representation().IsSmi()
           : SmiValuesAre31Bits());
@@ -1704,9 +1705,10 @@ void LCodeGen::DoSubI(LSubI* instr) {
   ASSERT(left->Equals(instr->result()));
 
   if (right->IsConstantOperand()) {
-    __ subl(ToRegister(left), Immediate(
+    int32_t right_operand =
         ToRepresentation(LConstantOperand::cast(right),
-                         instr->hydrogen()->right()->representation())));
+                         instr->hydrogen()->right()->representation());
+    __ subl(ToRegister(left), Immediate(right_operand));
   } else if (right->IsRegister()) {
     if (instr->hydrogen_value()->representation().IsSmi()) {
       __ subp(ToRegister(left), ToRegister(right));
@@ -1907,6 +1909,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
+      // No support for smi-immediates for 32-bit SMI.
       ASSERT(SmiValuesAre32Bits() ? !target_rep.IsSmi() : SmiValuesAre31Bits());
       int32_t offset =
           ToRepresentation(LConstantOperand::cast(right),
@@ -1928,14 +1931,15 @@ void LCodeGen::DoAddI(LAddI* instr) {
     }
   } else {
     if (right->IsConstantOperand()) {
+      // No support for smi-immediates for 32-bit SMI.
       ASSERT(SmiValuesAre32Bits() ? !target_rep.IsSmi() : SmiValuesAre31Bits());
-      int32_t right_value =
+      int32_t right_operand =
           ToRepresentation(LConstantOperand::cast(right),
                            instr->hydrogen()->right()->representation());
       if (is_p) {
-        __ addp(ToRegister(left), Immediate(right_value));
+        __ addp(ToRegister(left), Immediate(right_operand));
       } else {
-        __ addl(ToRegister(left), Immediate(right_value));
+        __ addl(ToRegister(left), Immediate(right_operand));
       }
     } else if (right->IsRegister()) {
       if (is_p) {

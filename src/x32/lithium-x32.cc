@@ -710,8 +710,8 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
       HConstant* constant = HConstant::cast(right_value);
       right = chunk_->DefineConstantOperand(constant);
       constant_value = constant->Integer32Value() & 0x1f;
-      if (SmiValuesAre31Bits() && instr->representation().IsSmi()
-          && constant_value > 0) {
+      if (SmiValuesAre31Bits() && instr->representation().IsSmi() &&
+          constant_value > 0) {
         // Left shift can deoptimize if we shift by > 0 and the result
         // cannot be truncated to smi.
         does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToSmi);
