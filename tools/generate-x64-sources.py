@@ -190,59 +190,9 @@ def ProcessLine(lines, line_number, is_assembler, debug):
 def ProcessLines(lines_in, lines_out, line_number, is_assembler, debug):
   line_in  = lines_in[line_number]
 
-  if line_in.find("#ifdef V8_TARGET_ARCH_X32") != -1:
-    # Process codes inside #ifdef V8_TARGET_ARCH_X32 lines #endif
-    # If debug, keep the #ifdef and #endif, otherwise remove them
-    begin = line_number
-    lines_out.append(line_in)
-
-    line_number += 1;
-    line_in = lines_in[line_number]
-    while (line_in.find("#endif")) == -1:
-      lines_out.append(line_in)
-      line_number += 1;
-      line_in = lines_in[line_number]
-
-    lines_out.append(line_in)
-
-    return line_number - begin + 1
-  elif line_in.find("#ifndef V8_TARGET_ARCH_X32") != -1:
-    # Process codes inside #ifndef V8_TARGET_ARCH_X32 x64_lines #endif or
-    # #ifndef V8_TARGET_ARCH_X32 x64_lines #else x32_lines #endif
-    # If debug, keep all, otherwise remove #ifdef, x64_lines, #else and #endif
-    begin = line_number
-    lines_out.append(line_in)
-
-    depth = 1;
-    line_number += 1;
-    line_in = lines_in[line_number]
-    while (line_in.find("#else") == -1 and line_in.find("#endif") == -1) or depth > 1:
-      lines_out.append(line_in)
-      line_number += 1;
-      line_in = lines_in[line_number]
-      if (line_in.find("#if") != -1 or line_in.find("#ifdef") != -1):
-        depth += 1
-      elif line_in.find("#endif") != -1 and depth > 1:
-        depth -= 1
-        lines_out.append(line_in)
-        line_number += 1;
-        line_in = lines_in[line_number]
-
-    if (line_in.find("#else")) != -1:
-      lines_out.append(line_in)
-      line_number += 1;
-      line_in = lines_in[line_number]
-      while (line_in.find("#endif")) == -1:
-        lines_out.append(line_in)
-        line_number += 1;
-        line_in = lines_in[line_number]
-    lines_out.append(line_in)
-
-    return line_number - begin + 1
-  else:
-    line_out = ProcessLine(lines_in, line_number, is_assembler, debug)
-    lines_out.append(line_out)
-    return 1
+  line_out = ProcessLine(lines_in, line_number, is_assembler, debug)
+  lines_out.append(line_out)
+  return 1
 
 def ProcessFile(name, debug):
   f_in = open(name, "r")
