@@ -316,7 +316,7 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       ASSERT(instr->result()->IsStackSlot());
       Operand src = ToOperand(instr->result());
       __ movsxlq(kScratchRegister, src);
-      __ movp(src, kScratchRegister);
+      __ movq(src, kScratchRegister);
     }
   }
 }

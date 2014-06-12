@@ -2203,7 +2203,7 @@ void MacroAssembler::SmiShiftLeftConstant(Register dst,
     }
     if (shift_value > 0) {
       // Shift amount specified by lower 5 bits, not six as the shl opcode.
-      shlq(dst, Immediate(shift_value & 0x1f));
+      __k shlq(dst, Immediate(shift_value & 0x1f));
     }
   } else {
     ASSERT(SmiValuesAre31Bits());
@@ -2259,7 +2259,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
     SmiToInteger32(rcx, src2);
     // Shift amount specified by lower 5 bits, not six as the shl opcode.
     andp(rcx, Immediate(0x1f));
-    shlq_cl(dst);
+    __k shlq_cl(dst);
   } else {
     ASSERT(SmiValuesAre31Bits());
     ASSERT(!dst.is(kScratchRegister));
@@ -2269,7 +2269,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
     ASSERT(!dst.is(rcx));
 
     if (src1.is(rcx) || src2.is(rcx)) {
-      movq(kScratchRegister, rcx);
+      __k movq(kScratchRegister, rcx);
     }
     if (dst.is(src1)) {
       UNIMPLEMENTED();  // Not used.
@@ -2283,9 +2283,9 @@ void MacroAssembler::SmiShiftLeft(Register dst,
       // clobbering dst.
       if (src1.is(rcx) || src2.is(rcx)) {
         if (src1.is(rcx)) {
-          movq(src1, kScratchRegister);
+          __k movq(src1, kScratchRegister);
         } else {
-          movq(src2, kScratchRegister);
+          __k movq(src2, kScratchRegister);
         }
       }
       jmp(on_not_smi_result, near_jump);
@@ -2307,7 +2307,7 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   ASSERT(!dst.is(src2));
   ASSERT(!dst.is(rcx));
   if (src1.is(rcx) || src2.is(rcx)) {
-    movq(kScratchRegister, rcx);
+    __k movq(kScratchRegister, rcx);
   }
   if (dst.is(src1)) {
     UNIMPLEMENTED();  // Not used.
@@ -2321,9 +2321,9 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
     // clobbering dst.
     if (src1.is(rcx) || src2.is(rcx)) {
       if (src1.is(rcx)) {
-        movq(src1, kScratchRegister);
+        __k movq(src1, kScratchRegister);
       } else {
-        movq(src2, kScratchRegister);
+        __k movq(src2, kScratchRegister);
       }
      }
     jmp(on_not_smi_result, near_jump);

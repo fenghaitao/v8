@@ -2202,7 +2202,7 @@ void MacroAssembler::SmiShiftLeftConstant(Register dst,
     }
     if (shift_value > 0) {
       // Shift amount specified by lower 5 bits, not six as the shl opcode.
-      shlp(dst, Immediate(shift_value & 0x1f));
+      shlq(dst, Immediate(shift_value & 0x1f));
     }
   } else {
     ASSERT(SmiValuesAre31Bits());
@@ -2258,7 +2258,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
     SmiToInteger32(rcx, src2);
     // Shift amount specified by lower 5 bits, not six as the shl opcode.
     andp(rcx, Immediate(0x1f));
-    shlp_cl(dst);
+    shlq_cl(dst);
   } else {
     ASSERT(SmiValuesAre31Bits());
     ASSERT(!dst.is(kScratchRegister));
@@ -2268,7 +2268,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
     ASSERT(!dst.is(rcx));
 
     if (src1.is(rcx) || src2.is(rcx)) {
-      movp(kScratchRegister, rcx);
+      movq(kScratchRegister, rcx);
     }
     if (dst.is(src1)) {
       UNIMPLEMENTED();  // Not used.
@@ -2282,9 +2282,9 @@ void MacroAssembler::SmiShiftLeft(Register dst,
       // clobbering dst.
       if (src1.is(rcx) || src2.is(rcx)) {
         if (src1.is(rcx)) {
-          movp(src1, kScratchRegister);
+          movq(src1, kScratchRegister);
         } else {
-          movp(src2, kScratchRegister);
+          movq(src2, kScratchRegister);
         }
       }
       jmp(on_not_smi_result, near_jump);
@@ -2306,7 +2306,7 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   ASSERT(!dst.is(src2));
   ASSERT(!dst.is(rcx));
   if (src1.is(rcx) || src2.is(rcx)) {
-    movp(kScratchRegister, rcx);
+    movq(kScratchRegister, rcx);
   }
   if (dst.is(src1)) {
     UNIMPLEMENTED();  // Not used.
@@ -2320,9 +2320,9 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
     // clobbering dst.
     if (src1.is(rcx) || src2.is(rcx)) {
       if (src1.is(rcx)) {
-        movp(src1, kScratchRegister);
+        movq(src1, kScratchRegister);
       } else {
-        movp(src2, kScratchRegister);
+        movq(src2, kScratchRegister);
       }
      }
     jmp(on_not_smi_result, near_jump);
