@@ -13,8 +13,6 @@
 #include "src/ia32/frames-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/x64/frames-x64.h"
-#elif V8_TARGET_ARCH_X32
-#include "src/x32/frames-x32.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/frames-arm64.h"
 #elif V8_TARGET_ARCH_ARM

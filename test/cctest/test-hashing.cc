@@ -65,7 +65,7 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ pop(ecx);
   __ pop(ebx);
   __ Ret();
-#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
+#elif V8_TARGET_ARCH_X64
   __ pushq(kRootRegister);
   __ InitializeRootRegister();
   __ pushq(rbx);
@@ -142,7 +142,7 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ GetNumberHash(eax, ebx);
   __ pop(ebx);
   __ Ret();
-#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
+#elif V8_TARGET_ARCH_X64
   __ pushq(kRootRegister);
   __ InitializeRootRegister();
   __ pushq(rbx);

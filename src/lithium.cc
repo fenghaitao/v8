@@ -13,9 +13,6 @@
 #elif V8_TARGET_ARCH_X64
 #include "src/x64/lithium-x64.h"
 #include "src/x64/lithium-codegen-x64.h"
-#elif V8_TARGET_ARCH_X32
-#include "src/x32/lithium-x32.h"
-#include "src/x32/lithium-codegen-x32.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/lithium-arm.h"
 #include "src/arm/lithium-codegen-arm.h"

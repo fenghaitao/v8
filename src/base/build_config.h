@@ -63,8 +63,7 @@
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_X87 && \
-    !V8_TARGET_ARCH_X32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && \
-    !V8_TARGET_ARCH_MIPS
+    !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)
@@ -129,8 +128,6 @@
 #if V8_TARGET_ARCH_IA32
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_X64
-#define V8_TARGET_LITTLE_ENDIAN 1
-#elif V8_TARGET_ARCH_X32
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_ARM
 #define V8_TARGET_LITTLE_ENDIAN 1

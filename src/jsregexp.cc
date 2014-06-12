@@ -26,8 +26,6 @@
 #include "src/ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/x64/regexp-macro-assembler-x64.h"
-#elif V8_TARGET_ARCH_X32
-#include "src/x32/regexp-macro-assembler-x32.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/regexp-macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
@@ -6069,9 +6067,6 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
                                            zone);
 #elif V8_TARGET_ARCH_X64
   RegExpMacroAssemblerX64 macro_assembler(mode, (data->capture_count + 1) * 2,
-                                          zone);
-#elif V8_TARGET_ARCH_X32
-  RegExpMacroAssemblerX32 macro_assembler(mode, (data->capture_count + 1) * 2,
                                           zone);
 #elif V8_TARGET_ARCH_ARM
   RegExpMacroAssemblerARM macro_assembler(mode, (data->capture_count + 1) * 2,

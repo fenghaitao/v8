@@ -11,8 +11,6 @@
 #include "src/ia32/lithium-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/x64/lithium-x64.h"
-#elif V8_TARGET_ARCH_X32
-#include "src/x32/lithium-x32.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/lithium-arm64.h"
 #elif V8_TARGET_ARCH_ARM

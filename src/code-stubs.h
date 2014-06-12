@@ -441,8 +441,6 @@ class RuntimeCallHelper {
 #include "src/ia32/code-stubs-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/x64/code-stubs-x64.h"
-#elif V8_TARGET_ARCH_X32
-#include "src/x32/code-stubs-x32.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/code-stubs-arm64.h"
 #elif V8_TARGET_ARCH_ARM
