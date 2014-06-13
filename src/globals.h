@@ -167,7 +167,6 @@ const bool kRequiresCodeRange = false;
 const size_t kMaximalCodeRangeSize = 0 * MB;
 #endif
 #endif
-#endif
 
 const int kBitsPerByte = 8;
 const int kBitsPerByteLog2 = 3;
