@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X32
 
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
@@ -130,7 +130,6 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 
 
 #define __ masm()->
-#define __k __
 
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
@@ -348,10 +347,9 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
 }
 
 
-#undef __k
 #undef __
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X32

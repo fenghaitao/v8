@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X32
 
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
@@ -445,7 +445,6 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
 
 
 #define __ ACCESS_MASM(masm)
-#define __k __
 
 
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
@@ -964,8 +963,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Stack layout:
   //  rsp[0]  : return address
   //  rsp[8]  : number of parameters (tagged)
-  //  rsp[16] : receiver displacement
-  //  rsp[24] : function
+  //  rsp[12] : receiver displacement
+  //  rsp[16] : function
   // Registers used over the whole function:
   //  rbx: the mapped parameter count (untagged)
   //  rax: the allocated object (tagged).
@@ -1181,8 +1180,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // rsp[0]  : return address
   // rsp[8]  : number of parameters
-  // rsp[16] : receiver displacement
-  // rsp[24] : function
+  // rsp[12] : receiver displacement
+  // rsp[16] : function
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
@@ -1208,8 +1207,8 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
 void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // rsp[0]  : return address
   // rsp[8]  : number of parameters
-  // rsp[16] : receiver displacement
-  // rsp[24] : function
+  // rsp[12] : receiver displacement
+  // rsp[16] : function
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
@@ -1317,9 +1316,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Stack frame on entry.
   //  rsp[0]  : return address
   //  rsp[8]  : last_match_info (expected JSArray)
-  //  rsp[16] : previous index
-  //  rsp[24] : subject string
-  //  rsp[32] : JSRegExp object
+  //  rsp[12] : previous index
+  //  rsp[16] : subject string
+  //  rsp[20] : JSRegExp object
 
   enum RegExpExecStubArgumentIndices {
     JS_REG_EXP_OBJECT_ARGUMENT_INDEX,
@@ -1500,7 +1499,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 9: Pass current isolate address.
   __ LoadAddress(kScratchRegister,
                  ExternalReference::isolate_address(isolate()));
-  __k movq(Operand(rsp, (argument_slots_on_stack - 1) * kRegisterSize),
+  __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kRegisterSize),
           kScratchRegister);
 
   // Argument 8: Indicate that this is a direct call from JavaScript.
@@ -2692,7 +2691,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ Move(kScratchRegister, Smi::FromInt(marker), Assembler::RelocInfoNone());
     __ Push(kScratchRegister);  // context slot
     __ Push(kScratchRegister);  // function slot
-    // Save callee-saved registers (X64/X32/Win64 calling conventions).
+    // Save callee-saved registers (X32/X32/Win64 calling conventions).
     __ pushq(r12);
     __ pushq(r13);
     __ pushq(r14);
@@ -2803,7 +2802,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ Pop(c_entry_fp_operand);
   }
 
-  // Restore callee-saved registers (X64 conventions).
+  // Restore callee-saved registers (X32 conventions).
 #ifdef _WIN64
   // On Win64 XMM6-XMM15 are callee-save
   __ movdqu(xmm6, Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 0));
@@ -2842,12 +2841,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Expected input state with no inline cache:
   //   rsp[0]  : return address
   //   rsp[8]  : function pointer
-  //   rsp[16] : value
+  //   rsp[12] : value
   // Expected input state with an inline one-element cache:
   //   rsp[0]  : return address
   //   rsp[8]  : offset from return address to location of inline cache
-  //   rsp[16] : function pointer
-  //   rsp[24] : value
+  //   rsp[12] : function pointer
+  //   rsp[16] : value
   // Returns a bitwise zero to indicate that the value
   // is and instance of the function and anything else to
   // indicate that the value is not an instance.
@@ -2866,7 +2865,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // before the offset of the hole value in the root array.
   static const unsigned int kWordBeforeResultValue =
       kPointerSize == kInt64Size ? 0x458B4906 : 0x458B4106;
-  // Only the inline check flag is supported on X64.
+  // Only the inline check flag is supported on X32.
   ASSERT(flags_ == kNoFlags || HasCallSiteInlineCheck());
   int extra_argument_offset = HasCallSiteInlineCheck() ? 1 : 0;
 
@@ -3240,8 +3239,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Stack frame on entry.
   //  rsp[0]  : return address
   //  rsp[8]  : to
-  //  rsp[16] : from
-  //  rsp[24] : string
+  //  rsp[12] : from
+  //  rsp[16] : string
 
   enum SubStringStubArgumentIndices {
     STRING_ARGUMENT_INDEX,
@@ -3586,7 +3585,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
          FieldOperand(left, length, times_1, SeqOneByteString::kHeaderSize));
   __ leap(right,
          FieldOperand(right, length, times_1, SeqOneByteString::kHeaderSize));
-  __k negq(length);
+  __ negq(length);
   Register index = length;  // index = -length;
 
   // Compare loop.
@@ -3595,7 +3594,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ movb(scratch, Operand(left, index, times_1, 0));
   __ cmpb(scratch, Operand(right, index, times_1, 0));
   __ j(not_equal, chars_not_equal, near_jump);
-  __k incq(index);
+  __ incq(index);
   __ j(not_zero, &loop);
 }
 
@@ -3606,7 +3605,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Stack frame on entry.
   //  rsp[0]  : return address
   //  rsp[8]  : right string
-  //  rsp[16] : left string
+  //  rsp[12] : left string
 
   StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER);
   __ movp(rdx, args.GetArgumentOperand(0));  // left
@@ -4423,7 +4422,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   //  -- rcx     : element index as smi
   //  -- rsp[0]  : return address
   //  -- rsp[8]  : array literal index in function
-  //  -- rsp[16] : array literal
+  //  -- rsp[12] : array literal
   // clobbers rbx, rdx, rdi
   // -----------------------------------
 
@@ -4872,17 +4871,17 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 
 void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax                 : callee
-  //  -- rbx                 : call_data
-  //  -- rcx                 : holder
-  //  -- rdx                 : api_function_address
-  //  -- rsi                 : context
+  //  -- rax                     : callee
+  //  -- rbx                     : call_data
+  //  -- rcx                     : holder
+  //  -- rdx                     : api_function_address
+  //  -- rsi                     : context
   //  --
-  //  -- rsp[0]              : return address
-  //  -- rsp[8]              : last argument
+  //  -- rsp[0]                  : return address
+  //  -- rsp[8]                  : last argument
   //  -- ...
-  //  -- rsp[argc * 8]       : first argument
-  //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[(argc - 1) * 4 + 8] : first argument
+  //  -- rsp[argc * 4 + 8]       : receiver
   // -----------------------------------
 
   Register callee = rax;
@@ -4994,7 +4993,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   //  -- rsp[8]                  : name
   //  -- rsp[16 - kArgsLength*8] : PropertyCallbackArguments object
   //  -- ...
-  //  -- r8                    : api_function_address
+  //  -- r8                      : api_function_address
   // -----------------------------------
 
 #if defined(__MINGW64__) || defined(_WIN64)
@@ -5049,9 +5048,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 }
 
 
-#undef __k
 #undef __
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X32

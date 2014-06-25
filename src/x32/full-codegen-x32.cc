@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X32
 
 #include "src/code-stubs.h"
 #include "src/codegen.h"
@@ -20,7 +20,6 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm_)
-#define __k __
 
 
 class JumpPatchSite BASE_EMBEDDED {
@@ -3956,7 +3955,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movl(index, array_length_operand);
   __ leap(elements, FieldOperand(elements, index, times_pointer_size,
                                 FixedArray::kHeaderSize));
-  __k negq(index);
+  __ negq(index);
 
   // Replace separator string with pointer to its first character, and
   // make scratch be its length.
@@ -3992,7 +3991,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ leap(string,
          FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(result_pos, string, string_length);
-  __k incq(index);
+  __ incq(index);
   __ j(not_equal, &loop_3);  // Loop while (index < 0).
 
   __ bind(&done);
@@ -4729,7 +4728,6 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 }
 
 
-#undef __k
 #undef __
 
 
@@ -4812,4 +4810,4 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X32
