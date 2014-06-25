@@ -130,6 +130,7 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 
 
 #define __ masm()->
+#define __k __
 
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
@@ -347,6 +348,7 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
 }
 
 
+#undef __k
 #undef __
 
 

@@ -30,6 +30,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 
 #define __ masm.
+#define __k __
 
 
 UnaryMathFunction CreateExpFunction() {
@@ -401,7 +402,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                             FixedDoubleArray::kHeaderSize));
   // r9 : current element's index
   // r14: current element
-  __ cmpq(r14, rsi);
+  __k cmpq(r14, rsi);
   __ j(equal, &convert_hole);
 
   // Non-hole double, copy value into a heap number.
@@ -591,20 +592,20 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ movq(temp2, double_scratch);
   __ subsd(double_scratch, result);
   __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ leaq(temp1, Operand(temp2, 0x1ff800));
-  __ andq(temp2, Immediate(0x7ff));
-  __ shrq(temp1, Immediate(11));
+  __k leaq(temp1, Operand(temp2, 0x1ff800));
+  __k andq(temp2, Immediate(0x7ff));
+  __k shrq(temp1, Immediate(11));
   __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
   __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
-  __ shlq(temp1, Immediate(52));
-  __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
+  __k shlq(temp1, Immediate(52));
+  __k orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ subsd(double_scratch, input);
   __ movsd(input, double_scratch);
   __ subsd(result, double_scratch);
   __ mulsd(input, double_scratch);
   __ mulsd(result, input);
-  __ movq(input, temp1);
+  __k movq(input, temp1);
   __ mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
   __ subsd(result, double_scratch);
   __ addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));
@@ -613,6 +614,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ bind(&done);
 }
 
+#undef __k
 #undef __
 
 

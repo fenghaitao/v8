@@ -41,6 +41,8 @@ class SafepointGenerator V8_FINAL : public CallWrapper {
 
 
 #define __ masm()->
+#define __k __
+
 
 bool LCodeGen::GenerateCode() {
   LPhase phase("Z_Code generation", chunk());
@@ -288,7 +290,7 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       ASSERT(instr->result()->IsStackSlot());
       Operand src = ToOperand(instr->result());
       __ movsxlq(kScratchRegister, src);
-      __ movq(src, kScratchRegister);
+      __k movq(src, kScratchRegister);
     }
   }
 }
@@ -1729,7 +1731,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   } else {
     Register tmp = ToRegister(instr->temp());
     __ Set(tmp, int_val);
-    __ movq(res, tmp);
+    __k movq(res, tmp);
   }
 }
 
@@ -3614,8 +3616,8 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
 
   __ bind(&allocated);
   __ movq(tmp2, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ shlq(tmp2, Immediate(1));
-  __ shrq(tmp2, Immediate(1));
+  __k shlq(tmp2, Immediate(1));
+  __k shrq(tmp2, Immediate(1));
   __ movq(FieldOperand(tmp, HeapNumber::kValueOffset), tmp2);
   __ StoreToSafepointRegisterSlot(input_reg, tmp);
 
@@ -3693,8 +3695,8 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     CpuFeatureScope scope(masm(), SSE4_1);
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       // Deoptimize if minus zero.
-      __ movq(output_reg, input_reg);
-      __ subq(output_reg, Immediate(1));
+      __k movq(output_reg, input_reg);
+      __k subq(output_reg, Immediate(1));
       DeoptimizeIf(overflow, instr->environment());
     }
     __ roundsd(xmm_scratch, input_reg, Assembler::kRoundDown);
@@ -3714,7 +3716,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
       Label positive_sign;
       __ j(above, &positive_sign, Label::kNear);
       __ movmskpd(output_reg, input_reg);
-      __ testq(output_reg, Immediate(1));
+      __k testq(output_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr->environment());
       __ Set(output_reg, 0);
       __ jmp(&done);
@@ -3753,7 +3755,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   Label done, round_to_zero, below_one_half;
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
-  __ movq(kScratchRegister, one_half);
+  __k movq(kScratchRegister, one_half);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_one_half, Label::kNear);
@@ -3768,14 +3770,14 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ jmp(&done, dist);
 
   __ bind(&below_one_half);
-  __ movq(kScratchRegister, minus_one_half);
+  __k movq(kScratchRegister, minus_one_half);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(below_equal, &round_to_zero, Label::kNear);
 
   // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
   // compare and compensate.
-  __ movq(input_temp, input_reg);  // Do not alter input_reg.
+  __k movq(input_temp, input_reg);  // Back up input_reg.
   __ subsd(input_temp, xmm_scratch);
   __ cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
@@ -3794,8 +3796,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
   // we can ignore the difference between a result of -0 and +0.
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ movq(output_reg, input_reg);
-    __ testq(output_reg, output_reg);
+    __k movq(output_reg, input_reg);
+    __k testq(output_reg, output_reg);
     __ RecordComment("Minus zero");
     DeoptimizeIf(negative, instr->environment());
   }
@@ -4334,7 +4336,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
     __ Set(kScratchRegister, BitCast<uint64_t>(
         FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
-    __ movq(value, kScratchRegister);
+    __k movq(value, kScratchRegister);
 
     __ bind(&have_value);
   }
@@ -4862,7 +4864,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       __ ucomisd(xmm_scratch, result_reg);
       __ j(not_equal, &done, Label::kNear);
       __ movmskpd(kScratchRegister, result_reg);
-      __ testq(kScratchRegister, Immediate(1));
+      __k testq(kScratchRegister, Immediate(1));
       DeoptimizeIf(not_zero, env);
     }
     __ jmp(&done, Label::kNear);
@@ -5230,8 +5232,8 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
   XMMRegister value_reg = ToDoubleRegister(instr->value());
   Register result_reg = ToRegister(instr->result());
   if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ movq(result_reg, value_reg);
-    __ shrq(result_reg, Immediate(32));
+    __k movq(result_reg, value_reg);
+    __k shrq(result_reg, Immediate(32));
   } else {
     __ movd(result_reg, value_reg);
   }
@@ -5845,6 +5847,7 @@ void LCodeGen::DoAllocateBlockContext(LAllocateBlockContext* instr) {
 }
 
 
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

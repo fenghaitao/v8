@@ -137,6 +137,7 @@ void LGapResolver::Verify() {
 
 
 #define __ ACCESS_MASM(cgen_->masm())
+#define __k __
 
 
 void LGapResolver::EmitMove(int index) {
@@ -194,7 +195,7 @@ void LGapResolver::EmitMove(int index) {
         __ xorps(dst, dst);
       } else {
         __ Set(kScratchRegister, int_val);
-        __ movq(dst, kScratchRegister);
+        __k movq(dst, kScratchRegister);
       }
     } else {
       ASSERT(destination->IsStackSlot());
@@ -245,7 +246,7 @@ void LGapResolver::EmitSwap(int index) {
     // Swap two general-purpose registers.
     Register src = cgen_->ToRegister(source);
     Register dst = cgen_->ToRegister(destination);
-    __ xchgq(dst, src);
+    __k xchgq(dst, src);
 
   } else if ((source->IsRegister() && destination->IsStackSlot()) ||
              (source->IsStackSlot() && destination->IsRegister())) {
@@ -312,6 +313,7 @@ void LGapResolver::EmitSwap(int index) {
   }
 }
 
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

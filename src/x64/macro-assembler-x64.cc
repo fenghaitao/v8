@@ -33,6 +33,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 
 static const int64_t kInvalidRootRegisterDelta = -1;
 
+#define __k
 
 int64_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
   if (predictable_code_size() &&
@@ -1013,9 +1014,9 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   } else if (is_uint32(x)) {
     movl(dst, Immediate(static_cast<uint32_t>(x)));
   } else if (is_int32(x)) {
-    movq(dst, Immediate(static_cast<int32_t>(x)));
+    __k movq(dst, Immediate(static_cast<int32_t>(x)));
   } else {
-    movq(dst, x);
+    __k movq(dst, x);
   }
 }
 
@@ -2202,7 +2203,7 @@ void MacroAssembler::SmiShiftLeftConstant(Register dst,
     }
     if (shift_value > 0) {
       // Shift amount specified by lower 5 bits, not six as the shl opcode.
-      shlq(dst, Immediate(shift_value & 0x1f));
+      __k shlq(dst, Immediate(shift_value & 0x1f));
     }
   } else {
     ASSERT(SmiValuesAre31Bits());
@@ -2258,7 +2259,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
     SmiToInteger32(rcx, src2);
     // Shift amount specified by lower 5 bits, not six as the shl opcode.
     andp(rcx, Immediate(0x1f));
-    shlq_cl(dst);
+    __k shlq_cl(dst);
   } else {
     ASSERT(SmiValuesAre31Bits());
     ASSERT(!dst.is(kScratchRegister));
@@ -2268,7 +2269,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
     ASSERT(!dst.is(rcx));
 
     if (src1.is(rcx) || src2.is(rcx)) {
-      movq(kScratchRegister, rcx);
+      __k movq(kScratchRegister, rcx);
     }
     if (dst.is(src1)) {
       UNIMPLEMENTED();  // Not used.
@@ -2282,9 +2283,9 @@ void MacroAssembler::SmiShiftLeft(Register dst,
       // clobbering dst.
       if (src1.is(rcx) || src2.is(rcx)) {
         if (src1.is(rcx)) {
-          movq(src1, kScratchRegister);
+          __k movq(src1, kScratchRegister);
         } else {
-          movq(src2, kScratchRegister);
+          __k movq(src2, kScratchRegister);
         }
       }
       jmp(on_not_smi_result, near_jump);
@@ -2306,7 +2307,7 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   ASSERT(!dst.is(src2));
   ASSERT(!dst.is(rcx));
   if (src1.is(rcx) || src2.is(rcx)) {
-    movq(kScratchRegister, rcx);
+    __k movq(kScratchRegister, rcx);
   }
   if (dst.is(src1)) {
     UNIMPLEMENTED();  // Not used.
@@ -2320,9 +2321,9 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
     // clobbering dst.
     if (src1.is(rcx) || src2.is(rcx)) {
       if (src1.is(rcx)) {
-        movq(src1, kScratchRegister);
+        __k movq(src1, kScratchRegister);
       } else {
-        movq(src2, kScratchRegister);
+        __k movq(src2, kScratchRegister);
       }
      }
     jmp(on_not_smi_result, near_jump);
@@ -2413,7 +2414,7 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
     // be negative.
     movsxlq(dst, dst);
     if (shift == times_1) {
-      sarq(dst, Immediate(kSmiShift));
+      __k sarq(dst, Immediate(kSmiShift));
       return SmiIndex(dst, times_1);
     }
     return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
@@ -2443,9 +2444,9 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
     if (!dst.is(src)) {
       movp(dst, src);
     }
-    negq(dst);
+    __k negq(dst);
     if (shift == times_1) {
-      sarq(dst, Immediate(kSmiShift));
+      __k sarq(dst, Immediate(kSmiShift));
       return SmiIndex(dst, times_1);
     }
     return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
@@ -3467,7 +3468,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src) {
   if (FLAG_debug_code) {
-    cmpq(src, Immediate(0xffffffff));
+    __k cmpq(src, Immediate(0xffffffff));
     Assert(below_equal, kInputGPRIsExpectedToHaveUpper32Cleared);
   }
   cvtqsi2sd(dst, src);
@@ -3487,7 +3488,7 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
   Label done;
   movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
   cvttsd2siq(result_reg, xmm0);
-  cmpq(result_reg, Immediate(1));
+  __k cmpq(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
 
   // Slow case.
@@ -3510,7 +3511,7 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
                                        XMMRegister input_reg) {
   Label done;
   cvttsd2siq(result_reg, input_reg);
-  cmpq(result_reg, Immediate(1));
+  __k cmpq(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
 
   subp(rsp, Immediate(kDoubleSize));
@@ -3662,7 +3663,7 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (emit_debug_code()) {
     ASSERT(!int32_register.is(kScratchRegister));
     movq(kScratchRegister, V8_INT64_C(0x0000000100000000));
-    cmpq(kScratchRegister, int32_register);
+    __k cmpq(kScratchRegister, int32_register);
     Check(above_equal, k32BitValueInRegisterIsNotZeroExtended);
   }
 }
@@ -5352,6 +5353,9 @@ void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
   shrl(rax, Immediate(31));
   addl(rdx, rax);
 }
+
+
+#undef __k
 
 
 } }  // namespace v8::internal

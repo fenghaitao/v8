@@ -445,6 +445,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
 
 
 #define __ ACCESS_MASM(masm)
+#define __k __
 
 
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
@@ -1499,7 +1500,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 9: Pass current isolate address.
   __ LoadAddress(kScratchRegister,
                  ExternalReference::isolate_address(isolate()));
-  __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kRegisterSize),
+  __k movq(Operand(rsp, (argument_slots_on_stack - 1) * kRegisterSize),
           kScratchRegister);
 
   // Argument 8: Indicate that this is a direct call from JavaScript.
@@ -3585,7 +3586,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
          FieldOperand(left, length, times_1, SeqOneByteString::kHeaderSize));
   __ leap(right,
          FieldOperand(right, length, times_1, SeqOneByteString::kHeaderSize));
-  __ negq(length);
+  __k negq(length);
   Register index = length;  // index = -length;
 
   // Compare loop.
@@ -3594,7 +3595,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ movb(scratch, Operand(left, index, times_1, 0));
   __ cmpb(scratch, Operand(right, index, times_1, 0));
   __ j(not_equal, chars_not_equal, near_jump);
-  __ incq(index);
+  __k incq(index);
   __ j(not_zero, &loop);
 }
 
@@ -5048,6 +5049,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 }
 
 
+#undef __k
 #undef __
 
 } }  // namespace v8::internal
